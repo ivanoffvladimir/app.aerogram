@@ -117,3 +117,98 @@ async def with_tenant(db: AsyncSession, tenant_id: UUID) -> None:
 def source_files() -> Iterator[list[Path]]:
     """Все исходники backend — для тестов-сторожей, читающих код проекта."""
     yield sorted((BACKEND_ROOT / "src" / "aerogram").rglob("*.py"))
+
+
+# --- Фикстуры HTTP-уровня ----------------------------------------------------
+# Тесты API работают с настоящими транзакциями, как в проде: подменять их
+# savepoint-ами значит проверять не тот код, который поедет на сервер.
+# Поэтому изоляция достигается очисткой таблиц, а не откатом.
+
+#: Бизнес-таблицы, которые чистятся между тестами API.
+CLEANED_TABLES = "tenants, users, counterparties, addresses, cities, carriers"
+
+TEST_PASSWORD = "test-password-12345"
+
+
+@pytest.fixture
+async def clean_db(database_url: str) -> AsyncIterator[None]:
+    """Очистить бизнес-таблицы перед тестом."""
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine as _create_engine
+
+    url = os.getenv("TEST_MIGRATION_DATABASE_URL", database_url)
+    engine = _create_engine(url, isolation_level="AUTOCOMMIT")
+    async with engine.connect() as conn:
+        await conn.execute(text(f"TRUNCATE {CLEANED_TABLES} CASCADE"))
+    await engine.dispose()
+    yield
+
+
+@pytest.fixture
+async def app(database_url: str, clean_db: None) -> AsyncIterator[object]:
+    """Приложение, работающее с БД ровно так же, как в проде."""
+    os.environ["DATABASE_URL"] = database_url
+    os.environ.setdefault("REDIS_URL", "redis://127.0.0.1:6379/0")
+    os.environ.setdefault("JWT_SECRET", "test-secret-that-is-long-enough-for-validation")
+    os.environ.setdefault("CREDENTIAL_KEYS", "k1:" + "A" * 43 + "=")
+    # Токен ДаData в тестах не задан намеренно: это штатный путь деградации,
+    # и он обязан быть рабочим.
+    os.environ.pop("DADATA_TOKEN", None)
+
+    from aerogram import db as db_module
+    from aerogram.config import get_settings
+    from aerogram.main import create_app
+
+    get_settings.cache_clear()
+    db_module._engine = None
+    db_module._sessionmaker = None
+
+    application = create_app()
+    try:
+        yield application
+    finally:
+        engine = db_module._engine
+        if engine is not None:
+            await engine.dispose()
+        db_module._engine = None
+        db_module._sessionmaker = None
+        get_settings.cache_clear()
+
+
+@pytest.fixture
+async def seeded_tenants(app: object, database_url: str) -> tuple[UUID, UUID]:
+    """Два тенанта с пользователем-логистом в каждом.
+
+    Возвращает ``(tenant_a, tenant_b)``. Пользователи: ``a@example.com``
+    и ``b@example.com`` с паролем ``TEST_PASSWORD``.
+    """
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from sqlalchemy.ext.asyncio import create_async_engine as _create_engine
+
+    engine = _create_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    tenant_a, tenant_b = uuid7(), uuid7()
+
+    async with factory() as db, db.begin():
+        db.add_all(
+            [
+                make_tenant(tenant_a, "Роспломба"),
+                make_tenant(tenant_b, "Конкурент"),
+            ]
+        )
+        await db.flush()
+        for tenant_id, email in ((tenant_a, "a@example.com"), (tenant_b, "b@example.com")):
+            await set_tenant(db, tenant_id)
+            db.add(make_user(tenant_id, email, UserRole.OWNER))
+            await db.flush()
+    await engine.dispose()
+    return tenant_a, tenant_b
+
+
+async def login(client: object, email: str) -> dict[str, str]:
+    """Войти и получить заголовок авторизации."""
+    response = await client.post(  # type: ignore[attr-defined]
+        "/api/v1/auth/login", json={"email": email, "password": TEST_PASSWORD}
+    )
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}

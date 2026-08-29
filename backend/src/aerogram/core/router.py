@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Query, Request, status
 
 from aerogram.core.deps import (
     AuthServiceDep,
@@ -14,16 +15,21 @@ from aerogram.core.deps import (
     require_roles,
 )
 from aerogram.core.schemas import (
+    AddressCreate,
+    AddressOut,
+    CounterpartyCreate,
+    CounterpartyOut,
     LoginRequest,
+    Page,
     RefreshRequest,
     TokenPair,
     UserCreate,
     UserOut,
 )
-from aerogram.core.service import AuditService, UserService
+from aerogram.core.service import AddressBookService, AuditService, UserService
 from aerogram.shared.enums import UserRole
 
-__all__ = ["auth_router", "users_router"]
+__all__ = ["auth_router", "counterparties_router", "users_router"]
 
 auth_router = APIRouter(prefix="/auth", tags=["Аутентификация"])
 users_router = APIRouter(prefix="/users", tags=["Пользователи"])
@@ -102,3 +108,142 @@ async def create_user(
         user_agent=request.headers.get("user-agent"),
     )
     return UserOut.model_validate(user)
+
+
+counterparties_router = APIRouter(prefix="/counterparties", tags=["Адресная книга"])
+
+
+@counterparties_router.get(
+    "",
+    response_model=Page[CounterpartyOut],
+    summary="Поиск контрагентов",
+)
+async def search_counterparties(
+    principal: CurrentPrincipal,
+    session: SessionDep,
+    q: Annotated[str | None, Query(max_length=200)] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> Page[CounterpartyOut]:
+    """Контрагенты тенанта с поиском по названию и ИНН (FR-8.4).
+
+    Строка из одних цифр трактуется как ИНН и ищется по префиксу, всё
+    остальное — как подстрока названия в любом месте.
+    """
+    items, total = await AddressBookService(session).search(q, limit=limit, offset=offset)
+    return Page[CounterpartyOut](
+        items=[CounterpartyOut.model_validate(item) for item in items],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@counterparties_router.post(
+    "",
+    response_model=CounterpartyOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Завести контрагента",
+)
+async def create_counterparty(
+    payload: CounterpartyCreate,
+    request: Request,
+    session: SessionDep,
+    principal: Annotated[object, require_roles(UserRole.OWNER, UserRole.LOGISTICIAN)],
+) -> CounterpartyOut:
+    actor: CurrentPrincipal = principal  # type: ignore[assignment]
+    counterparty = await AddressBookService(session).create(
+        tenant_id=actor.tenant_id,
+        type_=payload.type,
+        name=payload.name,
+        inn=payload.inn,
+        kpp=payload.kpp,
+        contact_person=payload.contact_person,
+        phone=payload.phone,
+        email=payload.email,
+        addresses=[a.model_dump() for a in payload.addresses],
+    )
+    AuditService(session).record(
+        tenant_id=actor.tenant_id,
+        actor_user_id=actor.user_id,
+        action="counterparty.create",
+        entity_type="counterparty",
+        entity_id=counterparty.id,
+        ip=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    return CounterpartyOut.model_validate(counterparty)
+
+
+@counterparties_router.get(
+    "/{counterparty_id}",
+    response_model=CounterpartyOut,
+    summary="Карточка контрагента",
+)
+async def get_counterparty(
+    counterparty_id: UUID,
+    principal: CurrentPrincipal,
+    session: SessionDep,
+) -> CounterpartyOut:
+    counterparty = await AddressBookService(session).get(counterparty_id)
+    return CounterpartyOut.model_validate(counterparty)
+
+
+@counterparties_router.post(
+    "/{counterparty_id}/addresses",
+    response_model=AddressOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Добавить адрес контрагенту",
+)
+async def add_address(
+    counterparty_id: UUID,
+    payload: AddressCreate,
+    session: SessionDep,
+    principal: Annotated[object, require_roles(UserRole.OWNER, UserRole.LOGISTICIAN)],
+) -> AddressOut:
+    actor: CurrentPrincipal = principal  # type: ignore[assignment]
+    service = AddressBookService(session)
+    counterparty = await service.get(counterparty_id)
+    address = await service.add_address(
+        tenant_id=actor.tenant_id, counterparty=counterparty, payload=payload.model_dump()
+    )
+    return AddressOut.model_validate(address)
+
+
+@counterparties_router.get(
+    "/{counterparty_id}/addresses",
+    response_model=list[AddressOut],
+    summary="Адреса контрагента",
+)
+async def list_addresses(
+    counterparty_id: UUID,
+    principal: CurrentPrincipal,
+    session: SessionDep,
+) -> list[AddressOut]:
+    addresses = await AddressBookService(session).list_addresses(counterparty_id)
+    return [AddressOut.model_validate(a) for a in addresses]
+
+
+@counterparties_router.delete(
+    "/{counterparty_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удалить контрагента",
+)
+async def delete_counterparty(
+    counterparty_id: UUID,
+    request: Request,
+    session: SessionDep,
+    principal: Annotated[object, require_roles(UserRole.OWNER, UserRole.LOGISTICIAN)],
+) -> None:
+    """Мягкое удаление: адреса используются в отправлениях и не исчезают."""
+    actor: CurrentPrincipal = principal  # type: ignore[assignment]
+    await AddressBookService(session).soft_delete(counterparty_id)
+    AuditService(session).record(
+        tenant_id=actor.tenant_id,
+        actor_user_id=actor.user_id,
+        action="counterparty.delete",
+        entity_type="counterparty",
+        entity_id=counterparty_id,
+        ip=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )

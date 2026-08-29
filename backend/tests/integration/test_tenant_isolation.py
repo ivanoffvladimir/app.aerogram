@@ -254,3 +254,40 @@ class TestAuthLookupWindow:
             {"t": str(tenant_b)},
         )
         assert result.rowcount == 0
+
+
+class TestDatabaseLocale:
+    """Локаль базы данных: без неё поиск по-русски молча не работает.
+
+    В локали ``C`` PostgreSQL не сворачивает регистр кириллицы: ``lower('РОМАШКА')``
+    возвращает строку без изменений, а ``ILIKE '%РОМАШКА%'`` не находит
+    «Ромашка». Ошибка не проявляется ни в одном тесте на латинице и обнаруживается
+    только жалобой оператора, у которого «не ищется контрагент».
+
+    Требование к развёртыванию: база создаётся с UTF-8-локалью
+    (``LOCALE 'C.UTF-8'``), см. deploy/init-db.sql.
+    """
+
+    async def test_database_folds_cyrillic_case(self, session: AsyncSession) -> None:
+        folded = (await session.execute(text("SELECT lower('РОМАШКА')"))).scalar_one()
+        assert folded == "ромашка", (
+            "база создана с локалью, не сворачивающей регистр кириллицы — "
+            "поиск по названию контрагента работать не будет"
+        )
+
+    async def test_case_insensitive_like_matches_cyrillic(self, session: AsyncSession) -> None:
+        matched = (
+            await session.execute(text("SELECT 'ООО «Ромашка»' ILIKE '%РОМАШКА%'"))
+        ).scalar_one()
+        assert matched is True
+
+    async def test_database_encoding_is_utf8(self, session: AsyncSession) -> None:
+        encoding = (
+            await session.execute(
+                text(
+                    "SELECT pg_encoding_to_char(encoding) FROM pg_database "
+                    "WHERE datname = current_database()"
+                )
+            )
+        ).scalar_one()
+        assert encoding == "UTF8"

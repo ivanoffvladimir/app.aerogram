@@ -24,6 +24,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -128,7 +129,7 @@ class AuditLog(Base, TenantMixin):
     user_agent: Mapped[str | None] = mapped_column(String(512))
     payload_diff: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
 
     __table_args__ = (
@@ -187,6 +188,18 @@ class Address(Base, TenantMixin, TimestampMixin):
     lat: Mapped[float | None] = mapped_column()
     lon: Mapped[float | None] = mapped_column()
     is_default_sender: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Следующий элемент лестницы ключа города — для отката сопоставления,
+    #: когда своего кода у населённого пункта у перевозчика нет.
+    city_parent_fias_id: Mapped[str | None] = mapped_column(String(36))
+    #: Для чего адрес годится: door / locality / unusable. Единой проверки
+    #: «адрес валиден» недостаточно: до пункта выдачи дом не нужен, до двери
+    #: обязателен.
+    fitness: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="unusable", server_default="unusable"
+    )
+    #: Момент успешной нормализации. NULL означает «адрес введён руками
+    #: и через справочник не проходил» — такой адрес не блокируется, но помечен.
+    normalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     comment: Mapped[str | None] = mapped_column(Text)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -252,7 +265,7 @@ class CarrierRawCall(Base, TenantMixin):
     request_payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     response_payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
     #: Момент, после которого запись подлежит удалению.
     expires_at: Mapped[date] = mapped_column(Date, nullable=False)

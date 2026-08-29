@@ -52,6 +52,9 @@ jobs:
           POSTGRES_USER: aerogram_migrator
           POSTGRES_PASSWORD: migrator
           POSTGRES_DB: aerogram
+          # Локаль C не сворачивает регистр кириллицы — поиск по названию
+          # контрагента ломается молча. Проверяется тестом TestDatabaseLocale.
+          POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U aerogram_migrator -d aerogram"
