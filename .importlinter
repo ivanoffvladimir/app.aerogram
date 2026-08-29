@@ -1,0 +1,78 @@
+[importlinter]
+root_package = aerogram
+include_external_packages = True
+
+[importlinter:contract:module-layers]
+name = Слои внутри модулей: router -> service -> repository -> models
+type = layers
+layers =
+    (router)
+    (service)
+    (repository)
+    (models)
+containers =
+    aerogram.core
+    aerogram.directories
+    aerogram.rating
+    aerogram.shipments
+    aerogram.tracking
+    aerogram.documents
+    aerogram.scoring
+    aerogram.reports
+exhaustive = False
+
+[importlinter:contract:shared-independent]
+name = shared не зависит ни от чего внутри проекта
+type = forbidden
+source_modules =
+    aerogram.shared
+forbidden_modules =
+    aerogram.core
+    aerogram.directories
+    aerogram.carriers
+    aerogram.rating
+    aerogram.shipments
+    aerogram.tracking
+    aerogram.documents
+    aerogram.scoring
+    aerogram.reports
+    aerogram.notifications
+    aerogram.worker
+    aerogram.db
+    aerogram.main
+
+[importlinter:contract:carrier-isolation]
+name = Адаптеры изолированы от домена
+type = forbidden
+source_modules =
+    aerogram.carriers
+forbidden_modules =
+    aerogram.shipments
+    aerogram.rating
+    aerogram.tracking
+    aerogram.documents
+    aerogram.scoring
+    aerogram.reports
+
+[importlinter:contract:no-direct-carrier]
+name = К перевозчикам — только через реестр адаптеров
+type = forbidden
+source_modules =
+    aerogram.rating
+    aerogram.shipments
+    aerogram.tracking
+    aerogram.documents
+forbidden_modules =
+    aerogram.carriers.cdek
+    aerogram.carriers.major
+    aerogram.carriers.dellin
+    aerogram.carriers.pecom
+
+[importlinter:contract:readonly-analytics]
+name = scoring и reports не вызывают адаптеры
+type = forbidden
+source_modules =
+    aerogram.scoring
+    aerogram.reports
+forbidden_modules =
+    aerogram.carriers

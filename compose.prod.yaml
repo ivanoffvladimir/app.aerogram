@@ -1,0 +1,75 @@
+# Боевое окружение: один VPS, один compose-файл, без Kubernetes.
+name: aerogram-prod
+
+x-app-env: &app-env
+  env_file:
+    - .env.production
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    <<: *app-env
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/init-db.sql:/docker-entrypoint-initdb.d/10-init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+  app:
+    image: ${REGISTRY:-git.aerogram.ru}/aerogram/backend:${TAG:-latest}
+    <<: *app-env
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    image: ${REGISTRY:-git.aerogram.ru}/aerogram/backend:${TAG:-latest}
+    <<: *app-env
+    restart: unless-stopped
+    command: ["celery", "-A", "aerogram.worker.app", "worker", "--beat", "--loglevel=info"]
+    depends_on:
+      - postgres
+      - redis
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - frontend-dist:/srv/frontend:ro
+      - caddy-data:/data
+      - caddy-config:/config
+      - caddy-logs:/var/log/caddy
+    depends_on:
+      - app
+
+volumes:
+  postgres-data:
+  redis-data:
+  frontend-dist:
+  caddy-data:
+  caddy-config:
+  caddy-logs:

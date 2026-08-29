@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Секреты и окружение
+.env
+.env.local
+.env.*.local
+*.age
+!.env.example
+!.env.*.sops
+
+# Локальные данные
+.data/
+*.log
+.DS_Store
+.idea/
+.vscode/

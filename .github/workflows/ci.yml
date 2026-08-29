@@ -1,0 +1,200 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "claude/**"]
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+
+jobs:
+  lint:
+    name: Линтеры и типы
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Установить зависимости
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: ruff
+        working-directory: backend
+        run: |
+          uv run ruff check src tests alembic
+          uv run ruff format --check src tests alembic
+
+      - name: mypy
+        working-directory: backend
+        run: uv run mypy
+
+      - name: Границы модулей
+        run: uv run --project backend lint-imports --config .importlinter
+
+  test:
+    name: Тесты backend
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aerogram_migrator
+          POSTGRES_PASSWORD: migrator
+          POSTGRES_DB: aerogram
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aerogram_migrator -d aerogram"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    env:
+      # Роль приложения БЕЗ BYPASSRLS — на этом держится тест изоляции тенантов.
+      TEST_DATABASE_URL: postgresql+asyncpg://aerogram_app:app@localhost:5432/aerogram
+      TEST_MIGRATION_DATABASE_URL: postgresql+asyncpg://aerogram_migrator:migrator@localhost:5432/aerogram
+      DATABASE_URL: postgresql+asyncpg://aerogram_app:app@localhost:5432/aerogram
+      DATABASE_MIGRATION_URL: postgresql+asyncpg://aerogram_migrator:migrator@localhost:5432/aerogram
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-secret-that-is-long-enough-for-validation-0123456789
+      CREDENTIAL_KEYS: "k1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Установить зависимости
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Создать роль приложения
+        run: |
+          PGPASSWORD=migrator psql -h localhost -U aerogram_migrator -d aerogram <<'SQL'
+          CREATE ROLE aerogram_app LOGIN PASSWORD 'app' NOBYPASSRLS;
+          GRANT USAGE ON SCHEMA public TO aerogram_app;
+          SQL
+
+      - name: Миграции
+        working-directory: backend
+        run: uv run alembic upgrade head
+
+      - name: Проверить обратимость миграций
+        working-directory: backend
+        run: |
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+      - name: pytest
+        working-directory: backend
+        run: uv run pytest --cov=src/aerogram --cov-report=term --cov-report=xml
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-backend
+          path: backend/coverage.xml
+
+  frontend:
+    name: Фронт
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Установить зависимости
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Линтер и типы
+        working-directory: frontend
+        run: |
+          pnpm lint
+          pnpm typecheck
+
+      - name: Тесты
+        working-directory: frontend
+        run: pnpm test --run
+
+      - name: Сборка
+        working-directory: frontend
+        run: pnpm build
+
+  security:
+    name: Уязвимости зависимостей
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: pip-audit
+        working-directory: backend
+        run: |
+          uv sync --frozen
+          uv run pip-audit --strict
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: npm audit
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm audit --audit-level=high
+
+  licenses:
+    name: Лицензии (несблокирующая)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Отчёт по лицензиям
+        working-directory: backend
+        run: |
+          uv sync --frozen
+          uv run pip-licenses --format=markdown --output-file=licenses-backend.md
+
+      # Отчёт понадобится при первой же due diligence — держать его дешевле,
+      # чем собирать задним числом (раздел 3.2 ТЗ).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: licenses
+          path: backend/licenses-backend.md

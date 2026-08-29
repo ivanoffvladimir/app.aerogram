@@ -1,0 +1,50 @@
+# Карта статусов СДЭК → нормализованная модель (раздел 9 ТЗ).
+#
+# Ключи — нормализованные статусы Aerogram, значения — коды статусов СДЭК.
+# ВНИМАНИЕ: перечень кодов сверяется с боевым контуром при подключении адаптера.
+# Несопоставленный код не роняет обработку: событие получает IN_TRANSIT и попадает
+# в очередь ручного сопоставления.
+
+carrier_code: cdek
+statuses:
+  CREATED:
+    - ACCEPTED
+    - CREATED
+  ACCEPTED:
+    - RECEIVED_AT_SHIPMENT_WAREHOUSE
+  PICKED_UP:
+    - READY_FOR_SHIPMENT_IN_SENDER_CITY
+  AT_ORIGIN_HUB:
+    - RECEIVED_AT_SENDER_WAREHOUSE
+  IN_TRANSIT:
+    - IN_CUSTOMS_LOCAL
+    - RETURNED_TO_SENDER_CITY_WAREHOUSE
+    - SENT_TO_TRANSIT_CITY
+    - ACCEPTED_IN_TRANSIT_CITY
+    - SENT_TO_SENDER_CITY
+    - SENT_TO_RECIPIENT_CITY
+  AT_DESTINATION_HUB:
+    - ACCEPTED_AT_RECIPIENT_CITY_WAREHOUSE
+    - ARRIVED_AT_RECIPIENT_CITY_WAREHOUSE
+    - IN_CUSTOMS_RECIPIENT
+  OUT_FOR_DELIVERY:
+    - ACCEPTED_AT_PICK_UP_POINT
+    - TAKEN_BY_COURIER
+  READY_FOR_PICKUP:
+    - READY_FOR_PICKUP
+    - READY_FOR_SHIPMENT_IN_TRANSIT_CITY
+  DELIVERY_ATTEMPT_FAILED:
+    - NOT_DELIVERED
+  DELIVERED:
+    - DELIVERED
+  RETURN_IN_PROGRESS:
+    - RETURNED_TO_RECIPIENT_CITY_WAREHOUSE
+    - SENT_TO_SENDER
+  RETURNED:
+    - RETURNED
+  CANCELLED:
+    - INVALID
+    - CANCELLED
+  EXCEPTION:
+    - CUSTOMS_ERROR
+    - LOST

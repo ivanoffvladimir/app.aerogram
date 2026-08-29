@@ -1,0 +1,89 @@
+# Боевой обратный прокси. TLS выпускается автоматически.
+#
+# Процедура ручной замены сертификата (в том числе на выпущенный российским УЦ)
+# описана в docs/runbook/tls.md и проверяется один раз до боевого запуска
+# (раздел 9.1 ТЗ).
+
+{
+	email admin@aerogram.ru
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+app.aerogram.ru {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy app:8000
+	}
+
+	# Публичная страница трекинга: без авторизации, поэтому с ограничением частоты
+	# и защитой от перебора трек-номеров (12.8 ТЗ).
+	handle /t/* {
+		reverse_proxy app:8000
+	}
+
+	handle /health* {
+		reverse_proxy app:8000
+	}
+
+	# Метрики доступны только из внутренней сети (раздел 9.1 ТЗ).
+	handle /metrics {
+		@internal remote_ip private_ranges
+		handle @internal {
+			reverse_proxy app:8000
+		}
+		respond 404
+	}
+
+	handle /docs* {
+		reverse_proxy app:8000
+	}
+
+	handle /openapi.json {
+		reverse_proxy app:8000
+	}
+
+	# Кабинет: SPA с историей на клиенте.
+	handle {
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/app.log {
+			roll_size 100mb
+			roll_keep 10
+		}
+		format json
+	}
+}
+
+stage.app.aerogram.ru {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy app-staging:8000
+	}
+
+	handle {
+		root * /srv/frontend-staging
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output file /var/log/caddy/staging.log
+		format json
+	}
+}

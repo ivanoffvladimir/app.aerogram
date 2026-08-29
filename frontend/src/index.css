@@ -1,0 +1,21 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* Минимальная ширина рабочего места — 1280 px (раздел 11 ТЗ).
+   Отдельной мобильной вёрстки в MVP нет. */
+body {
+  min-width: 1280px;
+}
