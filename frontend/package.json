@@ -10,8 +10,9 @@
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "generate:api": "openapi-typescript openapi.json -o src/api/schema.ts"
+    "test": "vitest run",
+    "generate:api": "openapi-typescript openapi.json -o src/api/schema.ts",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.1",

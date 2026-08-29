@@ -83,7 +83,8 @@ openapi:  ## Выгрузить OpenAPI и перегенерировать кл
 
 .PHONY: security
 security:  ## Проверка уязвимостей зависимостей
-	cd $(BACKEND) && uv run pip-audit
+	cd $(BACKEND) && uv export --frozen --no-emit-project --format requirements-txt -o requirements-audit.txt
+	cd $(BACKEND) && uv run pip-audit -r requirements-audit.txt --strict
 	cd $(FRONTEND) && pnpm audit --audit-level=high
 
 .PHONY: licenses

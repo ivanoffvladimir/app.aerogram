@@ -34,3 +34,6 @@ test-results/
 .DS_Store
 .idea/
 .vscode/
+
+# Промежуточный файл аудита зависимостей
+backend/requirements-audit.txt
