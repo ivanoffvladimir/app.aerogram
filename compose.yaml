@@ -8,6 +8,11 @@ services:
       POSTGRES_USER: aerogram_migrator
       POSTGRES_PASSWORD: migrator
       POSTGRES_DB: aerogram
+      # Локаль обязана быть UTF-8. В локали C PostgreSQL не сворачивает регистр
+      # кириллицы: lower('РОМАШКА') возвращает строку как есть, и поиск
+      # контрагента по названию молча перестаёт работать. Проверяется тестом
+      # TestDatabaseLocale.
+      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
     ports:
       - "5432:5432"
     volumes:

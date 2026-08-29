@@ -15,11 +15,13 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from aerogram.config import get_settings
-from aerogram.core.router import auth_router, users_router
+from aerogram.core.router import auth_router, counterparties_router, users_router
 from aerogram.db import get_engine
-from aerogram.shared.errors import AerogramError
+from aerogram.directories.router import admin_directories_router, directories_router
+from aerogram.shared.errors import AerogramError, Conflict
 from aerogram.shared.logging import configure_logging, get_logger, request_id_var
 
 __all__ = ["app", "create_app"]
@@ -75,6 +77,12 @@ def create_app() -> FastAPI:
         openapi_tags=[
             {"name": "Аутентификация", "description": "Вход, обновление токена, профиль"},
             {"name": "Пользователи", "description": "Пользователи компании и их роли"},
+            {"name": "Адресная книга", "description": "Контрагенты и адреса тенанта"},
+            {"name": "Справочники", "description": "Города ФИАС, адреса, терминалы"},
+            {
+                "name": "Администрирование платформы",
+                "description": "Очередь ручного сопоставления городов",
+            },
             {"name": "Служебное", "description": "Проверки состояния"},
         ],
     )
@@ -122,6 +130,44 @@ def create_app() -> FastAPI:
             },
         )
 
+    @application.exception_handler(IntegrityError)
+    async def handle_integrity_error(request: Request, exc: IntegrityError) -> JSONResponse:
+        """Нарушение уникального индекса → 409, а не 500.
+
+        Гонка двух операторов на уникальном индексе — штатное событие, а не
+        авария. Без этого обработчика ошибка уходит в общий 500, а вместе с ней
+        в stdout уезжает текст запроса с параметрами, то есть персональные
+        данные (12.7 ТЗ).
+        """
+        constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+        log.info("api.integrity_error", constraint=constraint, path=request.url.path)
+        conflict = Conflict()
+        return JSONResponse(
+            status_code=conflict.http_status, content=conflict.as_payload(request_id_var.get())
+        )
+
+    @application.exception_handler(Exception)
+    async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+        """Последний рубеж: любая незапланированная ошибка → единый формат.
+
+        В лог уходит только тип исключения и путь. Текст исключения не пишется
+        намеренно: у ошибок SQLAlchemy в него входит запрос вместе со
+        значениями параметров, а это адреса и телефоны получателей.
+        """
+        log.error("api.unhandled", error_type=type(exc).__name__, path=request.url.path)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": {
+                    "code": "internal_error",
+                    "message": "Внутренняя ошибка сервиса",
+                    "field": None,
+                    "carrier_code": None,
+                    "request_id": request_id_var.get(),
+                }
+            },
+        )
+
     @application.get("/health", tags=["Служебное"], summary="Проверка состояния")
     async def health() -> dict[str, str]:
         """Живость процесса. Не ходит в БД: сюда стучится балансировщик."""
@@ -136,6 +182,9 @@ def create_app() -> FastAPI:
 
     application.include_router(auth_router, prefix=API_PREFIX)
     application.include_router(users_router, prefix=API_PREFIX)
+    application.include_router(counterparties_router, prefix=API_PREFIX)
+    application.include_router(directories_router, prefix=API_PREFIX)
+    application.include_router(admin_directories_router, prefix=API_PREFIX)
 
     return application
 

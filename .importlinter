@@ -76,3 +76,17 @@ source_modules =
     aerogram.reports
 forbidden_modules =
     aerogram.carriers
+
+[importlinter:contract:core-below-domain]
+name = core не зависит от прикладных модулей
+type = forbidden
+source_modules =
+    aerogram.core
+forbidden_modules =
+    aerogram.directories
+    aerogram.rating
+    aerogram.shipments
+    aerogram.tracking
+    aerogram.documents
+    aerogram.scoring
+    aerogram.reports

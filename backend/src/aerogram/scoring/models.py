@@ -21,6 +21,7 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -57,7 +58,7 @@ class CarrierScoreSnapshot(Base):
     confidence: Mapped[ScoreConfidence] = mapped_column(String(20), nullable=False)
     formula_version: Mapped[str] = mapped_column(String(20), nullable=False)
     calculated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
 
     __table_args__ = (

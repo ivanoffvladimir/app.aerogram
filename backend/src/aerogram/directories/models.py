@@ -21,6 +21,7 @@ from sqlalchemy import (
     Index,
     Integer,
     Numeric,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -30,7 +31,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from aerogram.db import Base, TimestampMixin, uuid_pk
 
-__all__ = ["Carrier", "CarrierService", "CarrierTerminal", "City", "CityCarrierMap"]
+__all__ = [
+    "Carrier",
+    "CarrierService",
+    "CarrierTerminal",
+    "City",
+    "CityCarrierMap",
+    "CityMappingQueue",
+]
 
 
 class Carrier(Base, TimestampMixin):
@@ -96,6 +104,10 @@ class CarrierTerminal(Base, TimestampMixin):
     has_card: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     max_weight_kg: Mapped[float | None] = mapped_column(Numeric(10, 3))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    #: Момент, когда терминал перестал приходить в выгрузке перевозчика.
+    #: Строка не удаляется: её код лежит в уже созданных отправлениях,
+    #: и карточка старого заказа обязана остаться читаемой.
+    deactivated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
@@ -115,6 +127,16 @@ class City(Base, TimestampMixin):
     id: Mapped[UUID] = uuid_pk()
     fias_id: Mapped[str] = mapped_column(String(36), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    #: Читаемое наименование, собранное ТОЛЬКО из полей городского уровня.
+    #: Улица и дом сюда попасть не могут: таблица общая для всех тенантов
+    #: и под RLS не находится (12.1, 12.7 ТЗ).
+    full_name: Mapped[str | None] = mapped_column(String(500))
+    #: Уровень объекта ФИАС. Без него город (4) и посёлок (6) в таблице
+    #: неразличимы, а Москва (1) выглядит аномалией.
+    fias_level: Mapped[int | None] = mapped_column(SmallInteger)
+    #: Следующий элемент лестницы ключа: для Алупки — Ялта, для Зеленограда —
+    #: Москва. Нужен управляемому откату сопоставления с перевозчиком.
+    parent_fias_id: Mapped[str | None] = mapped_column(String(36))
     region: Mapped[str | None] = mapped_column(String(255))
     region_fias_id: Mapped[str | None] = mapped_column(String(36))
     kladr_id: Mapped[str | None] = mapped_column(String(19))
@@ -129,6 +151,7 @@ class City(Base, TimestampMixin):
         UniqueConstraint("fias_id", name="uq_cities_fias_id"),
         Index("ix_cities_name", "name"),
         Index("ix_cities_kladr_id", "kladr_id"),
+        Index("ix_cities_parent_fias_id", "parent_fias_id"),
     )
 
 
@@ -150,7 +173,14 @@ class CityCarrierMap(Base, TimestampMixin):
     carrier_city_code: Mapped[str] = mapped_column(String(50), nullable=False)
     carrier_city_name: Mapped[str | None] = mapped_column(String(255))
     #: false — сопоставлено автоматически и ждёт подтверждения человеком.
+    #: Флаг управляет вниманием администратора, а не использованием строки:
+    #: если бы неподтверждённые записи не использовались, платформа не работала
+    #: бы до ручного разбора тысяч городов.
     is_confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Чем сопоставлено: fias, kladr, exact_name, fuzzy_name, manual.
+    #: Хранится, чтобы решение можно было объяснить постфактум.
+    match_method: Mapped[str | None] = mapped_column(String(20))
+    match_score: Mapped[float | None] = mapped_column(Numeric(4, 3))
     confirmed_by_user_id: Mapped[UUID | None] = mapped_column()
     synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -164,4 +194,50 @@ class CityCarrierMap(Base, TimestampMixin):
             "carrier_city_code",
         ),
         Index("ix_city_carrier_map_is_confirmed", "is_confirmed"),
+    )
+
+
+class CityMappingQueue(Base, TimestampMixin):
+    """Очередь ручного сопоставления городов (FR-8.2, FR-12.3).
+
+    Отдельная таблица, а не строки ``city_carrier_map`` с пустым городом:
+    в ``city_carrier_map`` колонка ``city_fias_id`` объявлена NOT NULL, и
+    хранить там гипотезы физически нельзя. Кроме того, у записи очереди своя
+    жизнь — кандидаты, оценка, решение человека, — которой нет у сопоставления.
+
+    Платформенная таблица: города общие для всех тенантов, RLS не применяется.
+    """
+
+    __tablename__ = "city_mapping_queue"
+
+    id: Mapped[UUID] = uuid_pk()
+    carrier_id: Mapped[UUID] = mapped_column(
+        ForeignKey("carriers.id", ondelete="CASCADE"), nullable=False
+    )
+    carrier_city_code: Mapped[str] = mapped_column(String(50), nullable=False)
+    carrier_city_name: Mapped[str | None] = mapped_column(String(255))
+    carrier_region_name: Mapped[str | None] = mapped_column(String(255))
+    #: Почему попало в очередь: no_match, ambiguous, conflict.
+    reason: Mapped[str] = mapped_column(String(20), nullable=False)
+    #: Кандидаты с оценками — без них администратору нечего нажать.
+    candidates: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    best_score: Mapped[float | None] = mapped_column(Numeric(4, 3))
+    #: Сколько терминалов перевозчика висит на этом городе: приоритет разбора.
+    terminals_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolved_by_user_id: Mapped[UUID | None] = mapped_column()
+    resolved_city_fias_id: Mapped[str | None] = mapped_column(String(36))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "carrier_id", "carrier_city_code", name="uq_city_mapping_queue_carrier_id_code"
+        ),
+        CheckConstraint(
+            "reason IN ('no_match', 'ambiguous', 'conflict')", name="city_mapping_queue_reason"
+        ),
+        Index("ix_city_mapping_queue_open", "carrier_id", "terminals_count"),
     )

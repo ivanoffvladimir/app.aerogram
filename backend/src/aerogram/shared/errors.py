@@ -138,3 +138,59 @@ class CarrierUnavailable(CarrierError):
 class CarrierRateLimited(CarrierError):
     code = "carrier_rate_limited"
     message_ru = "Превышен лимит обращений к перевозчику"
+
+
+class DirectoryError(AerogramError):
+    """Ошибка внешнего справочника (ДаData).
+
+    502, а не 500, по той же причине, что и у ``CarrierError``: отвечает плохо
+    внешняя система, а не наша. Отдельное семейство от ``CarrierError`` нужно
+    потому, что в формате FR-10.5 у ошибок перевозчика заполняется
+    ``carrier_code`` и текст говорит «Перевозчик вернул ошибку» — для человека,
+    вводящего адрес, это была бы ложь.
+    """
+
+    code = "directory_error"
+    http_status = 502
+    message_ru = "Справочник адресов вернул ошибку"
+
+
+class DirectoryUnavailable(DirectoryError):
+    code = "directory_unavailable"
+    message_ru = "Справочник адресов временно недоступен"
+
+
+class DirectoryAuthError(DirectoryError):
+    code = "directory_auth_error"
+    message_ru = "Справочник адресов отклонил учётные данные"
+
+
+class DirectoryQuotaExceeded(DirectoryError):
+    """Исчерпан суточный лимит обращений к справочнику.
+
+    Лимит бесплатного тарифа ДаData — 10 000 запросов в сутки, и каждый
+    введённый символ в подсказке тратит один. Исчерпание в середине рабочего
+    дня — штатный сценарий, а не авария, поэтому у него отдельный код.
+    """
+
+    code = "directory_quota_exceeded"
+    message_ru = "Исчерпан суточный лимит обращений к справочнику адресов"
+
+
+class AddressNotResolved(ValidationFailed):
+    """Не удалось определить населённый пункт по адресу."""
+
+    code = "address_not_resolved"
+    message_ru = "Не удалось определить населённый пункт. Уточните адрес"
+
+
+class CityNotMapped(ValidationFailed):
+    """У перевозчика нет кода для этого населённого пункта (FR-8.2).
+
+    На пути расчёта это не исключение, а отдельная строка выдачи: ошибка одного
+    перевозчика не роняет выдачу (FR-1.4). Исключение поднимается только на пути
+    создания отправления, где продолжать нельзя.
+    """
+
+    code = "city_not_mapped"
+    message_ru = "Перевозчик не обслуживает этот населённый пункт"

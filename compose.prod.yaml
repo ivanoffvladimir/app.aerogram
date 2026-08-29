@@ -9,6 +9,9 @@ services:
   postgres:
     image: postgres:16-alpine
     <<: *app-env
+    environment:
+      # См. комментарий в compose.yaml: локаль C ломает поиск по-русски.
+      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
     restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data

@@ -9,10 +9,12 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aerogram.config import Settings
-from aerogram.core.models import ApiKey, AuditLog, Tenant, User
+from aerogram.core.models import Address, ApiKey, AuditLog, Counterparty, Tenant, User
 from aerogram.core.repository import (
+    AddressRepository,
     ApiKeyRepository,
     AuditRepository,
+    CounterpartyRepository,
     TenantRepository,
     UserRepository,
 )
@@ -260,3 +262,103 @@ def ensure_tenant_active(tenant: Tenant) -> None:
     """Приостановленный тенант не может выполнять изменяющие операции."""
     if tenant.status == TenantStatus.SUSPENDED:
         raise PermissionDenied("Доступ компании приостановлен")
+
+
+class AddressBookService:
+    """Адресная книга тенанта: контрагенты и их адреса (FR-8.4)."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+        self._counterparties = CounterpartyRepository(session)
+        self._addresses = AddressRepository(session)
+
+    async def get(self, counterparty_id: UUID) -> Counterparty:
+        counterparty = await self._counterparties.get_by_id(counterparty_id)
+        if counterparty is None:
+            # 404, а не 403: чужой контрагент не должен подтверждать своё
+            # существование (критерий приёмки 14.2, п. 11).
+            raise NotFound("Контрагент не найден")
+        return counterparty
+
+    async def search(
+        self, query: str | None, *, limit: int, offset: int
+    ) -> tuple[list[Counterparty], int]:
+        return await self._counterparties.search(query, limit=limit, offset=offset)
+
+    async def create(
+        self,
+        *,
+        tenant_id: UUID,
+        type_: str,
+        name: str,
+        inn: str | None,
+        kpp: str | None,
+        contact_person: str | None,
+        phone: str | None,
+        email: str | None,
+        addresses: list[dict[str, object]],
+    ) -> Counterparty:
+        """Завести контрагента вместе с адресами."""
+        if inn is not None and await self._counterparties.get_by_inn(inn, kpp) is not None:
+            raise Conflict("Контрагент с таким ИНН уже есть в адресной книге")
+
+        counterparty = Counterparty(
+            tenant_id=tenant_id,
+            type=type_,
+            name=name,
+            inn=inn,
+            kpp=kpp,
+            contact_person=contact_person,
+            phone=phone,
+            email=email,
+            # Пустой список инициализирует коллекцию как загруженную. Без этого
+            # первое же обращение к .addresses после flush пытается дочитать её
+            # ленивым запросом вне асинхронного контекста.
+            addresses=[],
+        )
+        self._counterparties.add(counterparty)
+        await self._session.flush()
+
+        for payload in addresses:
+            await self.add_address(tenant_id=tenant_id, counterparty=counterparty, payload=payload)
+        return counterparty
+
+    async def add_address(
+        self, *, tenant_id: UUID, counterparty: Counterparty, payload: dict[str, object]
+    ) -> Address:
+        """Добавить адрес контрагенту."""
+        is_default = bool(payload.get("is_default_sender"))
+        if is_default:
+            # Отправитель по умолчанию ровно один: старый снимается до вставки
+            # нового, иначе частичный уникальный индекс отвергнет запись.
+            await self._addresses.clear_default_sender()
+
+        address = Address(
+            tenant_id=tenant_id,
+            counterparty_id=counterparty.id,
+            **{k: v for k, v in payload.items() if k != "is_default_sender"},
+            is_default_sender=is_default,
+        )
+        # Адрес добавляется В КОЛЛЕКЦИЮ контрагента, а не отдельной вставкой:
+        # иначе связь остаётся незагруженной, и сериализация ответа пытается
+        # дочитать её ленивым запросом уже вне асинхронного контекста.
+        counterparty.addresses.append(address)
+        await self._session.flush()
+        return address
+
+    async def list_addresses(self, counterparty_id: UUID) -> list[Address]:
+        await self.get(counterparty_id)
+        return await self._addresses.list_for_counterparty(counterparty_id)
+
+    async def soft_delete(self, counterparty_id: UUID) -> None:
+        """Мягкое удаление.
+
+        Физическое невозможно: ``shipments`` ссылается на адреса с
+        ``ondelete="RESTRICT"``, а отправления не удаляются никогда
+        (раздел 7.1 ТЗ).
+        """
+        counterparty = await self.get(counterparty_id)
+        counterparty.deleted_at = utcnow()
+        for address in await self._addresses.list_for_counterparty(counterparty_id):
+            address.deleted_at = utcnow()
+            address.is_default_sender = False
