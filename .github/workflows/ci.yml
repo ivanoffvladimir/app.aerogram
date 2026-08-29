@@ -139,7 +139,7 @@ jobs:
 
       - name: Тесты
         working-directory: frontend
-        run: pnpm test --run
+        run: pnpm test
 
       - name: Сборка
         working-directory: frontend
@@ -155,11 +155,15 @@ jobs:
         with:
           enable-cache: true
 
+      # pip-audit получает список зависимостей экспортом из uv.lock, а не из
+      # установленного окружения: иначе он пытается найти на PyPI сам проект
+      # (`aerogram`) и падает на нём, не дойдя до настоящих зависимостей.
       - name: pip-audit
         working-directory: backend
         run: |
           uv sync --frozen
-          uv run pip-audit --strict
+          uv export --frozen --no-emit-project --format requirements-txt -o requirements-audit.txt
+          uv run pip-audit -r requirements-audit.txt --strict
 
       - uses: pnpm/action-setup@v4
         with:
