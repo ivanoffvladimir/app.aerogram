@@ -54,7 +54,7 @@ from aerogram.shared.enums import IneligibilityReason, OfferSource, PriceSource
 from aerogram.shared.errors import AerogramError, CarrierError, CarrierTimeout
 from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
-from aerogram.shared.money import Money
+from aerogram.shared.money import Money, mm_to_cm
 from aerogram.shared.schemas import AddressSchema, MoneySchema
 
 __all__ = ["RateShoppingService", "rank_quotes"]
@@ -324,9 +324,9 @@ class RateShoppingService:
             places=tuple(
                 Place(
                     weight_kg=package.weight_kg,
-                    length_cm=_mm_to_cm(package.length_mm),
-                    width_cm=_mm_to_cm(package.width_mm),
-                    height_cm=_mm_to_cm(package.height_mm),
+                    length_cm=mm_to_cm(package.length_mm),
+                    width_cm=mm_to_cm(package.width_mm),
+                    height_cm=mm_to_cm(package.height_mm),
                 )
                 for package in payload.packages
             ),
@@ -513,18 +513,6 @@ def _deadline_gap(eta: datetime | None, deadline: datetime | None) -> tuple[int 
         return None, None
     gap = int((deadline - eta).total_seconds())
     return (gap, 0) if gap >= 0 else (0, -gap)
-
-
-def _mm_to_cm(value: int | None) -> int:
-    """Миллиметры контракта → сантиметры адаптеров, вверх до целого.
-
-    Округление вниз занизило бы объёмный вес и, значит, цену: 305 мм это 31 см
-    для тарифа, а не 30. Отсутствующий габарит даёт 1 см, а не ноль: нулевой
-    габарит запрещён проверкой объёмного веса.
-    """
-    if value is None:
-        return 1
-    return max(1, -(-value // 10))
 
 
 def _offer_source(price_source: PriceSource | None) -> OfferSource | None:

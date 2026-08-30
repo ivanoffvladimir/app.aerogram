@@ -29,6 +29,9 @@ class RoutingRepository:
         self._session.add(decision)
         return decision
 
+    async def get_decision(self, decision_id: UUID) -> Decision | None:
+        return await self._session.get(Decision, decision_id)
+
     async def decision_by_key(self, idempotency_key: str) -> Decision | None:
         """Решение по ключу идемпотентности.
 

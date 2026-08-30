@@ -26,6 +26,7 @@ from aerogram.rating.router import rating_router
 from aerogram.routing.router import routing_router
 from aerogram.shared.errors import AerogramError, Conflict
 from aerogram.shared.logging import configure_logging, get_logger, request_id_var
+from aerogram.shipments.router import shipments_router
 
 __all__ = ["app", "create_app"]
 
@@ -199,6 +200,7 @@ def create_app() -> FastAPI:
     application.include_router(admin_directories_router, prefix=API_PREFIX)
     application.include_router(rating_router, prefix=API_PREFIX)
     application.include_router(routing_router, prefix=API_PREFIX)
+    application.include_router(shipments_router, prefix=API_PREFIX)
 
     return application
 

@@ -45,6 +45,11 @@ BEYOND_CONTRACT: frozenset[str] = frozenset(
         # Ручной разбор сопоставления городов — администрирование платформы.
         "/v1/admin/city-mappings",
         "/v1/admin/city-mappings/{item_id}/confirm",
+        # Отмена отправления: FR-2.6 её требует, в контракте пути нет.
+        # Расхождение вынесено в docs/status.md — либо дополнить контракт,
+        # либо отказаться от требования. Молча не делать — худший вариант:
+        # без отмены заказ у перевозчика живёт своей жизнью.
+        "/v1/shipments/{shipment_id}/cancel",
     }
 )
 
@@ -52,8 +57,6 @@ BEYOND_CONTRACT: frozenset[str] = frozenset(
 #: Пустой список означает, что контракт закрыт целиком.
 NOT_IMPLEMENTED_YET: frozenset[str] = frozenset(
     {
-        "/v1/shipments",
-        "/v1/shipments/{shipment_id}",
         "/v1/shipments/{shipment_id}/tracking",
         "/v1/carriers",
         "/v1/analytics/carriers",
@@ -117,6 +120,36 @@ class TestPaths:
         ours = {p for p in generated["paths"] if p.startswith("/v1/")}
         missing = sorted(set(contract["paths"]) - ours - NOT_IMPLEMENTED_YET)
         assert not missing, f"путь контракта не реализован и не назван: {missing}"
+
+
+class TestShipment:
+    def test_create_request_required_fields_match(
+        self, contract: dict[str, Any], generated: dict[str, Any]
+    ) -> None:
+        contract_required = _required(contract, "CreateShipmentRequest")
+        ours = _properties(generated, "CreateShipmentRequest")
+        assert contract_required <= ours, f"нет полей: {sorted(contract_required - ours)}"
+
+    def test_response_carries_every_field_of_the_contract(
+        self, contract: dict[str, Any], generated: dict[str, Any]
+    ) -> None:
+        """Наших полей может быть больше: клиент от лишнего не ломается."""
+        assert _properties(contract, "Shipment") <= _properties(generated, "ShipmentOut")
+
+    def test_status_vocabulary_is_the_one_from_the_contract(
+        self, contract: dict[str, Any], generated: dict[str, Any]
+    ) -> None:
+        """Клиент сверяет статус с перечислением схемы.
+
+        Наш внутренний словарь богаче (раздел 9 ТЗ, четырнадцать состояний),
+        поэтому на границе он переводится. Перевод обязан попадать
+        в словарь контракта целиком — иначе клиент получит строку,
+        которой нет в его типах.
+        """
+        from aerogram.shipments.schemas import CONTRACT_STATUS
+
+        allowed = set(contract["components"]["schemas"]["Shipment"]["properties"]["status"]["enum"])
+        assert set(CONTRACT_STATUS.values()) <= allowed
 
 
 class TestMoneySchema:

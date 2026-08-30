@@ -8,8 +8,9 @@ import pytest
 from pydantic import ValidationError
 
 from aerogram.rating.schemas import RateRequestIn
-from aerogram.rating.service import _deadline_gap, _end_of_day, _mm_to_cm, _offer_source
+from aerogram.rating.service import _deadline_gap, _end_of_day, _offer_source
 from aerogram.shared.enums import CargoType, OfferSource, PriceSource, RoutingStrategy
+from aerogram.shared.money import mm_to_cm
 
 MINIMAL = {
     "origin": {"country": "RU", "city": "Москва", "address_line": "ул. Тверская, 1"},
@@ -86,15 +87,15 @@ class TestMillimetresToCentimetres:
     def test_rounds_up_so_the_tariff_is_not_understated(self) -> None:
         # 305 мм это 31 см для тарифа: округление вниз занизило бы объёмный
         # вес и, значит, цену.
-        assert _mm_to_cm(305) == 31
-        assert _mm_to_cm(300) == 30
+        assert mm_to_cm(305) == 31
+        assert mm_to_cm(300) == 30
 
     def test_missing_dimension_becomes_one_centimetre(self) -> None:
         # Ноль запрещён проверкой объёмного веса, поэтому не ноль.
-        assert _mm_to_cm(None) == 1
+        assert mm_to_cm(None) == 1
 
     def test_sub_centimetre_does_not_collapse_to_zero(self) -> None:
-        assert _mm_to_cm(4) == 1
+        assert mm_to_cm(4) == 1
 
 
 class TestEndOfDay:

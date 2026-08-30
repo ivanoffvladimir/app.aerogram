@@ -25,6 +25,7 @@ __all__ = [
     "chargeable_weight",
     "format_ru",
     "minor_unit_exponent",
+    "mm_to_cm",
     "round_weight",
     "total",
     "volumetric_weight",
@@ -209,6 +210,22 @@ def format_ru(money: Money) -> str:
     if fraction:
         body = f"{body},{fraction}"
     return f"{sign}{body}{_NBSP}{symbol}"
+
+
+def mm_to_cm(value: int | None) -> int:
+    """Миллиметры контракта → сантиметры адаптеров, вверх до целого.
+
+    Округление вниз занизило бы объёмный вес и, значит, цену: 305 мм это 31 см
+    для тарифа, а не 30. Отсутствующий габарит даёт 1 см, а не ноль: нулевой
+    габарит запрещён проверкой объёмного веса.
+
+    Живёт рядом с весом, потому что нужен и расчёту, и созданию отправления:
+    посчитать по одним габаритам, а отправить по другим — та же ошибка, что
+    посчитать в одной валюте, а выставить в другой.
+    """
+    if value is None:
+        return 1
+    return max(1, -(-value // 10))
 
 
 def total(amounts: list[Money], currency: str) -> Money:
