@@ -47,6 +47,12 @@ app.conf.beat_schedule = {
         "task": "aerogram.worker.tasks.poll_shipment_statuses",
         "schedule": crontab(minute="*"),
     },
+    # Сверка «призраков» (FR-2.5): заказ у перевозчика создан, ответ не дошёл.
+    # Реже, чем опрос статусов: черновиков мало, а каждый стоит обращения к ТК.
+    "reconcile-ghost-shipments": {
+        "task": "aerogram.worker.tasks.reconcile_ghost_shipments",
+        "schedule": crontab(minute="*/10"),
+    },
     # Справочники терминалов и ПВЗ синхронизируются ежесуточно (FR-8.3).
     "sync-carrier-references": {
         "task": "aerogram.worker.tasks.sync_carrier_references",
@@ -69,5 +75,4 @@ app.conf.beat_schedule = {
     },
 }
 
-# Задачи регистрируются автопоиском по модулю tasks, когда он появится.
 app.autodiscover_tasks(["aerogram.worker"], related_name="tasks", force=False)
