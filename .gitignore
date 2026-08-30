@@ -14,8 +14,9 @@ build/
 
 # Node
 node_modules/
+frontend/.next/
+frontend/out/
 frontend/dist/
-frontend/.vite/
 *.tsbuildinfo
 playwright-report/
 test-results/

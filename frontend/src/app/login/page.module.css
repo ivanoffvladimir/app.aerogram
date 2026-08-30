@@ -1,0 +1,44 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.card {
+  width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.formError {
+  background: var(--danger-soft);
+  border: 1px solid #fecaca;
+  border-radius: var(--radius);
+  color: var(--danger);
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+
+.submit {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
+}

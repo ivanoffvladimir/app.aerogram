@@ -14,7 +14,8 @@
 app.aerogram.ru {
 	encode zstd gzip
 
-	handle /api/* {
+	# Контракт API начинается с /v1 (docs/tz/v3/openapi.yaml).
+	handle /v1/* {
 		reverse_proxy app:8000
 	}
 
@@ -45,10 +46,12 @@ app.aerogram.ru {
 		reverse_proxy app:8000
 	}
 
-	# Кабинет: SPA с историей на клиенте.
+	# Кабинет: статический экспорт Next.js. Маршруты собраны в каталоги
+	# с index.html (trailingSlash), поэтому пробуем и файл, и каталог,
+	# и только затем отдаём 404 самого приложения.
 	handle {
 		root * /srv/frontend
-		try_files {path} /index.html
+		try_files {path} {path}/index.html /404.html
 		file_server
 	}
 
@@ -72,13 +75,13 @@ app.aerogram.ru {
 stage.app.aerogram.ru {
 	encode zstd gzip
 
-	handle /api/* {
+	handle /v1/* {
 		reverse_proxy app-staging:8000
 	}
 
 	handle {
 		root * /srv/frontend-staging
-		try_files {path} /index.html
+		try_files {path} {path}/index.html /404.html
 		file_server
 	}
 

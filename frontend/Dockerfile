@@ -1,18 +1,19 @@
-FROM node:22-alpine AS builder
+# Сборка статики кабинета. Результат забирает Caddy — своего сервера
+# у фронта нет (ADR-0012: серверный рендеринг не используется).
+FROM node:22-alpine AS build
+WORKDIR /app
 
 RUN corepack enable
-
-WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+# Секреты в бандл не попадают: сюда не передаётся ни одной переменной,
+# кроме режима сборки (фронт-ТЗ, раздел 1).
 RUN pnpm build
 
-
-# Статика отдаётся Caddy из общего тома, поэтому финальный образ — только файлы.
-FROM alpine:3.20 AS runtime
-WORKDIR /srv/frontend
-COPY --from=builder /app/dist ./
+# Готовая статика копируется в том, который монтирует Caddy.
+FROM alpine:3.20
+COPY --from=build /app/out /srv/frontend
 CMD ["true"]

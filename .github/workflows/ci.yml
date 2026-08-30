@@ -158,6 +158,12 @@ jobs:
         working-directory: frontend
         run: pnpm test
 
+      - name: Клиент API совпадает с контрактом
+        working-directory: frontend
+        run: |
+          pnpm generate:api
+          git diff --exit-code src/api/schema.ts
+
       - name: Сборка
         working-directory: frontend
         run: pnpm build

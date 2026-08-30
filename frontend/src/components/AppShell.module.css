@@ -1,0 +1,77 @@
+.shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px 0;
+}
+
+.brand {
+  padding: 0 20px 20px;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.brandSub {
+  display: block;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.link {
+  padding: 9px 20px;
+  color: var(--text);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+
+.link:hover {
+  background: var(--bg);
+}
+
+.active {
+  border-left-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 500;
+}
+
+.disabled {
+  padding: 9px 20px;
+  color: var(--text-muted);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.main {
+  padding: 24px 28px;
+  max-width: 1180px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  align-items: center;
+  padding: 0 28px;
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.logout {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+}

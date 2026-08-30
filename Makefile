@@ -76,9 +76,13 @@ test-unit:  ## Только юнит-тесты (не требуют БД)
 test-front:  ## Тесты фронта
 	cd $(FRONTEND) && pnpm test
 
+.PHONY: test-e2e
+test-e2e:  ## E2E фронта. Требует поднятых бэкенда и фронта
+	cd $(FRONTEND) && pnpm test:e2e
+
 .PHONY: openapi
-openapi:  ## Выгрузить OpenAPI и перегенерировать клиент фронта
-	cd $(BACKEND) && uv run python -c "import json, pathlib; from aerogram.main import create_app; pathlib.Path('../frontend/openapi.json').write_text(json.dumps(create_app().openapi(), ensure_ascii=False, indent=2), encoding='utf-8')"
+openapi:  ## Сверить схему с контрактом и перегенерировать клиент фронта
+	cd $(BACKEND) && uv run pytest tests/integration/test_openapi_conformance.py -q
 	cd $(FRONTEND) && pnpm generate:api
 
 .PHONY: security
