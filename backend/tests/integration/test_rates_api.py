@@ -351,3 +351,75 @@ class TestTenantIsolation:
 
         assert body["quotes"] == []
         assert body["errors"] == []
+
+
+class TestSeveralCarriers:
+    """Опрос нескольких перевозчиков: строки выдачи не должны перепутаться."""
+
+    @pytest.fixture
+    async def two_carriers(
+        self, seeded_tenants: tuple[UUID, UUID], database_url: str
+    ) -> tuple[UUID, UUID]:
+        """Две учётные записи: у одной учётные данные нечитаемы."""
+        tenant_a, _ = seeded_tenants
+        engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        good_id, broken_id = uuid7(), uuid7()
+        good_account, broken_account = uuid7(), uuid7()
+
+        cipher = CredentialCipher({"k1": TEST_KEY.split(":", 1)[1]}, "k1")
+        good_secret = cipher.encrypt(
+            json.dumps({"client_id": "i", "client_secret": "s"}),
+            aad=str(good_account).encode(),
+        )
+
+        async with factory() as db, db.begin():
+            db.add_all(
+                [
+                    Carrier(id=good_id, code="slow", name="Медленный"),
+                    Carrier(id=broken_id, code="broken", name="Сломанный"),
+                ]
+            )
+            await db.flush()
+            await db.execute(
+                text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant_a)}
+            )
+            db.add_all(
+                [
+                    CarrierAccountModel(
+                        id=good_account,
+                        tenant_id=tenant_a,
+                        carrier_id=good_id,
+                        mode="own_contract",
+                        credentials_encrypted=good_secret,
+                        is_active=True,
+                    ),
+                    CarrierAccountModel(
+                        id=broken_account,
+                        tenant_id=tenant_a,
+                        carrier_id=broken_id,
+                        mode="own_contract",
+                        # Шифротекст, привязанный к ЧУЖОЙ записи: расшифровать
+                        # его нельзя, и учётная запись должна быть пропущена.
+                        credentials_encrypted=good_secret,
+                        is_active=True,
+                    ),
+                ]
+            )
+        await engine.dispose()
+        return good_id, broken_id
+
+    async def test_unreadable_credentials_do_not_shift_other_carriers(
+        self, client: AsyncClient, headers: dict[str, str], two_carriers: tuple[UUID, UUID]
+    ) -> None:
+        """Пропуск одной учётной записи не должен сдвигать остальные.
+
+        Строка таймаута собирается по подготовленным записям, а не по
+        исходному списку: иначе она назвала бы чужого перевозчика.
+        """
+        registry.register(FakeCarrier("slow", delay=5.0))
+        response = await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)
+
+        assert response.status_code == 200
+        errors = response.json()["errors"]
+        assert [e["carrier"] for e in errors] == ["slow"]

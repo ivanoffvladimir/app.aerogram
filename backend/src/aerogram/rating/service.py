@@ -170,8 +170,18 @@ class RateShoppingService:
         if not accounts:
             return []
 
-        prepared = [await self._prepare(account, payload) for account in accounts]
-        tasks = [asyncio.create_task(self._ask_one(*item)) for item in prepared if item]
+        # Отсеиваем неподготовленные записи СРАЗУ и держим списки парой:
+        # если фильтровать только задачи, индексы разъедутся, и строка
+        # таймаута назовёт чужого перевозчика.
+        prepared = [
+            item
+            for item in [await self._prepare(account, payload) for account in accounts]
+            if item is not None
+        ]
+        if not prepared:
+            return []
+
+        tasks = [asyncio.create_task(self._ask_one(*item)) for item in prepared]
 
         done, pending = await asyncio.wait(tasks, timeout=self._settings.rating_deadline_seconds)
         for task in pending:
@@ -179,9 +189,9 @@ class RateShoppingService:
 
         outcomes = [task.result() for task in done]
         # Не успевшие в общий дедлайн — тоже строки выдачи, а не тишина.
-        for index, task in enumerate(tasks):
+        for item, task in zip(prepared, tasks, strict=True):
             if task in pending:
-                account, carrier_code, carrier_id, _, _ = prepared[index]  # type: ignore[misc]
+                account, carrier_code, carrier_id, _, _ = item
                 outcomes.append(
                     _CarrierOutcome(
                         carrier_code=carrier_code,
@@ -208,8 +218,17 @@ class RateShoppingService:
 
         try:
             credentials = self._decrypt(account)
-        except ValueError:
-            log.error("rating.credentials_unreadable", carrier=carrier.code)
+        except Exception as exc:
+            # Ловим широко намеренно: расшифровка бросает InvalidTag
+            # из cryptography, JSONDecodeError, KeyError при отозванном ключе.
+            # Нечитаемые данные ОДНОГО перевозчика не должны ронять расчёт
+            # по остальным (FR-1.4). Текст исключения в лог не пишется:
+            # он может содержать шифротекст.
+            log.error(
+                "rating.credentials_unreadable",
+                carrier=carrier.code,
+                error_type=type(exc).__name__,
+            )
             return None
 
         adapter_account = AdapterAccount(
