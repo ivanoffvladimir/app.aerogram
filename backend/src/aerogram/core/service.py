@@ -31,8 +31,14 @@ from aerogram.core.security import (
 from aerogram.db import set_tenant
 from aerogram.shared.addresses import assess_fitness
 from aerogram.shared.clock import utcnow
-from aerogram.shared.enums import TenantStatus, UserRole
-from aerogram.shared.errors import AuthenticationError, Conflict, NotFound, PermissionDenied
+from aerogram.shared.enums import PLATFORM_ROLES, TenantStatus, UserRole
+from aerogram.shared.errors import (
+    AuthenticationError,
+    Conflict,
+    NotFound,
+    PermissionDenied,
+    ValidationFailed,
+)
 from aerogram.shared.logging import get_logger
 
 __all__ = ["AUTH_SCOPE_SETTING", "ApiKeyService", "AuthResult", "AuthService", "UserService"]
@@ -97,8 +103,8 @@ class AuthService:
         # Двухфакторная аутентификация обязательна для роли owner (12.5 ТЗ).
         if user.role == UserRole.OWNER and not user.mfa_enabled:
             log.warning("auth.owner_without_mfa", user_id=str(user.id))
-        if user.mfa_enabled and not mfa_code:
-            raise AuthenticationError("Требуется код двухфакторной аутентификации")
+        if user.mfa_enabled:
+            _refuse_unverifiable_second_factor(user.id)
 
         await set_tenant(self._session, user.tenant_id)
         await self._users.touch_login(user.id)
@@ -150,6 +156,29 @@ class AuthService:
             )
 
 
+def _refuse_unverifiable_second_factor(user_id: UUID) -> None:
+    """Отказать во входе, пока второй фактор нечем проверить.
+
+    Верификатора TOTP в проекте нет: ``users.mfa_secret`` не читается ни одной
+    строкой кода, библиотеки TOTP в зависимостях нет. Прежняя проверка
+    принимала ЛЮБУЮ строку из шести символов как успешный второй фактор —
+    то есть не давала никакой защиты именно в том случае, ради которого
+    двухфакторная аутентификация и существует: когда пароль уже украден.
+
+    Поэтому падаем закрыто. Пользователь с включённой MFA войти не может,
+    и это осознанно: беззвучно пропускать его хуже, чем отказать.
+
+    СНЯТЬ ЭТУ ЗАГЛУШКУ вместе с появлением верификатора — выбор библиотеки TOTP
+    требует решения человека (CLAUDE.md §2), запись висит в docs/status.md,
+    раздел «Требует решения человека». Тогда здесь появится сверка кода
+    с ``mfa_secret`` и защита от повторного использования шага.
+    """
+    log.error("auth.mfa_not_verifiable", user_id=str(user_id))
+    raise AuthenticationError(
+        "Вход по второму фактору временно недоступен: обратитесь к администратору"
+    )
+
+
 class UserService:
     """Пользователи тенанта."""
 
@@ -171,6 +200,11 @@ class UserService:
     async def create(
         self, *, tenant_id: UUID, email: str, full_name: str, role: UserRole, password: str
     ) -> User:
+        if role in PLATFORM_ROLES:
+            # Второй барьер после типа в схеме: подъём привилегий стоит слишком
+            # дорого, чтобы держать защиту в одном месте. Платформенная роль
+            # выдаётся вне продуктового API, а не владельцем тенанта.
+            raise ValidationFailed("Платформенная роль не выдаётся через API тенанта", field="role")
         if await self._users.get_by_email(email) is not None:
             raise Conflict("Пользователь с таким e-mail уже существует в этой компании")
 

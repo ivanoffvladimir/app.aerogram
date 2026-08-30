@@ -95,7 +95,10 @@ async def create_user(
         tenant_id=actor.tenant_id,
         email=payload.email,
         full_name=payload.full_name,
-        role=payload.role,
+        # Единственное место перехода из узкого словаря запроса в широкий
+        # словарь хранения. Значения совпадают по построению, а платформенной
+        # роли в TenantRole нет физически.
+        role=UserRole(payload.role.value),
         password=payload.password,
     )
     AuditService(session).record(

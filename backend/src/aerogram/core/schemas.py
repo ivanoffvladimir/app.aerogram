@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from aerogram.shared.enums import TenantStatus, UserRole
+from aerogram.shared.enums import TenantRole, TenantStatus, UserRole
 
 __all__ = [
     "ErrorBody",
@@ -54,9 +54,16 @@ class UserOut(BaseModel):
 
 
 class UserCreate(BaseModel):
+    """Новый пользователь тенанта.
+
+    ``role`` — ``TenantRole``, а не ``UserRole``: платформенных ролей в этом
+    перечислении нет физически, поэтому владелец тенанта не может выдать себе
+    доступ к общим справочникам, которые читаются на расчёте всех тенантов.
+    """
+
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=255)
-    role: UserRole
+    role: TenantRole
     password: str = Field(min_length=12, max_length=128)
 
 

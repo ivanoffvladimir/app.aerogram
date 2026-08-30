@@ -6,6 +6,7 @@ from enum import StrEnum
 
 __all__ = [
     "FINAL_STATUSES",
+    "PLATFORM_ROLES",
     "CargoType",
     "CarrierAccountMode",
     "CostComponentType",
@@ -27,6 +28,7 @@ __all__ = [
     "ScoreScope",
     "SelectionRule",
     "ShipmentStatus",
+    "TenantRole",
     "TenantStatus",
     "UserRole",
 ]
@@ -71,7 +73,13 @@ class TenantStatus(StrEnum):
 
 
 class UserRole(StrEnum):
-    """Роли внутри тенанта и роли платформы (раздел 2 ТЗ)."""
+    """Все роли системы: и внутри тенанта, и платформенные.
+
+    Это словарь ХРАНЕНИЯ и проверки прав. Привязывать его к телу запроса
+    нельзя: тогда владелец тенанта смог бы выдать себе платформенную роль
+    и получить доступ к общим справочникам всех тенантов. Для входных данных
+    существует ``TenantRole`` — в нём платформенных ролей нет физически.
+    """
 
     OWNER = "owner"
     LOGISTICIAN = "logistician"
@@ -80,6 +88,26 @@ class UserRole(StrEnum):
     API_CLIENT = "api_client"
     PLATFORM_ADMIN = "platform_admin"
     SUPPORT = "support"
+
+
+class TenantRole(StrEnum):
+    """Роли, которые владелец тенанта вправе выдать внутри своего тенанта.
+
+    Отдельный тип, а не подмножество с проверкой: значения, которого нет
+    в перечислении, Pydantic не примет вовсе, и забыть проверку негде.
+    Платформенные роли выдаются только вне продуктового API.
+    """
+
+    OWNER = "owner"
+    LOGISTICIAN = "logistician"
+    OPERATOR = "operator"
+    VIEWER = "viewer"
+    API_CLIENT = "api_client"
+
+
+#: Роли платформы. Стоят НАД тенантом: доступ к общим справочникам,
+#: которые читаются на горячем пути расчёта у всех тенантов сразу.
+PLATFORM_ROLES: frozenset[UserRole] = frozenset({UserRole.PLATFORM_ADMIN, UserRole.SUPPORT})
 
 
 class CarrierAccountMode(StrEnum):

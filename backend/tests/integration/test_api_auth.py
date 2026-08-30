@@ -231,3 +231,151 @@ class TestAuthorizedAccess:
         emails = {u["email"] for u in response.json()}
         assert "a@example.com" in emails
         assert "b@example.com" not in emails
+
+
+class TestSecondFactor:
+    """Второй фактор: пока его нечем проверить, вход закрыт наглухо."""
+
+    async def _enable_mfa(self, database_url: str, tenant_id: UUID, user_id: UUID) -> None:
+        engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+        async with engine.connect() as conn:
+            await conn.execute(
+                text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant_id)}
+            )
+            await conn.execute(
+                text("UPDATE users SET mfa_enabled = true WHERE id = :i"), {"i": user_id}
+            )
+            await conn.commit()
+        await engine.dispose()
+
+    async def test_any_six_characters_no_longer_pass_as_a_code(
+        self, app: FastAPI, seeded: tuple[UUID, UUID, UUID], database_url: str
+    ) -> None:
+        """Прежняя проверка принимала любую строку из шести символов.
+
+        Это не давало защиты именно в том случае, ради которого второй фактор
+        и существует: когда пароль уже украден.
+        """
+        tenant_a, user_a, _ = seeded
+        await self._enable_mfa(database_url, tenant_a, user_a)
+
+        async with await _client(app) as client:
+            response = await client.post(
+                "/v1/auth/login",
+                json={"email": "a@example.com", "password": PASSWORD, "mfa_code": "000000"},
+            )
+
+        assert response.status_code == 401
+        assert response.json()["error"]["code"] == "unauthenticated"
+
+    async def test_correct_password_alone_is_not_enough_either(
+        self, app: FastAPI, seeded: tuple[UUID, UUID, UUID], database_url: str
+    ) -> None:
+        """Падаем закрыто: без кода тоже отказ, а не пропуск."""
+        tenant_a, user_a, _ = seeded
+        await self._enable_mfa(database_url, tenant_a, user_a)
+
+        async with await _client(app) as client:
+            response = await client.post(
+                "/v1/auth/login", json={"email": "a@example.com", "password": PASSWORD}
+            )
+        assert response.status_code == 401
+
+    async def test_users_without_mfa_still_log_in(
+        self, app: FastAPI, seeded: tuple[UUID, UUID, UUID]
+    ) -> None:
+        """Заглушка не должна закрыть вход всем подряд."""
+        async with await _client(app) as client:
+            response = await client.post(
+                "/v1/auth/login", json={"email": "a@example.com", "password": PASSWORD}
+            )
+        assert response.status_code == 200
+
+
+class TestRoleAssignment:
+    """Владелец тенанта не может выдать платформенную роль."""
+
+    async def _owner_token(self, app: FastAPI, database_url: str, tenant_id: UUID) -> str:
+        engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+        async with engine.connect() as conn:
+            await conn.execute(
+                text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant_id)}
+            )
+            await conn.execute(
+                text("UPDATE users SET role = 'owner' WHERE email = 'a@example.com'")
+            )
+            await conn.commit()
+        await engine.dispose()
+
+        async with await _client(app) as client:
+            response = await client.post(
+                "/v1/auth/login", json={"email": "a@example.com", "password": PASSWORD}
+            )
+        token: str = response.json()["access_token"]
+        return token
+
+    async def test_platform_admin_is_not_assignable_through_the_api(
+        self, app: FastAPI, seeded: tuple[UUID, UUID, UUID], database_url: str
+    ) -> None:
+        """Иначе клиент выдаёт себе доступ к общим справочникам всех тенантов.
+
+        `city_carrier_map` не имеет tenant_id и читается на расчёте у каждого
+        тенанта: испортив её, один клиент ломает оформление всем остальным.
+        """
+        tenant_a, _, _ = seeded
+        token = await self._owner_token(app, database_url, tenant_a)
+
+        async with await _client(app) as client:
+            response = await client.post(
+                "/v1/users",
+                json={
+                    "email": "attacker@example.com",
+                    "full_name": "Чужой",
+                    "role": "platform_admin",
+                    "password": "long-enough-password",
+                },
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        assert response.status_code == 422, response.text
+        assert "role" in (response.json()["error"]["field"] or "")
+
+    async def test_support_is_not_assignable_either(
+        self, app: FastAPI, seeded: tuple[UUID, UUID, UUID], database_url: str
+    ) -> None:
+        tenant_a, _, _ = seeded
+        token = await self._owner_token(app, database_url, tenant_a)
+
+        async with await _client(app) as client:
+            response = await client.post(
+                "/v1/users",
+                json={
+                    "email": "support@example.com",
+                    "full_name": "Поддержка",
+                    "role": "support",
+                    "password": "long-enough-password",
+                },
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        assert response.status_code == 422
+
+    async def test_tenant_roles_are_still_assignable(
+        self, app: FastAPI, seeded: tuple[UUID, UUID, UUID], database_url: str
+    ) -> None:
+        """Запрет не должен закрыть обычное заведение сотрудников."""
+        tenant_a, _, _ = seeded
+        token = await self._owner_token(app, database_url, tenant_a)
+
+        async with await _client(app) as client:
+            response = await client.post(
+                "/v1/users",
+                json={
+                    "email": "operator@example.com",
+                    "full_name": "Оператор",
+                    "role": "operator",
+                    "password": "long-enough-password",
+                },
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        assert response.status_code == 201, response.text
+        assert response.json()["role"] == "operator"
