@@ -18,7 +18,17 @@ Alembic допускает только одну голову, а четыре �
   полнотекстовый поиск ищет по началу лексемы и такой запрос не находит;
 * частичные уникальные индексы под мягкое удаление: удалённый контрагент
   не должен занимать ИНН, а отправитель по умолчанию должен быть один;
-* индекс по ИНН с varchar_pattern_ops — под префиксный поиск.
+* индекс по ИНН с varchar_pattern_ops — под префиксный поиск;
+* удаление двух индексов из миграции 0001, ставших избыточными: проверено
+  планировщиком на 20 000 строк, что `ix_counterparties_tenant_id_inn`
+  не выбирается никогда (его работу делает индекс по префиксу ИНН, который
+  обслуживает и равенство), а `ix_counterparties_tenant_id_name` полностью
+  перекрывается частичным `ix_counterparties_tenant_id_alive` — все
+  списочные запросы отсекают удалённых.
+
+Все индексы, включая частичные и по выражениям, объявлены и в моделях.
+Иначе автогенерация следующей миграции, не видя их в метаданных, предложит
+их удалить.
 
 ВНИМАНИЕ (CLAUDE.md §7): схема БД требует построчного ревью человека.
 """
@@ -152,8 +162,24 @@ def upgrade() -> None:
         "(tenant_id, name) WHERE deleted_at IS NULL"
     )
 
+    # --- Удаление ставших избыточными индексов из миграции 0001 -----------
+    # ix_counterparties_tenant_id_inn: точное сравнение по ИНН обслуживается
+    # индексом по префиксу (varchar_pattern_ops поддерживает и равенство),
+    # и планировщик выбирает именно его. Проверено на 20 000 строк.
+    op.drop_index("ix_counterparties_tenant_id_inn", table_name="counterparties")
+    # ix_counterparties_tenant_id_name: полностью перекрыт частичным
+    # ix_counterparties_tenant_id_alive по тем же колонкам. Все запросы
+    # адресной книги содержат deleted_at IS NULL.
+    op.drop_index("ix_counterparties_tenant_id_name", table_name="counterparties")
+
 
 def downgrade() -> None:
+    op.create_index(
+        "ix_counterparties_tenant_id_name", "counterparties", ["tenant_id", "name"], unique=False
+    )
+    op.create_index(
+        "ix_counterparties_tenant_id_inn", "counterparties", ["tenant_id", "inn"], unique=False
+    )
     op.execute("DROP INDEX IF EXISTS ix_counterparties_tenant_id_alive")
     op.execute("DROP INDEX IF EXISTS uq_addresses_tenant_id_default_sender")
     op.execute("DROP INDEX IF EXISTS uq_counterparties_tenant_id_inn_kpp")

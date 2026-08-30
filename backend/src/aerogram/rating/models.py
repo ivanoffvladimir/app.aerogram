@@ -27,6 +27,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from aerogram.db import Base, TenantMixin, uuid_pk
+from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import PriceSource
 
 __all__ = ["RateQuote", "RateRequest"]
@@ -43,7 +44,10 @@ class RateRequest(Base, TenantMixin):
     hash: Mapped[str] = mapped_column(String(64), nullable=False)
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("now()")
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        server_default=text("now()"),
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -95,7 +99,10 @@ class RateQuote(Base, TenantMixin):
     error_message: Mapped[str | None] = mapped_column(Text)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("now()")
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        server_default=text("now()"),
     )
 
     request: Mapped[RateRequest] = relationship(back_populates="quotes")

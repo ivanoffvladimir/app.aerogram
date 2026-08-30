@@ -23,6 +23,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from aerogram.db import Base, TenantMixin, uuid_pk
+from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import DocumentFormat, DocumentType
 
 __all__ = ["Document"]
@@ -50,7 +51,10 @@ class Document(Base, TenantMixin):
     error: Mapped[str | None] = mapped_column(Text)
     generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("now()")
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        server_default=text("now()"),
     )
 
     __table_args__ = (

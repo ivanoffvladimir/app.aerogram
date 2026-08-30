@@ -160,9 +160,18 @@ class CounterpartyRepository:
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
     async def get_by_inn(self, inn: str, kpp: str | None) -> Counterparty | None:
+        """Найти контрагента по паре ИНН + КПП.
+
+        Условие совпадает с уникальным индексом ``(tenant_id, inn,
+        coalesce(kpp, ''))``: головная организация и её филиал — разные
+        контрагенты с одним ИНН и разными КПП. Если бы отсутствие КПП
+        трактовалось как «любой КПП», проверка была бы строже индекса,
+        и завести головную организацию после филиала стало бы невозможно.
+        """
         stmt = self._alive().where(Counterparty.inn == inn)
-        if kpp is not None:
-            stmt = stmt.where(Counterparty.kpp == kpp)
+        stmt = stmt.where(
+            Counterparty.kpp == kpp if kpp is not None else Counterparty.kpp.is_(None)
+        )
         return (await self._session.execute(stmt)).scalars().first()
 
     async def search(

@@ -26,6 +26,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from aerogram.db import Base, uuid_pk
+from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import ScoreConfidence, ScoreScope
 
 __all__ = ["CarrierScoreSnapshot"]
@@ -58,7 +59,10 @@ class CarrierScoreSnapshot(Base):
     confidence: Mapped[ScoreConfidence] = mapped_column(String(20), nullable=False)
     formula_version: Mapped[str] = mapped_column(String(20), nullable=False)
     calculated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("now()")
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        server_default=text("now()"),
     )
 
     __table_args__ = (
