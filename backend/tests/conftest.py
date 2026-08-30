@@ -126,7 +126,7 @@ def source_files() -> Iterator[list[Path]]:
 
 #: Бизнес-таблицы, которые чистятся между тестами API.
 CLEANED_TABLES = (
-    "tenants, users, counterparties, addresses, cities, carriers, "
+    "tenants, users, api_keys, counterparties, addresses, cities, carriers, "
     "city_carrier_map, city_mapping_queue, rate_quotes, rate_offers, "
     "cost_components, recommendations, decisions, routing_rules"
 )

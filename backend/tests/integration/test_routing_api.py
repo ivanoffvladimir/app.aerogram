@@ -54,8 +54,13 @@ def _decide_headers(headers: dict[str, str], key: str) -> dict[str, str]:
     return {**headers, "Idempotency-Key": key}
 
 
-async def _last_used_at(database_url: str, tenant_id: UUID) -> datetime | None:
-    """Когда ключ тенанта использовался в последний раз."""
+async def _last_used_at(database_url: str, tenant_id: UUID, prefix: str) -> datetime | None:
+    """Когда именно этот ключ использовался в последний раз.
+
+    Ключ выбирается по префиксу, а не «первый попавшийся»: соединение
+    миграций в CI принадлежит суперпользователю, RLS его не ограничивает,
+    и запрос без условия видел бы ключи, оставшиеся от соседних тестов.
+    """
     engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
     try:
         async with engine.connect() as conn:
@@ -63,15 +68,21 @@ async def _last_used_at(database_url: str, tenant_id: UUID) -> datetime | None:
                 text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant_id)}
             )
             row = (
-                await conn.execute(text("SELECT last_used_at FROM api_keys LIMIT 1"))
-            ).one_or_none()
+                await conn.execute(
+                    text("SELECT last_used_at FROM api_keys WHERE prefix = :p"), {"p": prefix}
+                )
+            ).one()
     finally:
         await engine.dispose()
-    return None if row is None else row.last_used_at
+    return row.last_used_at
 
 
-async def _issue_api_key(database_url: str, tenant_id: UUID) -> str:
-    """Выпустить API-ключ тенанта. Полное значение существует только здесь."""
+async def _issue_api_key(database_url: str, tenant_id: UUID) -> tuple[str, str]:
+    """Выпустить API-ключ тенанта: полное значение и префикс.
+
+    Полное значение существует только здесь, префикс нужен, чтобы найти
+    в базе именно этот ключ.
+    """
     engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
     factory = async_sessionmaker(engine, expire_on_commit=False)
     full, prefix, key_hash = generate_api_key("local")
@@ -89,7 +100,7 @@ async def _issue_api_key(database_url: str, tenant_id: UUID) -> str:
             )
         )
     await engine.dispose()
-    return full
+    return full, prefix
 
 
 class TestRecommendation:
@@ -317,7 +328,7 @@ class TestMachineClient:
         quote = await _quote(client, headers)
         recommendation = await _recommend(client, headers, quote["quote_id"])
         tenant_a, _ = carrier_setup
-        api_key = await _issue_api_key(database_url, tenant_a)
+        api_key, _ = await _issue_api_key(database_url, tenant_a)
 
         response = await client.post(
             "/v1/decisions",
@@ -346,15 +357,15 @@ class TestMachineClient:
         пользовались им или нет.
         """
         tenant_a, _ = carrier_setup
-        api_key = await _issue_api_key(database_url, tenant_a)
+        api_key, prefix = await _issue_api_key(database_url, tenant_a)
 
-        before = await _last_used_at(database_url, tenant_a)
+        before = await _last_used_at(database_url, tenant_a, prefix)
         assert before is None, "ключ ещё не использовался"
 
         response = await client.get("/v1/counterparties", headers={"X-Api-Key": api_key})
         assert response.status_code == 200, response.text
 
-        assert await _last_used_at(database_url, tenant_a) is not None
+        assert await _last_used_at(database_url, tenant_a, prefix) is not None
 
     async def test_machine_client_records_an_automatic_decision(
         self,
@@ -367,7 +378,7 @@ class TestMachineClient:
         quote = await _quote(client, headers)
         recommendation = await _recommend(client, headers, quote["quote_id"])
         tenant_a, _ = carrier_setup
-        api_key = await _issue_api_key(database_url, tenant_a)
+        api_key, _ = await _issue_api_key(database_url, tenant_a)
 
         response = await client.post(
             "/v1/decisions",
