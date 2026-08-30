@@ -52,8 +52,6 @@ BEYOND_CONTRACT: frozenset[str] = frozenset(
 #: Пустой список означает, что контракт закрыт целиком.
 NOT_IMPLEMENTED_YET: frozenset[str] = frozenset(
     {
-        "/v1/routing/quote",
-        "/v1/decisions",
         "/v1/shipments",
         "/v1/shipments/{shipment_id}",
         "/v1/shipments/{shipment_id}/tracking",
