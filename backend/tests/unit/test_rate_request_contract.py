@@ -63,6 +63,25 @@ class TestAdditionalServices:
             RateRequestIn.model_validate({**MINIMAL, "additional_services": ["insurence"]})
 
 
+class TestTimezoneDiscipline:
+    def test_naive_deadline_is_rejected_not_guessed(self) -> None:
+        """Достроить зону значило бы выбрать её за клиента.
+
+        Для Москва → Владивосток разница в семь часов решает, уложился ли
+        перевозчик в срок, а без зоны сравнение раньше роняло весь расчёт.
+        """
+        with pytest.raises(ValidationError, match="часовой пояс"):
+            RateRequestIn.model_validate({**MINIMAL, "deadline": "2026-09-05T12:00:00"})
+
+    def test_naive_ship_at_is_rejected_too(self) -> None:
+        with pytest.raises(ValidationError, match="часовой пояс"):
+            RateRequestIn.model_validate({**MINIMAL, "ship_at": "2026-09-01T10:00:00"})
+
+    def test_offset_aware_deadline_is_accepted(self) -> None:
+        payload = RateRequestIn.model_validate({**MINIMAL, "deadline": "2026-09-05T12:00:00+03:00"})
+        assert payload.deadline is not None and payload.deadline.tzinfo is not None
+
+
 class TestMillimetresToCentimetres:
     def test_rounds_up_so_the_tariff_is_not_understated(self) -> None:
         # 305 мм это 31 см для тарифа: округление вниз занизило бы объёмный

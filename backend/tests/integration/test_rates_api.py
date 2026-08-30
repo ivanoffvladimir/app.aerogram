@@ -373,3 +373,67 @@ class TestCarrierFilters:
         body = (await client.post("/v1/rates", json=payload, headers=headers)).json()
 
         assert body["offers"] == []
+
+
+class TestRobustness:
+    """Входные данные, на которых расчёт раньше отвечал 500."""
+
+    async def test_region_of_punctuation_does_not_crash_the_request(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """Регион из одной точки не должен ронять весь расчёт.
+
+        Разбор региона брал первое слово по индексу, а у строки без слов
+        список пуст — и запрос заканчивался 500 вместо выдачи.
+        """
+        registry.register(FakeCarrier("fake"))
+        payload = {
+            **RATE_REQUEST,
+            "destination": {**RATE_REQUEST["destination"], "region": "."},
+        }
+        response = await client.post("/v1/rates", json=payload, headers=headers)
+
+        assert response.status_code == 200, response.text
+        assert len(response.json()["offers"]) == 2
+
+    async def test_blank_region_does_not_veto_anything(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """Пустой регион — отсутствие уточнения, а не запрет всех городов."""
+        registry.register(FakeCarrier("fake"))
+        payload = {
+            **RATE_REQUEST,
+            "destination": {**RATE_REQUEST["destination"], "region": "   "},
+        }
+        response = await client.post("/v1/rates", json=payload, headers=headers)
+
+        assert response.status_code == 200, response.text
+        assert len(response.json()["offers"]) == 2
+
+    async def test_deadline_without_a_timezone_is_a_client_error_not_a_crash(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        registry.register(FakeCarrier("fake"))
+        payload = {**RATE_REQUEST, "deadline": "2026-09-05T12:00:00"}
+        response = await client.post("/v1/rates", json=payload, headers=headers)
+
+        assert response.status_code == 422
+        assert "deadline" in (response.json()["error"]["field"] or "")
+
+
+class TestNoDeadlineMatch:
+    async def test_not_set_when_nobody_answered(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """«Никто не успевает» и «никто не ответил» — разные состояния.
+
+        Первое требует показать ближайшие альтернативы, второе — разобраться
+        с доступностью перевозчиков. Путать их нельзя ни в ответе, ни в снимке.
+        """
+        registry.register(FakeCarrier("fake", behaviour="error"))
+        payload = {**RATE_REQUEST, "deadline": "2026-09-05T12:00:00+03:00"}
+        body = (await client.post("/v1/rates", json=payload, headers=headers)).json()
+
+        assert body["offers"] == []
+        assert body["failures"] != []
+        assert body["no_deadline_match"] is False

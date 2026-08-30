@@ -187,9 +187,15 @@ class CityService:
         Сравнение по вхождению: «Ярославская обл» и «Ярославская область» —
         один регион, а точное равенство отбросило бы оба написания.
         """
+        # split() по строке без слов даёт пустой список, поэтому берётся
+        # первый элемент через next, а не по индексу: регион из одних пробелов
+        # или точки — не повод ронять весь расчёт.
+        words = region.strip().lower().removesuffix(".").split()
+        needle = next(iter(words), "")
+        if not needle:
+            return True
         haystack = " ".join(filter(None, (candidate.full_name, candidate.region))).lower()
-        needle = region.strip().lower().removesuffix(".").split()[0]
-        return bool(needle) and needle in haystack
+        return needle in haystack
 
     async def _local(self, query: str, limit: int, *, reason: str) -> CitySuggestResponse:
         """Подсказки из локального справочника — путь деградации."""

@@ -162,10 +162,13 @@ class RateShoppingService:
             if outcome.error_code is not None
         ]
 
-        # Признак отдельно от пустой выдачи: непригодные предложения всё равно
-        # показываются, и «никто не успевает» это не то же самое, что
-        # «никто не ответил» (продуктовое ТЗ, раздел 7).
-        no_deadline_match = bool(payload.deadline) and not any(o.eligible for o in offers)
+        # «Никто не успевает» и «никто не ответил» — разные состояния, и путать
+        # их нельзя: первое требует показать ближайшие альтернативы, второе —
+        # разобраться с доступностью перевозчиков. Поэтому признак ставится
+        # только когда предложения есть и ни одно из них не проходит по сроку.
+        no_deadline_match = (
+            bool(payload.deadline) and bool(offers) and not any(o.eligible for o in offers)
+        )
         quote.no_deadline_match = no_deadline_match
 
         log.info(

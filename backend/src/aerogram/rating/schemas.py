@@ -53,6 +53,20 @@ class RateRequestIn(BaseModel):
     carrier_blacklist: list[UUID] = Field(default_factory=list)
     strategy: RoutingStrategy = RoutingStrategy.OPTIMAL
 
+    @field_validator("ship_at", "deadline")
+    @classmethod
+    def _must_carry_a_timezone(cls, value: datetime | None) -> datetime | None:
+        """Момент без зоны отвергается, а не достраивается.
+
+        Достроить зону значило бы выбрать её за клиента: для отправления
+        Москва → Владивосток разница в семь часов решает, уложился ли
+        перевозчик в срок. Схема контракта требует ``date-time``, а он
+        содержит смещение.
+        """
+        if value is not None and value.tzinfo is None:
+            raise ValueError("укажите часовой пояс: например, 2026-09-05T12:00:00+03:00")
+        return value
+
     @field_validator("additional_services")
     @classmethod
     def _known_services_only(cls, value: list[str]) -> list[str]:

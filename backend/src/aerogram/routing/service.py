@@ -163,6 +163,18 @@ class DecisionService:
                 field="override_reason",
             )
 
+        if payload.mode is DecisionMode.MANUAL and user_id is None:
+            # У ручного решения обязан быть автор — это ограничение схемы.
+            # Клиент по API-ключу человеком не является, и его решение
+            # по смыслу автоматическое. Молча подменять режим нельзя:
+            # это исказило бы долю автовыбора в аналитике, ради которой
+            # поле и существует. Поэтому говорим прямо, что прислать.
+            raise ValidationFailed(
+                "Решение без пользователя считается автоматическим: "
+                'клиенту по API-ключу нужно указать mode="auto"',
+                field="mode",
+            )
+
         decision = Decision(
             id=uuid7(),
             tenant_id=tenant_id,

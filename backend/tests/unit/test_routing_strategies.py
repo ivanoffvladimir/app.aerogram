@@ -109,6 +109,65 @@ class TestOptimal:
         assert len(ranking.ordered) == 2
 
 
+class TestUnknownEta:
+    def test_one_offer_without_a_date_does_not_erase_the_time_weight(self) -> None:
+        """Условно огромный срок растянул бы шкалу и обнулил вес времени.
+
+        Цена и надёжность у всех трёх одинаковы, поэтому решает только срок.
+        Если предложение без даты подставляет в шкалу число размером с века,
+        разница между девятью днями и одним схлопывается в ноль, и порядок
+        становится произвольным.
+        """
+        slow = offer(price=100_000, days=9, probability="0.9", risk=RiskLevel.LOW)
+        fast = offer(price=100_000, days=1, probability="0.9", risk=RiskLevel.LOW)
+        undated = OfferFacts(
+            offer_id=uuid7(),
+            carrier_id=uuid7(),
+            total=Money(100_000, "RUB"),
+            eta=None,
+            eligible=True,
+            on_time_probability=Decimal("0.9"),
+            risk=RiskLevel.LOW,
+        )
+
+        ranking = rank([slow, undated, fast], RoutingStrategy.OPTIMAL)
+        assert ranking.best is fast
+        # И медленный обязан стоять выше того, о чьём сроке ничего не известно.
+        assert [o.offer_id for o in ranking.ordered] == [
+            fast.offer_id,
+            slow.offer_id,
+            undated.offer_id,
+        ]
+
+    def test_offer_without_a_date_ranks_last_on_time(self) -> None:
+        undated = OfferFacts(
+            offer_id=uuid7(),
+            carrier_id=uuid7(),
+            total=Money(100_000, "RUB"),
+            eta=None,
+            eligible=True,
+        )
+        dated = offer(price=100_000, days=30)
+        assert rank([undated, dated], RoutingStrategy.OPTIMAL).best is dated
+
+    def test_all_dates_unknown_leaves_the_choice_to_price(self) -> None:
+        cheap = OfferFacts(
+            offer_id=uuid7(),
+            carrier_id=uuid7(),
+            total=Money(100_000, "RUB"),
+            eta=None,
+            eligible=True,
+        )
+        pricey = OfferFacts(
+            offer_id=uuid7(),
+            carrier_id=uuid7(),
+            total=Money(500_000, "RUB"),
+            eta=None,
+            eligible=True,
+        )
+        assert rank([pricey, cheap], RoutingStrategy.OPTIMAL).best is cheap
+
+
 class TestHardConstraints:
     def test_ineligible_offers_are_never_recommended(self) -> None:
         """Нарушивший жёсткое ограничение не побеждает ни при какой оценке."""

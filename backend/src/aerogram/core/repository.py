@@ -89,8 +89,9 @@ class ApiKeyRepository:
         """Найти действующий ключ по хешу.
 
         Запрос идёт БЕЗ установленного тенанта: тенанта мы как раз и определяем
-        по ключу. Поэтому таблица ``api_keys`` читается платформенной ролью через
-        отдельный путь — см. ``core.service.ApiKeyAuthService``.
+        по ключу. Поэтому вызывать этот метод можно только из
+        ``core.service.ApiKeyService._lookup_key``, который открывает узкое
+        окно поверх RLS и закрывает его вместе с транзакцией (ADR-0004).
         """
         stmt = select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.revoked_at.is_(None))
         return (await self._session.execute(stmt)).scalar_one_or_none()

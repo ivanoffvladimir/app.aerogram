@@ -6,13 +6,18 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from aerogram.carriers import registry
+from aerogram.core.models import ApiKey
+from aerogram.core.security import generate_api_key
 from aerogram.shared.ids import uuid7
 from tests.integration.conftest import RATE_REQUEST, FakeCarrier
 
@@ -46,6 +51,28 @@ async def _recommend(
 
 def _decide_headers(headers: dict[str, str], key: str) -> dict[str, str]:
     return {**headers, "Idempotency-Key": key}
+
+
+async def _issue_api_key(database_url: str, tenant_id: UUID) -> str:
+    """Выпустить API-ключ тенанта. Полное значение существует только здесь."""
+    engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    full, prefix, key_hash = generate_api_key("local")
+    async with factory() as db, db.begin():
+        await db.execute(
+            text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant_id)}
+        )
+        db.add(
+            ApiKey(
+                tenant_id=tenant_id,
+                name="Тестовый клиент",
+                prefix=prefix,
+                key_hash=key_hash,
+                scopes=["decisions:write"],
+            )
+        )
+    await engine.dispose()
+    return full
 
 
 class TestRecommendation:
@@ -252,3 +279,80 @@ class TestIdempotency:
 
         assert conflict.status_code == 409
         assert conflict.json()["error"]["field"] == "Idempotency-Key"
+
+
+class TestMachineClient:
+    """Решение без пользователя — путь клиента по API-ключу."""
+
+    async def test_manual_mode_without_a_user_is_a_clear_refusal(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        database_url: str,
+    ) -> None:
+        """Раньше такой запрос нарушал ограничение схемы и получал 409.
+
+        У ручного решения обязан быть автор. Клиент по API-ключу человеком
+        не является: вместо непонятного «конфликта» он должен получить
+        внятное указание, что прислать.
+        """
+        quote = await _quote(client, headers)
+        recommendation = await _recommend(client, headers, quote["quote_id"])
+        tenant_a, _ = carrier_setup
+        api_key = await _issue_api_key(database_url, tenant_a)
+
+        response = await client.post(
+            "/v1/decisions",
+            json={
+                "recommendation_id": recommendation["id"],
+                "selected_offer_id": recommendation["recommended_offer_id"],
+                "mode": "manual",
+            },
+            headers={"X-Api-Key": api_key, "Idempotency-Key": "machine-1"},
+        )
+
+        assert response.status_code == 422, response.text
+        assert response.json()["error"]["field"] == "mode"
+
+    async def test_machine_client_records_an_automatic_decision(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        database_url: str,
+    ) -> None:
+        """С правильным режимом клиент по ключу решение всё-таки фиксирует."""
+        quote = await _quote(client, headers)
+        recommendation = await _recommend(client, headers, quote["quote_id"])
+        tenant_a, _ = carrier_setup
+        api_key = await _issue_api_key(database_url, tenant_a)
+
+        response = await client.post(
+            "/v1/decisions",
+            json={
+                "recommendation_id": recommendation["id"],
+                "selected_offer_id": recommendation["recommended_offer_id"],
+                "mode": "auto",
+            },
+            headers={"X-Api-Key": api_key, "Idempotency-Key": "machine-2"},
+        )
+        assert response.status_code == 201, response.text
+
+    async def test_automatic_decision_records_no_actor(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """Автовыбор не требует автора: решение принимает правило."""
+        quote = await _quote(client, headers)
+        recommendation = await _recommend(client, headers, quote["quote_id"])
+
+        response = await client.post(
+            "/v1/decisions",
+            json={
+                "recommendation_id": recommendation["id"],
+                "selected_offer_id": recommendation["recommended_offer_id"],
+                "mode": "auto",
+            },
+            headers=_decide_headers(headers, "auto-1"),
+        )
+        assert response.status_code == 201, response.text

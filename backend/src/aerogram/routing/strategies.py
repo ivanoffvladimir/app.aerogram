@@ -144,7 +144,7 @@ def _optimal_scores(offers: list[OfferFacts]) -> dict[UUID, Decimal]:
     перевешивает разницу в цене (продуктовое ТЗ, раздел 7).
     """
     cost = _normalise([Decimal(o.total.amount_minor) for o in offers])
-    time = _normalise([_eta_seconds(o) for o in offers])
+    time = _normalise_time([o.eta for o in offers])
     reliability = [_reliability_cost(o) for o in offers]
     risk = [_RISK_SCALE.get(o.risk, NEUTRAL) if o.risk is not None else NEUTRAL for o in offers]
 
@@ -157,11 +157,25 @@ def _optimal_scores(offers: list[OfferFacts]) -> dict[UUID, Decimal]:
     }
 
 
-def _eta_seconds(offer: OfferFacts) -> Decimal:
-    """Срок в секундах от общего начала отсчёта. Неизвестный — как самый долгий."""
-    if offer.eta is None:
-        return Decimal(10**12)
-    return Decimal(int(offer.eta.timestamp()))
+def _normalise_time(etas: list[datetime | None]) -> list[Decimal]:
+    """Сроки к [0, 1], где 0 — самый ранний.
+
+    Неизвестный срок НЕ участвует в поиске минимума и максимума, а получает
+    худшую оценку. Подставить вместо него условно огромное число значило бы
+    растянуть шкалу на века: разница между реальными сроками схлопнулась бы
+    в ноль, и вес срока молча исчез бы из формулы.
+    """
+    known = [Decimal(int(eta.timestamp())) for eta in etas if eta is not None]
+    if not known:
+        return [Decimal(1)] * len(etas)
+    low, high = min(known), max(known)
+    span = high - low
+    return [
+        Decimal(1)
+        if eta is None
+        else (Decimal(0) if span == 0 else (Decimal(int(eta.timestamp())) - low) / span)
+        for eta in etas
+    ]
 
 
 def _normalise(values: list[Decimal]) -> list[Decimal]:

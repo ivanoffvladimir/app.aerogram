@@ -2,11 +2,10 @@
 
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   ApiError,
-  newIdempotencyKey,
   request,
   tokens,
   type DecisionResponse,
@@ -19,6 +18,7 @@ import { AppShell } from '@/components/AppShell'
 import { OfferCard } from '@/components/OfferCard'
 import { OverrideDialog } from '@/components/OverrideDialog'
 import { CONFIDENCE_LABELS, formatDateTime, formatMoney } from '@/lib/format'
+import { IdempotencyKeys } from '@/lib/idempotency'
 import styles from './page.module.css'
 
 const STRATEGIES = [
@@ -52,6 +52,9 @@ export default function RateShoppingPage() {
   const [decision, setDecision] = useState<DecisionResponse | null>(null)
   const [failure, setFailure] = useState<ApiError | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  //: Ключи идемпотентности выбора. Ref, а не состояние: их изменение
+  //  не должно вызывать перерисовку.
+  const decisionKeys = useRef(new IdempotencyKeys())
 
   useEffect(() => {
     if (!tokens.access()) router.replace('/login')
@@ -116,6 +119,9 @@ export default function RateShoppingPage() {
       setRecommendation(null)
       setDecision(null)
       setFailure(null)
+      // Новый расчёт — другие предложения и другое намерение: ключи прошлой
+      // выдачи переиспользовать нельзя, иначе повтор вернул бы старое решение.
+      decisionKeys.current.clear()
       recommend.mutate({ quoteId: data.quote_id, strategy })
     },
     onError: (error) => setFailure(error instanceof ApiError ? error : null),
@@ -136,10 +142,12 @@ export default function RateShoppingPage() {
   const decide = useMutation({
     mutationFn: ({
       offerId,
+      idempotencyKey,
       reason,
       comment,
     }: {
       offerId: string
+      idempotencyKey: string
       reason?: string
       comment?: string
     }) => {
@@ -147,9 +155,11 @@ export default function RateShoppingPage() {
       const isOverride = offerId !== recommendation.recommended_offer_id
       return request<DecisionResponse>('/decisions', {
         method: 'POST',
-        // Ключ на попытку: повтор после обрыва обязан прислать тот же,
-        // иначе создастся второе решение.
-        idempotencyKey: newIdempotencyKey(),
+        // Ключ приходит СНАРУЖИ и переживает повтор. Создавать его здесь
+        // значило бы выдавать новый на каждую попытку: повтор после
+        // потерянного ответа создал бы второе решение по той же рекомендации,
+        // то есть ровно то, от чего идемпотентность защищает.
+        idempotencyKey,
         body: {
           recommendation_id: recommendation.id,
           selected_offer_id: offerId,
@@ -181,7 +191,7 @@ export default function RateShoppingPage() {
   function selectOffer(offer: RateOffer) {
     if (!recommendation) return
     if (offer.id === recommendation.recommended_offer_id) {
-      decide.mutate({ offerId: offer.id })
+      decide.mutate({ offerId: offer.id, idempotencyKey: decisionKeys.current.for(offer.id) })
       return
     }
     setOverriding(offer)
@@ -388,7 +398,12 @@ export default function RateShoppingPage() {
           submitting={decide.isPending}
           onCancel={() => setOverriding(null)}
           onConfirm={(reason, comment) =>
-            decide.mutate({ offerId: overriding.id, reason, comment })
+            decide.mutate({
+              offerId: overriding.id,
+              idempotencyKey: decisionKeys.current.for(overriding.id),
+              reason,
+              comment,
+            })
           }
         />
       )}

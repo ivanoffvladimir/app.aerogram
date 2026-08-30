@@ -48,6 +48,11 @@ log = get_logger(__name__)
 #: Тест ``tests/unit/test_auth_scope_guard.py`` следит, чтобы других мест не появилось.
 AUTH_SCOPE_SETTING = "app.auth_scope"
 _AUTH_SCOPE_VALUE = "login"
+#: Второе окно — поиск API-ключа. Тенант определяется ПО ключу, поэтому до
+#: поиска его знать неоткуда, и RLS без установленного тенанта не отдаёт строк.
+#: Значение отдельное от логина: окно на users не должно открывать api_keys
+#: и наоборот.
+_API_KEY_SCOPE_VALUE = "api_key"
 
 
 @dataclass(frozen=True, slots=True)
@@ -208,14 +213,33 @@ class ApiKeyService:
         target.revoked_at = utcnow()
 
     async def resolve(self, raw_key: str) -> ApiKey:
-        """Определить тенанта по предъявленному ключу."""
-        key = await self._keys.get_by_hash(hash_api_key(raw_key))
+        """Определить тенанта по предъявленному ключу.
+
+        Открывает узкое окно поверх RLS — по той же причине и по тому же
+        образцу, что и поиск пользователя при входе (ADR-0004): тенанта мы
+        как раз и определяем по ключу, а до этого политика не пропускает
+        ни одной строки. Окно только на SELECT и закрывается вместе
+        с транзакцией.
+        """
+        key = await self._lookup_key(hash_api_key(raw_key))
         if key is None:
             raise AuthenticationError("Ключ недействителен")
         if key.expires_at is not None and key.expires_at < utcnow():
             raise AuthenticationError("Срок действия ключа истёк")
         await self._keys.touch_used(key.id)
         return key
+
+    async def _lookup_key(self, key_hash: str) -> ApiKey | None:
+        await self._session.execute(
+            text("SELECT set_config(:name, :value, true)"),
+            {"name": AUTH_SCOPE_SETTING, "value": _API_KEY_SCOPE_VALUE},
+        )
+        try:
+            return await self._keys.get_by_hash(key_hash)
+        finally:
+            await self._session.execute(
+                text("SELECT set_config(:name, '', true)"), {"name": AUTH_SCOPE_SETTING}
+            )
 
 
 class AuditService:
