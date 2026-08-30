@@ -134,6 +134,33 @@ class ScoreRepository:
         )
         return (await self._session.execute(stmt)).scalars().first()
 
+    async def latest_by_carrier(
+        self, scope_type: ScoreScope = ScoreScope.GLOBAL, scope_key: str = ""
+    ) -> dict[UUID, CarrierScoreSnapshot]:
+        """Самый свежий снапшот каждого перевозчика в одном разрезе.
+
+        Одним запросом, а не по снапшоту на перевозчика: расчёт опрашивает
+        пятерых, и пять лишних запросов к базе легли бы прямо в время ответа.
+        Тенанта в условии нет — его ставит RLS (ADR-0017).
+        """
+        stmt = (
+            select(CarrierScoreSnapshot)
+            .where(
+                CarrierScoreSnapshot.scope_type == scope_type,
+                CarrierScoreSnapshot.scope_key == scope_key,
+            )
+            .order_by(
+                CarrierScoreSnapshot.carrier_id,
+                CarrierScoreSnapshot.period_end.desc(),
+                CarrierScoreSnapshot.calculated_at.desc(),
+            )
+        )
+        latest: dict[UUID, CarrierScoreSnapshot] = {}
+        for snapshot in (await self._session.execute(stmt)).scalars():
+            # Порядок уже задан, поэтому первый встреченный и есть самый свежий.
+            latest.setdefault(snapshot.carrier_id, snapshot)
+        return latest
+
     async def upsert(self, snapshot: CarrierScoreSnapshot) -> CarrierScoreSnapshot:
         """Записать снапшот, заменив пересчёт того же периода и той же версии.
 

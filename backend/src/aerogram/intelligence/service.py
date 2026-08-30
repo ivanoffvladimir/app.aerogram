@@ -75,12 +75,19 @@ class ScoreService:
         self._scores = ScoreRepository(session)
         self._carriers = CarrierRepository(session)
 
-    async def recalculate(self, period_start: date, period_end: date) -> list[CarrierScoreSnapshot]:
+    async def recalculate(
+        self, period_start: date, period_end: date, *, tenant_id: UUID
+    ) -> list[CarrierScoreSnapshot]:
         """Пересчитать скор за период и сохранить снапшоты.
 
         Пересчёт одного и того же периода той же версией формулы заменяет
         прошлый снапшот, а не плодит второй: два разных ответа об одном
         периоде нельзя ни объяснить, ни использовать.
+
+        ``tenant_id`` передаётся явно, а не берётся из настройки сессии:
+        снапшот принадлежит тенанту (ADR-0017), и его владелец должен быть
+        виден в коде, который его создаёт. RLS проверит то же самое ещё раз —
+        запись с чужим тенантом не пройдёт ``WITH CHECK``.
         """
         observations = await self._scores.observations(period_start, period_end)
         prior = _prior_from(observations)
@@ -95,6 +102,7 @@ class ScoreService:
                 await self._scores.upsert(
                     CarrierScoreSnapshot(
                         id=uuid7(),
+                        tenant_id=tenant_id,
                         carrier_id=observed.carrier_id,
                         scope_type=ScoreScope.GLOBAL,
                         scope_key="",

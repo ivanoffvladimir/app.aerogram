@@ -130,7 +130,10 @@ class RateOfferOut(BaseModel):
     lateness_seconds: int | None = None
     on_time_probability: Decimal | None = Field(default=None, ge=0, le=1)
     probability_label: ProbabilityLabel | None = None
-    carrier_score: Decimal | None = Field(default=None, ge=0, le=100)
+    #: Целое, а не Decimal: колонка ``score_at_quote`` целая, проверка
+    #: ``score_range`` держит 0..100, а Pydantic отдаёт Decimal в JSON строкой —
+    #: и в схеме контракта оказалось бы "92" там, где объявлен number.
+    carrier_score: int | None = Field(default=None, ge=0, le=100)
     risk: RiskLevel | None = None
     confidence: ScoreConfidence | None = None
     eligible: bool

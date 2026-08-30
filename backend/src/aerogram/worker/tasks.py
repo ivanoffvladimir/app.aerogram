@@ -131,15 +131,14 @@ async def _webhooks_tenant(tenant_id: UUID) -> int:
 async def _score_tenant(tenant_id: UUID) -> int:
     """Пересчитать скор по наблюдениям тенанта (FR-7.1).
 
-    Снапшот платформенный, поэтому пересчёт по каждому тенанту подряд
-    затирает предыдущий: это **не** свод по платформе, которого требует
-    раздел 10.2, а его временная замена. Свод разбирается отдельно —
-    см. docs/status.md.
+    Снапшот принадлежит тенанту (ADR-0017), поэтому пересчёт одного больше
+    не затирает снапшот другого. Свод по платформе из раздела 10.2 этим
+    не решается и остаётся открытым — см. docs/status.md.
     """
     today = utcnow().date()
     async with session_scope(tenant_id) as session:
         snapshots = await ScoreService(session).recalculate(
-            today - timedelta(days=SCORE_PERIOD_DAYS), today
+            today - timedelta(days=SCORE_PERIOD_DAYS), today, tenant_id=tenant_id
         )
         return len(snapshots)
 

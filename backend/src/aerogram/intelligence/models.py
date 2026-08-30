@@ -1,7 +1,11 @@
 """Снапшоты Carrier Score.
 
-Платформенная витрина: скор считается по всем тенантам сразу, поэтому tenant_id и RLS
-здесь нет. Изменение весов не переписывает историю — версия формулы лежит в снапшоте
+Скор принадлежит тенанту: он отвечает на вопрос «как этот перевозчик возит
+у нас», а не «как он возит вообще» (ADR-0017). Отсюда ``tenant_id``, RLS
+и ``tenant_id`` первым в ключе уникальности — без него пересчёт одного тенанта
+затирал бы снапшот другого, а витрина отдавала бы чужие числа.
+
+Изменение весов не переписывает историю — версия формулы лежит в снапшоте
 (FR-7.4).
 """
 
@@ -25,14 +29,14 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from aerogram.db import Base, uuid_pk
+from aerogram.db import Base, TenantMixin, uuid_pk
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import ScoreConfidence, ScoreScope
 
 __all__ = ["CarrierScoreSnapshot"]
 
 
-class CarrierScoreSnapshot(Base):
+class CarrierScoreSnapshot(Base, TenantMixin):
     """Скор перевозчика в заданном разрезе за период."""
 
     __tablename__ = "carrier_score_snapshots"
@@ -67,6 +71,7 @@ class CarrierScoreSnapshot(Base):
 
     __table_args__ = (
         UniqueConstraint(
+            "tenant_id",
             "carrier_id",
             "scope_type",
             "scope_key",

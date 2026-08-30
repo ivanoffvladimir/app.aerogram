@@ -17,14 +17,18 @@ from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from aerogram.carriers import registry
 from aerogram.db import session_scope
 from aerogram.directories.models import Carrier
+from aerogram.intelligence.models import CarrierScoreSnapshot
 from aerogram.intelligence.score import FORMULA_VERSION
 from aerogram.intelligence.service import ScoreService
-from aerogram.shared.enums import ShipmentStatus
+from aerogram.shared.enums import ScoreConfidence, ScoreScope, ShipmentStatus
 from aerogram.shared.ids import uuid7
 from aerogram.shipments.models import Shipment
 from aerogram.tracking.models import DeliveryOutcome, ShipmentEvent
+from tests.conftest import login
+from tests.integration.conftest import RATE_REQUEST, FakeCarrier
 
 pytestmark = pytest.mark.asyncio
 
@@ -60,6 +64,7 @@ async def seed_shipments(
     cancelled: int = 0,
     cost_minor: int = 100_000,
     events_each: int = 3,
+    batch: str = "a",
 ) -> None:
     """Записать завершённые отправления с заданным исходом.
 
@@ -79,7 +84,9 @@ async def seed_shipments(
                 tenant_id=tenant_id,
                 # Хвост, а не начало: uuid7 упорядочен по времени, и у двух
                 # перевозчиков, созданных в одну миллисекунду, начало совпадает.
-                number=f"S-{carrier_id.hex[-8:]}-{index}",
+                # ``batch`` разводит номера, когда одному перевозчику досыпают
+                # вторую партию: номер уникален в пределах тенанта.
+                number=f"S-{carrier_id.hex[-8:]}-{batch}{index}",
                 carrier_id=carrier_id,
                 status=ShipmentStatus.CANCELLED if is_cancelled else ShipmentStatus.DELIVERED,
                 currency="RUB",
@@ -122,7 +129,7 @@ async def seed_shipments(
 
 async def recalculate(tenant_id: UUID) -> None:
     async with session_scope(tenant_id) as session:
-        await ScoreService(session).recalculate(PERIOD_START, PERIOD_END)
+        await ScoreService(session).recalculate(PERIOD_START, PERIOD_END, tenant_id=tenant_id)
 
 
 def by_code(rows: list[dict], code: str) -> dict:
@@ -265,3 +272,166 @@ class TestSnapshots:
                 )
             ).scalar_one()
         assert version == FORMULA_VERSION
+
+
+class TestTheScoreBelongsToItsTenant:
+    """ADR-0017. Скор считается по отправлениям тенанта и виден только ему.
+
+    До этого решения снапшот был платформенным: пересчёт каждого тенанта
+    перезаписывал одну и ту же строку, и витрина отдавала всем статистику
+    того, кто считался последним, — его долю просрочек, долю инцидентов,
+    индекс цены и объём отправлений.
+    """
+
+    async def test_another_tenant_does_not_see_the_snapshot(
+        self,
+        client: AsyncClient,
+        carriers: tuple[UUID, UUID],
+        seeded_tenants: tuple[UUID, UUID],
+    ) -> None:
+        """Размер выборки — это объём отправлений соседа, и он не его дело."""
+        tenant_a, _ = seeded_tenants
+        good, _ = carriers
+        await seed_shipments(tenant_a, good, count=200, on_time=196)
+        await recalculate(tenant_a)
+
+        other = await login(client, "b@example.com")
+        rows = (await client.get("/v1/analytics/carriers", headers=other)).json()
+
+        assert by_code(rows, "good")["score"] is None
+        assert by_code(rows, "good")["confidence"] == "insufficient"
+        assert by_code(rows, "good")["sample_size"] == 0
+
+    async def test_recalculating_one_tenant_does_not_overwrite_another(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carriers: tuple[UUID, UUID],
+        seeded_tenants: tuple[UUID, UUID],
+    ) -> None:
+        """Ключ уникальности без тенанта и приводил к перезаписи."""
+        tenant_a, tenant_b = seeded_tenants
+        good, _ = carriers
+        # У первого перевозчик возит хорошо, у второго — плохо.
+        await seed_shipments(tenant_a, good, count=200, on_time=196)
+        await seed_shipments(tenant_b, good, count=200, on_time=40, incidents=60)
+        await recalculate(tenant_a)
+        await recalculate(tenant_b)
+
+        mine = by_code((await client.get("/v1/analytics/carriers", headers=headers)).json(), "good")
+        other_headers = await login(client, "b@example.com")
+        theirs = by_code(
+            (await client.get("/v1/analytics/carriers", headers=other_headers)).json(), "good"
+        )
+
+        assert mine["sample_size"] == 200
+        assert theirs["sample_size"] == 200
+        # Числа у них разные, и ни одно не затёрло другое.
+        assert mine["score"] > theirs["score"]
+
+    async def test_a_snapshot_cannot_be_written_for_someone_else(
+        self, carriers: tuple[UUID, UUID], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        """RLS проверяет владельца ещё раз, после кода.
+
+        Ошибка в вызывающем коде не должна означать чужую строку в витрине:
+        ``WITH CHECK`` не пропустит запись с чужим тенантом.
+        """
+        tenant_a, tenant_b = seeded_tenants
+        good, _ = carriers
+
+        with pytest.raises(Exception) as exc:
+            async with session_scope(tenant_a) as session:
+                session.add(
+                    CarrierScoreSnapshot(
+                        id=uuid7(),
+                        tenant_id=tenant_b,
+                        carrier_id=good,
+                        scope_type=ScoreScope.GLOBAL,
+                        scope_key="",
+                        period_start=PERIOD_START,
+                        period_end=PERIOD_END,
+                        sample_size=1,
+                        confidence=ScoreConfidence.INSUFFICIENT,
+                        formula_version=FORMULA_VERSION,
+                    )
+                )
+                await session.flush()
+
+        assert "row-level security" in str(exc.value).lower()
+
+
+class TestTheScoreReachesTheQuote:
+    """FR-7.6: скор попадает в выдачу расчёта и остаётся в ней снимком."""
+
+    async def test_the_offer_carries_the_score_of_its_carrier(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        seeded_tenants: tuple[UUID, UUID],
+    ) -> None:
+        """Иначе оператор выбирает по цене и сроку, не зная о надёжности."""
+        registry.register(FakeCarrier("fake"))
+        tenant_a, carrier_id = carrier_setup
+        await seed_shipments(tenant_a, carrier_id, count=200, on_time=196)
+        await recalculate(tenant_a)
+
+        body = (await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)).json()
+
+        offer = body["offers"][0]
+        assert offer["carrier_score"] is not None
+        assert offer["confidence"] == "high"
+
+    async def test_a_carrier_without_statistics_gets_no_number(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        seeded_tenants: tuple[UUID, UUID],
+    ) -> None:
+        """«Недостаточно данных» в контракте выражается отсутствием числа.
+
+        Значения ``insufficient`` в схеме ``RateOffer`` нет, и придумывать его
+        нельзя: раз числа нет, говорить о доверии к нему нечего.
+        """
+        registry.register(FakeCarrier("fake"))
+        tenant_a, carrier_id = carrier_setup
+        await seed_shipments(tenant_a, carrier_id, count=5, on_time=5)
+        await recalculate(tenant_a)
+
+        body = (await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)).json()
+
+        offer = body["offers"][0]
+        assert offer["carrier_score"] is None
+        assert offer["confidence"] is None
+
+    async def test_the_recorded_score_does_not_move_with_the_next_recalculation(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        seeded_tenants: tuple[UUID, UUID],
+        database_url: str,
+    ) -> None:
+        """Снимок объясняет решение теми числами, которые были видны тогда."""
+        registry.register(FakeCarrier("fake"))
+        tenant_a, carrier_id = carrier_setup
+        await seed_shipments(tenant_a, carrier_id, count=200, on_time=196)
+        await recalculate(tenant_a)
+        before = (await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)).json()
+        recorded = before["offers"][0]["carrier_score"]
+
+        # Перевозчик начал возить плохо, и скор пересчитан.
+        await seed_shipments(tenant_a, carrier_id, count=200, on_time=0, incidents=150, batch="b")
+        await recalculate(tenant_a)
+
+        async with session_scope(tenant_a) as session:
+            stored = (
+                await session.execute(
+                    text("SELECT score_at_quote FROM rate_offers WHERE id = :id"),
+                    {"id": before["offers"][0]["id"]},
+                )
+            ).scalar_one()
+
+        assert stored == recorded, "снимок расчёта пересчитали задним числом"

@@ -41,6 +41,8 @@ from aerogram.directories.service import (
     CityMappingService,
     CityService,
 )
+from aerogram.intelligence.models import CarrierScoreSnapshot
+from aerogram.intelligence.repository import ScoreRepository
 from aerogram.rating.models import RateOffer, RateQuote
 from aerogram.rating.repository import RateRepository
 from aerogram.rating.schemas import (
@@ -50,7 +52,12 @@ from aerogram.rating.schemas import (
     RateResponse,
 )
 from aerogram.shared.clock import utcnow
-from aerogram.shared.enums import IneligibilityReason, OfferSource, PriceSource
+from aerogram.shared.enums import (
+    IneligibilityReason,
+    OfferSource,
+    PriceSource,
+    ScoreConfidence,
+)
 from aerogram.shared.errors import AerogramError, CarrierError, CarrierTimeout
 from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
@@ -95,6 +102,7 @@ class RateShoppingService:
         self._cities = CityService(session, dadata)
         self._parties = CarrierPartyResolver(self._cities, self._mappings)
         self._rates = RateRepository(session)
+        self._scores = ScoreRepository(session)
 
     async def quote(
         self, payload: RateRequestIn, *, tenant_id: UUID, user_id: UUID | None
@@ -142,7 +150,11 @@ class RateShoppingService:
         )
         self._rates.add_quote(quote)
 
-        rows = self._persist(quote, outcomes, payload, tenant_id, destination_tz)
+        # Скор снимается в момент расчёта и остаётся в предложении навсегда:
+        # рекомендация объясняется теми числами, которые были видны тогда,
+        # а не теми, что получились после следующего пересчёта (FR-7.6).
+        scores = await self._scores.latest_by_carrier()
+        rows = self._persist(quote, outcomes, payload, tenant_id, destination_tz, scores)
         await self._session.flush()
 
         # ``carrier_code`` берётся из опроса, а не из справочника: перевозчика
@@ -226,8 +238,9 @@ class RateShoppingService:
                 lateness_seconds=row.lateness_seconds,
                 on_time_probability=row.on_time_probability,
                 probability_label=row.probability_label,
+                carrier_score=row.score_at_quote,
                 risk=row.risk,
-                confidence=row.score_confidence,
+                confidence=_shown_confidence(row.score_confidence),
                 eligible=row.eligible,
                 ineligibility_reason=row.ineligibility_reason,
                 valid_until=row.valid_until,
@@ -471,6 +484,7 @@ class RateShoppingService:
         payload: RateRequestIn,
         tenant_id: UUID,
         destination_tz: str | None,
+        scores: dict[UUID, CarrierScoreSnapshot],
     ) -> list[tuple[RateOffer, str]]:
         """Сохранить предложения и строки ошибок."""
         rows: list[tuple[RateOffer, str]] = []
@@ -498,6 +512,7 @@ class RateShoppingService:
                 )
                 continue
 
+            score = scores.get(outcome.carrier_id)
             for offer in outcome.quotes:
                 eta = _end_of_day(offer.promised_delivery_date, destination_tz)
                 margin, lateness = _deadline_gap(eta, payload.deadline)
@@ -530,6 +545,12 @@ class RateShoppingService:
                                 IneligibilityReason.MISSES_DEADLINE if meets is False else None
                             ),
                             raw_response={**offer.raw, "service_name": offer.service_name},
+                            # Скор пишется и тогда, когда его нет: «смотрели,
+                            # данных не хватило» и «не смотрели» — разные
+                            # состояния, и через месяц их не различить.
+                            score_at_quote=score.score if score else None,
+                            score_confidence=score.confidence if score else None,
+                            score_scope=score.scope_type if score else None,
                             valid_until=quote.valid_until,
                         ),
                         outcome.carrier_code,
@@ -572,6 +593,20 @@ class RateShoppingService:
             data[field] = sorted(data[field])
         canonical = json.dumps(data, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _shown_confidence(stored: str | None) -> ScoreConfidence | None:
+    """Доверие к скору так, как его допускает контракт.
+
+    В снимке хранится и ``insufficient`` — это осмысленное значение: смотрели,
+    данных не хватило. В схеме ``RateOffer`` его нет, там перечислены только
+    low, medium, high и null. И это правильно: раз числа нет, говорить
+    о доверии к нему нечего, а выдумывать шестое значение в ответе значило бы
+    разойтись с контрактом ради слова, которое клиенту ничего не добавляет.
+    """
+    if stored is None or stored == ScoreConfidence.INSUFFICIENT:
+        return None
+    return ScoreConfidence(stored)
 
 
 def _end_of_day(day: date | None, timezone_name: str | None) -> datetime | None:

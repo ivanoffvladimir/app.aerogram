@@ -25,8 +25,15 @@ ALUPKA = "daa6815b-0cf0-44c7-981c-84d72d51f2b1"
 
 
 @pytest.fixture
-async def carrier(migrator_session: AsyncSession) -> AsyncIterator[Carrier]:
-    """Перевозчик и наполненный справочник городов."""
+async def carrier(clean_db: None, migrator_session: AsyncSession) -> AsyncIterator[Carrier]:
+    """Перевозчик и наполненный справочник городов.
+
+    ``clean_db`` затребован первым намеренно. Тесты этого файла работают
+    в откатываемой транзакции и сами ничего не оставляют, но соседние файлы
+    заводят перевозчика с тем же кодом и коммитят его. Без очистки результат
+    зависел бы от того, в каком порядке pytest дошёл до файлов, — и падал бы
+    на уникальности кода перевозчика при первом же изменении этого порядка.
+    """
     db = migrator_session
     row = Carrier(id=uuid7(), code="fake", name="Поддельный перевозчик")
     db.add(row)
