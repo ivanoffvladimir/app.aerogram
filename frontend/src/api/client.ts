@@ -98,6 +98,73 @@ export interface CarrierAnalytics {
   calculated_at: string | null
 }
 
+/**
+ * Постраничная выдача ядра. Формат единый для всего API и отличается от
+ * страницы отправлений: там `page`/`page_size`, здесь `limit`/`offset`.
+ * Приведение их к одному виду — правка контракта, а не клиента.
+ */
+export interface CorePage<T> {
+  items: T[]
+  total: number
+  limit: number
+  offset: number
+}
+
+/**
+ * Адрес контрагента.
+ *
+ * Ни адресной книги, ни пользователей в `docs/tz/v3/openapi.yaml` нет вовсе —
+ * там описан только путь расчёта и оформления. Поэтому типы ниже написаны
+ * руками по схемам `core/schemas.py`. Расхождение записано в docs/status.md;
+ * когда пути появятся в контракте, эти определения должны исчезнуть в пользу
+ * сгенерированных.
+ */
+export interface CounterpartyAddress {
+  id: string
+  counterparty_id: string
+  label: string | null
+  country_code: string
+  region: string | null
+  city: string
+  postal_code: string | null
+  street: string | null
+  house: string | null
+  flat: string | null
+  is_default_sender: boolean
+}
+
+/** Контрагент адресной книги (FR-8.4). */
+export interface Counterparty {
+  id: string
+  type: 'legal' | 'individual' | 'entrepreneur'
+  name: string
+  inn: string | null
+  kpp: string | null
+  contact_person: string | null
+  phone: string | null
+  email: string | null
+  addresses: CounterpartyAddress[]
+}
+
+/**
+ * Пользователь тенанта.
+ *
+ * `role` здесь — роль ХРАНЕНИЯ: в ней есть и платформенные значения, которых
+ * владелец тенанта выдать не может. Роли, доступные для выдачи, перечислены
+ * отдельно в `TENANT_ROLES`: список, из которого нельзя выбрать лишнего,
+ * надёжнее проверки, которую можно забыть.
+ */
+export interface User {
+  id: string
+  tenant_id: string
+  email: string
+  full_name: string
+  role: string
+  is_active: boolean
+  mfa_enabled: boolean
+  last_login_at: string | null
+}
+
 /** Единый формат ошибки бэкенда. */
 export interface ApiErrorBody {
   error: {
