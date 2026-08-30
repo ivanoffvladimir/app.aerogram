@@ -31,7 +31,7 @@ from aerogram.carriers import registry
 from aerogram.carriers.base import CarrierAccount as AdapterAccount
 from aerogram.config import Settings, get_settings
 from aerogram.core.models import CarrierAccount, Tenant
-from aerogram.core.repository import CarrierAccountRepository
+from aerogram.core.repository import CarrierAccountRepository, RawCallRepository
 from aerogram.core.service import decrypt_credentials
 from aerogram.db import session_scope
 from aerogram.directories.repository import CarrierRepository
@@ -49,6 +49,7 @@ __all__ = [
     "SCORE_PERIOD_DAYS",
     "deliver_webhooks",
     "poll_shipment_statuses",
+    "purge_raw_calls",
     "recalculate_carrier_score",
     "reconcile_ghost_shipments",
     "sync_carrier_references",
@@ -80,11 +81,27 @@ async def _active_tenants() -> list[UUID]:
         return list(rows.scalars())
 
 
-async def _for_each_tenant(name: str, action: Callable[[UUID], Awaitable[int]]) -> dict[str, int]:
+async def _all_tenants() -> list[UUID]:
+    """Все тенанты, независимо от статуса.
+
+    Нужны там, где обязанность не зависит от оплаты. Срок хранения сырья —
+    именно такой случай: тенант приостановлен, а его адреса и телефоны в теле
+    вызова перевозчика хранятся дальше, и удалить их всё равно придётся.
+    """
+    async with session_scope() as session:
+        return list((await session.execute(select(Tenant.id))).scalars())
+
+
+async def _for_each_tenant(
+    name: str,
+    action: Callable[[UUID], Awaitable[int]],
+    *,
+    tenants: Callable[[], Awaitable[list[UUID]]] | None = None,
+) -> dict[str, int]:
     """Выполнить действие по каждому тенанту, не роняя цикл на одном из них."""
     handled = 0
     failed = 0
-    for tenant_id in await _active_tenants():
+    for tenant_id in await (tenants or _active_tenants)():
         try:
             handled += await action(tenant_id)
         except Exception as exc:
@@ -192,6 +209,12 @@ def _adapter_account(account: CarrierAccount, code: str, settings: Settings) -> 
     )
 
 
+async def _purge_tenant(tenant_id: UUID) -> int:
+    """Удалить сырьё вызовов с истёкшим сроком хранения (раздел 8.2 ТЗ, п. 6)."""
+    async with session_scope(tenant_id) as session:
+        return await RawCallRepository(session).purge_expired(utcnow().date())
+
+
 async def _score_tenant(tenant_id: UUID) -> int:
     """Пересчитать скор по наблюдениям тенанта (FR-7.1).
 
@@ -238,3 +261,13 @@ def recalculate_carrier_score() -> dict[str, int]:
 def sync_carrier_references() -> dict[str, int]:
     """Ежесуточная синхронизация справочников перевозчиков (FR-8.3)."""
     return asyncio.run(_for_each_tenant("sync_carrier_references", _refs_tenant))
+
+
+@app.task(name="aerogram.worker.tasks.purge_raw_calls")  # type: ignore[untyped-decorator]
+def purge_raw_calls() -> dict[str, int]:
+    """Ежесуточное удаление сырья вызовов старше срока хранения.
+
+    Обходятся ВСЕ тенанты, а не только активные: приостановка тенанта
+    не продлевает срок хранения его персональных данных.
+    """
+    return asyncio.run(_for_each_tenant("purge_raw_calls", _purge_tenant, tenants=_all_tenants))

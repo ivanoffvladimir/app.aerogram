@@ -6,9 +6,10 @@
 
 from __future__ import annotations
 
+from datetime import date
 from uuid import UUID
 
-from sqlalchemy import Select, func, or_, select, update
+from sqlalchemy import Select, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aerogram.core.models import (
@@ -16,13 +17,20 @@ from aerogram.core.models import (
     ApiKey,
     AuditLog,
     CarrierAccount,
+    CarrierRawCall,
     Counterparty,
     Tenant,
     User,
 )
 from aerogram.shared.clock import utcnow
 
-__all__ = ["ApiKeyRepository", "AuditRepository", "TenantRepository", "UserRepository"]
+__all__ = [
+    "ApiKeyRepository",
+    "AuditRepository",
+    "RawCallRepository",
+    "TenantRepository",
+    "UserRepository",
+]
 
 
 class UserRepository:
@@ -77,6 +85,31 @@ class TenantRepository:
     def add(self, tenant: Tenant) -> Tenant:
         self._session.add(tenant)
         return tenant
+
+
+class RawCallRepository:
+    """Сырьё вызовов перевозчиков."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def purge_expired(self, today: date) -> int:
+        """Удалить записи с истёкшим сроком хранения. Возвращает число удалённых.
+
+        Именно удалить, а не пометить: тридцать суток (раздел 8.2 ТЗ, п. 6) —
+        это обязанность, а не рекомендация, и в теле вызова лежат адреса
+        и телефоны. Помеченная, но оставшаяся строка срок хранения
+        не соблюдает.
+
+        Тенант в условии не указан: его ставит RLS, и задача обходит тенантов
+        по одному.
+        """
+        stmt = (
+            delete(CarrierRawCall)
+            .where(CarrierRawCall.expires_at < today)
+            .returning(CarrierRawCall.id)
+        )
+        return len(list((await self._session.execute(stmt)).scalars()))
 
 
 class ApiKeyRepository:

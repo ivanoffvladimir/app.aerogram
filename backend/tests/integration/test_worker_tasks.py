@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 import pytest
@@ -27,9 +27,10 @@ from aerogram.carriers.base import (
     ShipmentResult,
 )
 from aerogram.core.models import CarrierAccount as CarrierAccountModel
-from aerogram.core.models import Tenant
+from aerogram.core.models import CarrierRawCall, Tenant
 from aerogram.db import session_scope
 from aerogram.directories.models import Carrier
+from aerogram.shared.clock import utcnow
 from aerogram.shared.crypto import CredentialCipher
 from aerogram.shared.enums import ShipmentStatus, TenantStatus
 from aerogram.shared.ids import uuid7
@@ -425,3 +426,101 @@ class TestReferenceSync:
         # он ловится внутри и не роняет обход.
         assert result["failed_tenants"] == 0
         assert result["handled"] == 0
+
+
+async def raw_call(tenant_id: UUID, *, expires_at: date) -> UUID:
+    """Записать сырьё вызова с заданным сроком хранения."""
+    call_id = uuid7()
+    async with session_scope(tenant_id) as session:
+        session.add(
+            CarrierRawCall(
+                id=call_id,
+                tenant_id=tenant_id,
+                carrier_code="cdek",
+                operation="quote",
+                http_status=200,
+                is_error=False,
+                request_payload={"city": "Москва"},
+                response_payload={"price": 100},
+                expires_at=expires_at,
+            )
+        )
+    return call_id
+
+
+async def raw_call_exists(tenant_id: UUID, call_id: UUID) -> bool:
+    async with session_scope(tenant_id) as session:
+        found = (
+            await session.execute(
+                text("SELECT 1 FROM carrier_raw_calls WHERE id = :id"), {"id": call_id}
+            )
+        ).scalar_one_or_none()
+    return found is not None
+
+
+class TestRawCallRetention:
+    """Раздел 8.2 ТЗ, п. 6: сырьё вызовов хранится тридцать суток.
+
+    В теле вызова лежат адреса и телефоны, поэтому это обязанность,
+    а не уборка ради места.
+    """
+
+    async def test_an_expired_call_is_deleted(
+        self, two_tenants_with_shipments: tuple[UUID, UUID]
+    ) -> None:
+        tenant_a, _ = two_tenants_with_shipments
+        yesterday = await raw_call(tenant_a, expires_at=utcnow().date() - timedelta(days=1))
+
+        result = await tasks._for_each_tenant(
+            "purge", tasks._purge_tenant, tenants=tasks._all_tenants
+        )
+
+        assert result["handled"] == 1
+        assert not await raw_call_exists(tenant_a, yesterday)
+
+    async def test_a_call_within_its_term_is_kept(
+        self, two_tenants_with_shipments: tuple[UUID, UUID]
+    ) -> None:
+        """Иначе разбирать спорную ситуацию будет нечем."""
+        tenant_a, _ = two_tenants_with_shipments
+        fresh = await raw_call(tenant_a, expires_at=utcnow().date() + timedelta(days=1))
+
+        await tasks._for_each_tenant("purge", tasks._purge_tenant, tenants=tasks._all_tenants)
+
+        assert await raw_call_exists(tenant_a, fresh)
+
+    async def test_a_suspended_tenant_is_purged_too(
+        self, two_tenants_with_shipments: tuple[UUID, UUID], database_url: str
+    ) -> None:
+        """Приостановка тенанта не продлевает срок хранения его данных.
+
+        Задачи обслуживания обходят только активных тенантов — и правильно
+        делают: ходить к перевозчикам за неоплатившего не нужно. Но удаление
+        персональных данных обязанностью быть не перестаёт.
+        """
+        tenant_a, _ = two_tenants_with_shipments
+        old = await raw_call(tenant_a, expires_at=utcnow().date() - timedelta(days=1))
+
+        engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+        async with engine.begin() as conn:
+            await conn.execute(
+                update(Tenant).where(Tenant.id == tenant_a).values(status=TenantStatus.SUSPENDED)
+            )
+        await engine.dispose()
+
+        await tasks._for_each_tenant("purge", tasks._purge_tenant, tenants=tasks._all_tenants)
+
+        assert not await raw_call_exists(tenant_a, old)
+
+    async def test_the_neighbours_call_is_not_touched(
+        self, two_tenants_with_shipments: tuple[UUID, UUID]
+    ) -> None:
+        """Удаление идёт под тенантом, и RLS не даст задеть чужую строку."""
+        tenant_a, tenant_b = two_tenants_with_shipments
+        mine = await raw_call(tenant_a, expires_at=utcnow().date() - timedelta(days=1))
+        theirs = await raw_call(tenant_b, expires_at=utcnow().date() + timedelta(days=1))
+
+        await tasks._for_each_tenant("purge", tasks._purge_tenant, tenants=tasks._all_tenants)
+
+        assert not await raw_call_exists(tenant_a, mine)
+        assert await raw_call_exists(tenant_b, theirs)
