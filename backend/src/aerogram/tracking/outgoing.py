@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import ipaddress
@@ -82,7 +83,7 @@ def sign(secret: str, timestamp: str, body: bytes) -> str:
     return hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
 
 
-def validate_url(url: str) -> None:
+async def validate_url(url: str) -> None:
     """Проверить, что адрес можно звать без вреда.
 
     Требуется HTTPS: подпись подтверждает происхождение, но не скрывает
@@ -93,21 +94,29 @@ def validate_url(url: str) -> None:
         raise ValidationFailed("Адрес вебхука должен начинаться с https://", field="url")
     if not parsed.hostname:
         raise ValidationFailed("В адресе вебхука нет имени узла", field="url")
-    _ensure_public(parsed.hostname)
+    await _ensure_public(parsed.hostname)
 
 
-def resolve(hostname: str) -> list[str]:
+async def resolve(hostname: str) -> list[str]:
     """Все адреса, в которые разрешается имя.
 
-    Отдельная функция, а не вызов `socket.getaddrinfo` по месту: тесту нужно
-    подменить разрешение имени получателя, и подменять ради этого атрибут
-    самого модуля `socket` нельзя — под подмену попадает всё, что в этот
+    Отдельная функция, а не `socket.getaddrinfo` по месту, по двум причинам.
+
+    Разрешение имени блокирующее, а вызывается оно в том числе из обработчика
+    подписки: вызов по месту остановил бы весь событийный цикл на время ответа
+    DNS — вместе со всеми остальными запросами процесса, включая чужих
+    тенантов. Медленный или недоступный DNS получателя не должен становиться
+    их проблемой, поэтому ожидание уходит в отдельный поток.
+
+    И тесту нужно подменить разрешение имени получателя. Подменять ради этого
+    атрибут самого модуля `socket` нельзя: под подмену попадает всё, что в этот
     момент открывает соединение, включая пул к базе.
     """
-    return [str(info[4][0]) for info in socket.getaddrinfo(hostname, None)]
+    infos = await asyncio.get_running_loop().getaddrinfo(hostname, None)
+    return [str(info[4][0]) for info in infos]
 
 
-def _ensure_public(hostname: str) -> None:
+async def _ensure_public(hostname: str) -> None:
     """Отвергнуть адрес, ведущий внутрь инфраструктуры.
 
     Проверяются ВСЕ адреса, в которые разрешается имя: узел с одной публичной
@@ -115,7 +124,7 @@ def _ensure_public(hostname: str) -> None:
     не следует.
     """
     try:
-        resolved = resolve(hostname)
+        resolved = await resolve(hostname)
     except socket.gaierror:
         raise ValidationFailed("Имя узла в адресе вебхука не разрешается", field="url") from None
 
@@ -145,7 +154,7 @@ async def deliver(url: str, secret: str, event_type: str, payload: dict[str, Any
     между проверкой и подключением остаётся окно, — но убирает простой
     способ подменить адрес после того, как подписку приняли.
     """
-    validate_url(url)
+    await validate_url(url)
 
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
     timestamp = str(int(utcnow().timestamp()))

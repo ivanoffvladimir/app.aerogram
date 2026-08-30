@@ -7,7 +7,10 @@
 
 from __future__ import annotations
 
+import socket
+import threading
 from datetime import timedelta
+from typing import Any
 
 import pytest
 
@@ -36,27 +39,54 @@ class TestUrlIsNotAWayInside:
             "https://[::1]/hook",
         ],
     )
-    def test_internal_addresses_are_refused(self, url: str) -> None:
+    async def test_internal_addresses_are_refused(self, url: str) -> None:
         with pytest.raises(ValidationFailed) as exc:
-            validate_url(url)
+            await validate_url(url)
         assert exc.value.field == "url"
 
-    def test_the_refusal_does_not_confirm_what_was_found(self) -> None:
+    async def test_the_refusal_does_not_confirm_what_was_found(self) -> None:
         """Незачем подтверждать клиенту, что именно он нащупал внутри."""
         with pytest.raises(ValidationFailed) as exc:
-            validate_url("https://169.254.169.254/latest/meta-data")
+            await validate_url("https://169.254.169.254/latest/meta-data")
         assert "169.254" not in str(exc.value)
 
     @pytest.mark.parametrize("url", ["http://example.com/hook", "ftp://example.com/hook"])
-    def test_only_https_is_allowed(self, url: str) -> None:
+    async def test_only_https_is_allowed(self, url: str) -> None:
         """Подпись подтверждает происхождение, но не скрывает содержимое,
         а в теле — номера отправлений клиента."""
         with pytest.raises(ValidationFailed):
-            validate_url(url)
+            await validate_url(url)
 
-    def test_a_name_that_does_not_resolve_is_refused(self) -> None:
+    async def test_a_name_that_does_not_resolve_is_refused(self) -> None:
         with pytest.raises(ValidationFailed):
-            validate_url("https://такого-узла-точно-нет.invalid/hook")
+            await validate_url("https://такого-узла-точно-нет.invalid/hook")
+
+
+class TestTheLoopKeepsRunning:
+    """Разрешение имени блокирующее, а вызывается оно из обработчика подписки."""
+
+    async def test_the_name_is_resolved_off_the_event_loop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Иначе медленный DNS одного получателя останавливает весь процесс.
+
+        Проверяется не время, а место: ожидание обязано происходить в другом
+        потоке. Тест на длительность мигал бы на загруженной машине, а это
+        свойство либо есть, либо нет.
+        """
+        loop_thread = threading.get_ident()
+        seen: list[int] = []
+
+        def spy(host: str, *args: object, **kwargs: object) -> list[Any]:
+            seen.append(threading.get_ident())
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))]
+
+        monkeypatch.setattr(socket, "getaddrinfo", spy)
+
+        await validate_url("https://hooks.client.example/aerogram")
+
+        assert seen, "имя вообще не разрешалось"
+        assert loop_thread not in seen, "имя разрешалось в потоке событийного цикла"
 
 
 class TestSignature:

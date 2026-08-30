@@ -79,7 +79,7 @@ class WebhookService:
         Он нужен получателю, чтобы проверять подпись, и хранится у нас
         зашифрованным — восстановить его потом нельзя.
         """
-        validate_url(url)
+        await validate_url(url)
         unknown = sorted(set(events) - WEBHOOK_EVENTS)
         if unknown:
             # Молча проглотить неизвестное событие значит пообещать доставку,
