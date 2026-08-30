@@ -33,9 +33,14 @@ from aerogram.carriers.base import Party, Place, Quote, QuoteRequest
 from aerogram.config import Settings
 from aerogram.core.models import CarrierAccount
 from aerogram.core.repository import CarrierAccountRepository
+from aerogram.core.service import decrypt_credentials
 from aerogram.directories.dadata import DadataClient
 from aerogram.directories.repository import CarrierRepository
-from aerogram.directories.service import CityMappingService, CityService
+from aerogram.directories.service import (
+    CarrierPartyResolver,
+    CityMappingService,
+    CityService,
+)
 from aerogram.rating.models import RateOffer, RateQuote
 from aerogram.rating.repository import RateRepository
 from aerogram.rating.schemas import (
@@ -45,7 +50,6 @@ from aerogram.rating.schemas import (
     RateResponse,
 )
 from aerogram.shared.clock import utcnow
-from aerogram.shared.crypto import CredentialCipher
 from aerogram.shared.enums import IneligibilityReason, OfferSource, PriceSource
 from aerogram.shared.errors import AerogramError, CarrierError, CarrierTimeout
 from aerogram.shared.ids import uuid7
@@ -89,6 +93,7 @@ class RateShoppingService:
         self._carriers = CarrierRepository(session)
         self._mappings = CityMappingService(session)
         self._cities = CityService(session, dadata)
+        self._parties = CarrierPartyResolver(self._cities, self._mappings)
         self._rates = RateRepository(session)
 
     async def quote(
@@ -335,26 +340,8 @@ class RateShoppingService:
         return account, carrier.code, carrier.id, adapter_account, request
 
     async def _party(self, address: AddressSchema, carrier_id: UUID) -> Party:
-        """Адрес из запроса → пункт с разрешённым кодом города перевозчика.
-
-        Контракт не передаёт идентификатор ФИАС, поэтому город разрешается
-        по названию: сначала в локальном справочнике, при промахе — через
-        стандартизацию. Не разрешился — код перевозчика остаётся пустым,
-        и адаптер решает сам, справится ли он по названию и индексу.
-        """
-        city = await self._cities.resolve(address.city, address.region)
-        carrier_city_code: str | None = None
-        if city is not None:
-            carrier_city_code, _ = await self._mappings.resolve_with_fallback(
-                carrier_id, city.fias_id
-            )
-        return Party(
-            city_fias_id=city.fias_id if city else None,
-            city_name=address.city,
-            carrier_city_code=carrier_city_code,
-            postal_code=address.postal_code,
-            address=address.address_line,
-        )
+        """Адрес из запроса → пункт с разрешённым кодом города перевозчика."""
+        return await self._parties.party(address, carrier_id)
 
     async def _ask_one(
         self,
@@ -484,17 +471,8 @@ class RateShoppingService:
         return rows
 
     def _decrypt(self, account: CarrierAccount) -> dict[str, str]:
-        """Расшифровать учётные данные перевозчика.
-
-        Привязка к идентификатору записи: перенос шифротекста в чужую строку
-        не расшифруется (см. ``shared.crypto``).
-        """
-        cipher = CredentialCipher(
-            self._settings.credential_key_map, self._settings.credential_active_key_id
-        )
-        raw = cipher.decrypt(account.credentials_encrypted, aad=str(account.id).encode())
-        parsed = json.loads(raw)
-        return {str(k): str(v) for k, v in parsed.items()}
+        """Расшифровать учётные данные перевозчика."""
+        return decrypt_credentials(account, self._settings)
 
     @staticmethod
     def _request_hash(payload: RateRequestIn) -> str:

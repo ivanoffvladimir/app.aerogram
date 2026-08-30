@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -9,7 +10,15 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aerogram.config import Settings
-from aerogram.core.models import Address, ApiKey, AuditLog, Counterparty, Tenant, User
+from aerogram.core.models import (
+    Address,
+    ApiKey,
+    AuditLog,
+    CarrierAccount,
+    Counterparty,
+    Tenant,
+    User,
+)
 from aerogram.core.repository import (
     AddressRepository,
     ApiKeyRepository,
@@ -31,6 +40,7 @@ from aerogram.core.security import (
 from aerogram.db import set_tenant
 from aerogram.shared.addresses import assess_fitness
 from aerogram.shared.clock import utcnow
+from aerogram.shared.crypto import CredentialCipher
 from aerogram.shared.enums import PLATFORM_ROLES, TenantStatus, UserRole
 from aerogram.shared.errors import (
     AuthenticationError,
@@ -285,6 +295,23 @@ class ApiKeyService:
             await self._session.execute(
                 text("SELECT set_config(:name, '', true)"), {"name": AUTH_SCOPE_SETTING}
             )
+
+
+def decrypt_credentials(account: CarrierAccount, settings: Settings) -> dict[str, str]:
+    """Расшифровать учётные данные перевозчика.
+
+    Живёт в ядре, потому что учётная запись — сущность ядра, и потому что
+    расшифровка нужна и расчёту, и созданию отправления: две копии рано или
+    поздно разошлись бы в том, как обращаются с ключами.
+
+    Привязка к идентификатору записи: перенос шифротекста в чужую строку
+    не расшифруется (см. ``shared.crypto``). Исключение наружу не гасится —
+    вызывающий слой сам решает, пропустить ли перевозчика или отказать.
+    """
+    cipher = CredentialCipher(settings.credential_key_map, settings.credential_active_key_id)
+    raw = cipher.decrypt(account.credentials_encrypted, aad=str(account.id).encode())
+    parsed = json.loads(raw)
+    return {str(k): str(v) for k, v in parsed.items()}
 
 
 class AuditService:

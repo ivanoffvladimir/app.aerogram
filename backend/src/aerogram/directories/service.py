@@ -16,7 +16,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from aerogram.carriers.base import CarrierCity
+from aerogram.carriers.base import CarrierCity, Party
 from aerogram.directories.dadata import DadataClient
 from aerogram.directories.models import City
 from aerogram.directories.normalization import (
@@ -41,12 +41,14 @@ from aerogram.directories.schemas import (
 from aerogram.shared.clock import utcnow
 from aerogram.shared.errors import DirectoryError, NotFound
 from aerogram.shared.logging import get_logger
+from aerogram.shared.schemas import AddressSchema
 
 __all__ = [
     "AMBIGUITY_MARGIN",
     "AUTO_CONFIRM_THRESHOLD",
     "FUZZY_THRESHOLD",
     "AddressService",
+    "CarrierPartyResolver",
     "CityMappingService",
     "CityService",
     "MatchResult",
@@ -468,3 +470,37 @@ class CityMappingService:
 def _norm(value: str) -> str:
     """Привести название к сравнимому виду: регистр, ё и дефисы."""
     return value.strip().lower().replace("ё", "е").replace("-", " ")
+
+
+class CarrierPartyResolver:
+    """Адрес запроса → пункт в терминах адаптера.
+
+    Общий для расчёта и создания отправления: код города обязан получаться
+    одинаково, иначе посчитали бы по одному городу, а отправили в другой.
+    """
+
+    def __init__(self, cities: CityService, mappings: CityMappingService) -> None:
+        self._cities = cities
+        self._mappings = mappings
+
+    async def party(self, address: AddressSchema, carrier_id: UUID) -> Party:
+        """Разрешить город и код перевозчика для адреса.
+
+        Контракт не передаёт идентификатор ФИАС, поэтому город разрешается
+        по названию: сначала в локальном справочнике, при промахе — через
+        стандартизацию. Не разрешился — код перевозчика остаётся пустым,
+        и адаптер решает сам, справится ли он по названию и индексу.
+        """
+        city = await self._cities.resolve(address.city, address.region)
+        carrier_city_code: str | None = None
+        if city is not None:
+            carrier_city_code, _ = await self._mappings.resolve_with_fallback(
+                carrier_id, city.fias_id
+            )
+        return Party(
+            city_fias_id=city.fias_id if city else None,
+            city_name=address.city,
+            carrier_city_code=carrier_city_code,
+            postal_code=address.postal_code,
+            address=address.address_line,
+        )
