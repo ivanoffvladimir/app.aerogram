@@ -6,7 +6,7 @@
  * до появления первой сгенерированной схемы.
  */
 
-export const API_PREFIX = '/api/v1'
+export const API_PREFIX = '/v1'
 
 /** Единый формат ошибки API (FR-10.5). */
 export interface ApiErrorBody {

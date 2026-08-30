@@ -160,15 +160,24 @@ async def carrier_setup(seeded_tenants: tuple[UUID, UUID], database_url: str) ->
     return tenant_a, carrier_id
 
 
+#: Тело запроса по схеме ``RateRequest`` контракта. Города приходят названиями:
+#: идентификатора ФИАС в контракте нет, разрешение — наша забота.
 RATE_REQUEST = {
-    "sender": {"city_fias_id": VLADIVOSTOK, "city_name": "Владивосток"},
-    "recipient": {"city_fias_id": MOSCOW, "city_name": "Москва"},
-    "places": [{"weight_kg": "12.0", "length_cm": 40, "width_cm": 30, "height_cm": 25}],
-    "cargo": {
-        "type": "equipment",
-        "declared_value": {"amount_minor": 48_000_000, "currency": "RUB"},
+    "origin": {
+        "country": "RU",
+        "city": "Владивосток",
+        "address_line": "ул. Примерная, 1",
     },
-    "options": {"pickup": True, "delivery_to_door": True},
+    "destination": {
+        "country": "RU",
+        "city": "Москва",
+        "address_line": "ул. Получателя, 10",
+    },
+    "packages": [{"weight_grams": 12_000, "length_mm": 400, "width_mm": 300, "height_mm": 250}],
+    "cargo_value": {"amount_minor": 48_000_000, "currency": "RUB"},
+    "cargo_type": "equipment",
+    "additional_services": ["pickup", "door_delivery"],
+    "strategy": "optimal",
 }
 
 
@@ -177,21 +186,23 @@ class TestSuccessfulRating:
         self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
     ) -> None:
         registry.register(FakeCarrier("fake"))
-        response = await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)
+        response = await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)
 
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         body = response.json()
-        assert len(body["quotes"]) == 2
-        assert body["errors"] == []
+        assert len(body["offers"]) == 2
+        assert body["failures"] == []
+        assert body["no_deadline_match"] is False
 
-    async def test_quotes_are_ranked(
+    async def test_every_offer_is_eligible_without_a_deadline(
         self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
     ) -> None:
+        """Без дедлайна отсекать нечем: пригодны все предложения."""
         registry.register(FakeCarrier("fake"))
-        body = (await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)).json()
+        body = (await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)).json()
 
-        ranks = sorted(q["rank"] for q in body["quotes"])
-        assert ranks == [1, 2]
+        assert all(o["eligible"] for o in body["offers"])
+        assert all(o["ineligibility_reason"] is None for o in body["offers"])
 
     async def test_price_is_whole_minor_units_end_to_end(
         self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
@@ -203,12 +214,12 @@ class TestSuccessfulRating:
         контракта (ADR-0011).
         """
         registry.register(FakeCarrier("fake"))
-        body = (await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)).json()
+        body = (await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)).json()
 
-        prices = sorted(q["price"]["amount_minor"] for q in body["quotes"])
+        prices = sorted(o["total_cost"]["amount_minor"] for o in body["offers"])
         assert prices == [150_500, 245_050]
-        assert all(isinstance(q["price"]["amount_minor"], int) for q in body["quotes"])
-        assert {q["price"]["currency"] for q in body["quotes"]} == {"RUB"}
+        assert all(isinstance(o["total_cost"]["amount_minor"], int) for o in body["offers"])
+        assert {o["total_cost"]["currency"] for o in body["offers"]} == {"RUB"}
 
     async def test_carrier_city_codes_are_resolved_before_the_call(
         self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
@@ -220,7 +231,7 @@ class TestSuccessfulRating:
         """
         adapter = FakeCarrier("fake")
         registry.register(adapter)
-        await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)
+        await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)
 
         assert adapter.seen[0].sender.carrier_city_code == "75"
         assert adapter.seen[0].recipient.carrier_city_code == "44"
@@ -232,9 +243,9 @@ class TestSuccessfulRating:
         carrier_setup: tuple[UUID, UUID],
         database_url: str,
     ) -> None:
-        """FR-1.7: исходные данные для скора и для разбора спорных ситуаций."""
+        """Исходные данные для Carrier Score и разбора спорных ситуаций."""
         registry.register(FakeCarrier("fake"))
-        body = (await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)).json()
+        body = (await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)).json()
 
         tenant_a, _ = carrier_setup
         engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
@@ -247,7 +258,7 @@ class TestSuccessfulRating:
             stored = (
                 await conn.execute(
                     text("SELECT count(*) FROM rate_offers WHERE quote_id = :r"),
-                    {"r": body["request_id"]},
+                    {"r": body["quote_id"]},
                 )
             ).scalar_one()
         await engine.dispose()
@@ -260,13 +271,13 @@ class TestCarrierFailures:
     ) -> None:
         """FR-1.4: ошибка одного перевозчика не роняет выдачу."""
         registry.register(FakeCarrier("fake", behaviour="error"))
-        response = await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)
+        response = await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)
 
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         body = response.json()
-        assert body["quotes"] == []
-        assert body["errors"][0]["carrier"] == "fake"
-        assert body["errors"][0]["message"] == "Направление не обслуживается"
+        assert body["offers"] == []
+        assert body["failures"][0]["carrier_code"] == "fake"
+        assert body["failures"][0]["message"] == "Направление не обслуживается"
 
     async def test_adapter_crash_does_not_leak_as_500(
         self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
@@ -277,10 +288,10 @@ class TestCarrierFailures:
         остальным перевозчикам.
         """
         registry.register(FakeCarrier("fake", behaviour="crash"))
-        response = await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)
+        response = await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)
 
         assert response.status_code == 200
-        assert response.json()["errors"][0]["code"] == "carrier_error"
+        assert response.json()["failures"][0]["code"] == "carrier_error"
         # Текст внутреннего исключения наружу не отдаётся.
         assert "что-то пошло не так" not in json.dumps(response.json(), ensure_ascii=False)
 
@@ -289,22 +300,21 @@ class TestCarrierFailures:
     ) -> None:
         # Учётная запись есть, адаптера нет — это состояние платформы,
         # и пользователь должен видеть причину.
-        response = await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)
+        response = await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)
 
         assert response.status_code == 200
-        assert response.json()["errors"][0]["code"] == "carrier_not_available"
+        assert response.json()["failures"][0]["code"] == "carrier_not_available"
 
     async def test_slow_carrier_is_cut_off_by_its_own_timeout(
         self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
     ) -> None:
         """FR-1.3: таймаут на одного перевозчика, а не на всю выдачу."""
         registry.register(FakeCarrier("fake", behaviour="ok", delay=5.0))
-        response = await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)
+        response = await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)
 
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         body = response.json()
-        assert body["errors"][0]["code"] in {"carrier_timeout", "carrier_error"}
-        assert body["duration_ms"] < 6000
+        assert body["failures"][0]["code"] in {"carrier_timeout", "carrier_error"}
 
 
 class TestNoCarriers:
@@ -312,33 +322,34 @@ class TestNoCarriers:
         self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
     ) -> None:
         """Пустая выдача — это результат расчёта, а не отказ сервиса."""
-        response = await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)
+        response = await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)
 
         assert response.status_code == 200
-        assert response.json()["quotes"] == []
-        assert response.json()["errors"] == []
+        assert response.json()["offers"] == []
+        assert response.json()["failures"] == []
 
 
 class TestValidation:
     async def test_zero_weight_is_rejected_with_field(
         self, client: AsyncClient, headers: dict[str, str]
     ) -> None:
-        payload = {**RATE_REQUEST, "places": [{**RATE_REQUEST["places"][0], "weight_kg": "0"}]}
-        response = await client.post("/api/v1/rates", json=payload, headers=headers)
+        payload = {
+            **RATE_REQUEST,
+            "packages": [{**RATE_REQUEST["packages"][0], "weight_grams": 0}],
+        }
+        response = await client.post("/v1/rates", json=payload, headers=headers)
 
         assert response.status_code == 422
-        assert "weight_kg" in (response.json()["error"]["field"] or "")
+        assert "weight_grams" in (response.json()["error"]["field"] or "")
 
-    async def test_request_without_places_is_rejected(
+    async def test_request_without_packages_is_rejected(
         self, client: AsyncClient, headers: dict[str, str]
     ) -> None:
-        payload = {**RATE_REQUEST, "places": []}
-        assert (
-            await client.post("/api/v1/rates", json=payload, headers=headers)
-        ).status_code == 422
+        payload = {**RATE_REQUEST, "packages": []}
+        assert (await client.post("/v1/rates", json=payload, headers=headers)).status_code == 422
 
     async def test_unauthorised_request_is_401(self, client: AsyncClient) -> None:
-        assert (await client.post("/api/v1/rates", json=RATE_REQUEST)).status_code == 401
+        assert (await client.post("/v1/rates", json=RATE_REQUEST)).status_code == 401
 
 
 class TestTenantIsolation:
@@ -355,10 +366,10 @@ class TestTenantIsolation:
         """
         registry.register(FakeCarrier("fake"))
         other = await login(client, "b@example.com")
-        body = (await client.post("/api/v1/rates", json=RATE_REQUEST, headers=other)).json()
+        body = (await client.post("/v1/rates", json=RATE_REQUEST, headers=other)).json()
 
-        assert body["quotes"] == []
-        assert body["errors"] == []
+        assert body["offers"] == []
+        assert body["failures"] == []
 
 
 class TestSeveralCarriers:
@@ -426,8 +437,93 @@ class TestSeveralCarriers:
         исходному списку: иначе она назвала бы чужого перевозчика.
         """
         registry.register(FakeCarrier("slow", delay=5.0))
-        response = await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)
+        response = await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)
 
         assert response.status_code == 200
-        errors = response.json()["errors"]
-        assert [e["carrier"] for e in errors] == ["slow"]
+        errors = response.json()["failures"]
+        assert [e["carrier_code"] for e in errors] == ["slow"]
+
+
+class TestDeadline:
+    """Дедлайн — жёсткое ограничение активной рекомендации (продуктовое ТЗ, раздел 7)."""
+
+    async def test_late_offers_stay_visible_but_marked(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """Опоздавшие варианты не скрываются: показываются с причиной.
+
+        Поддельный перевозчик обещает 4 и 8 сентября; дедлайн 5 сентября
+        проходит первый и не проходит второй.
+        """
+        registry.register(FakeCarrier("fake"))
+        payload = {**RATE_REQUEST, "deadline": "2026-09-05T12:00:00+03:00"}
+        body = (await client.post("/v1/rates", json=payload, headers=headers)).json()
+
+        assert len(body["offers"]) == 2, "опоздавшее предложение пропало из выдачи"
+        by_service = {o["service_code"]: o for o in body["offers"]}
+        assert by_service["136"]["eligible"] is True
+        assert by_service["137"]["eligible"] is False
+        assert by_service["137"]["ineligibility_reason"] == "misses_deadline"
+        assert body["no_deadline_match"] is False
+
+    async def test_margin_and_lateness_are_never_both_set(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        registry.register(FakeCarrier("fake"))
+        payload = {**RATE_REQUEST, "deadline": "2026-09-05T12:00:00+03:00"}
+        body = (await client.post("/v1/rates", json=payload, headers=headers)).json()
+
+        for offer in body["offers"]:
+            assert offer["deadline_margin_seconds"] >= 0
+            assert offer["lateness_seconds"] >= 0
+            assert min(offer["deadline_margin_seconds"], offer["lateness_seconds"]) == 0
+
+    async def test_no_deadline_match_when_nobody_fits(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """Отдельный признак, а не пустая выдача: альтернативы всё равно
+        показываются, чтобы оператору было из чего выбирать."""
+        registry.register(FakeCarrier("fake"))
+        payload = {**RATE_REQUEST, "deadline": "2026-09-01T12:00:00+03:00"}
+        body = (await client.post("/v1/rates", json=payload, headers=headers)).json()
+
+        assert body["no_deadline_match"] is True
+        assert len(body["offers"]) == 2
+        assert not any(o["eligible"] for o in body["offers"])
+
+    async def test_without_a_deadline_nothing_is_measured(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        registry.register(FakeCarrier("fake"))
+        body = (await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)).json()
+
+        assert body["no_deadline_match"] is False
+        assert all(o["deadline_margin_seconds"] is None for o in body["offers"])
+
+
+class TestCarrierFilters:
+    async def test_blacklist_beats_whitelist(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """Перевозчик в обоих списках исключается: иначе запрет ничего
+        не гарантирует."""
+        _, carrier_id = carrier_setup
+        registry.register(FakeCarrier("fake"))
+        payload = {
+            **RATE_REQUEST,
+            "carrier_whitelist": [str(carrier_id)],
+            "carrier_blacklist": [str(carrier_id)],
+        }
+        body = (await client.post("/v1/rates", json=payload, headers=headers)).json()
+
+        assert body["offers"] == []
+        assert body["failures"] == []
+
+    async def test_whitelist_keeps_only_the_named_carrier(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        registry.register(FakeCarrier("fake"))
+        payload = {**RATE_REQUEST, "carrier_whitelist": [str(uuid7())]}
+        body = (await client.post("/v1/rates", json=payload, headers=headers)).json()
+
+        assert body["offers"] == []

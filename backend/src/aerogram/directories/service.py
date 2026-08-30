@@ -139,6 +139,58 @@ class CityService:
             )
         return CitySuggestResponse(items=items, degraded=False)
 
+    async def resolve(self, city: str, region: str | None = None) -> City | None:
+        """Найти город по названию — вход расчёта, где ФИАС не приходит.
+
+        Контракт API даёт адрес строкой, а коды перевозчиков привязаны к ФИАС,
+        поэтому название нужно во что-то разрешить. Порядок важен:
+
+        1. Локальный справочник. Расчёт вызывается на каждый запрос оператора,
+           и ходить за этим к ДаData значило бы платить квотой за каждое
+           обращение и зависеть от чужой доступности в горячем пути.
+        2. Стандартизация ДаData — только если локально не нашлось. Найденный
+           город записывается в справочник, поэтому второй раз за ним уже
+           не пойдут.
+
+        Регион работает вето, а не подсказкой: Ростов Ярославской области
+        и Ростов-на-Дону — разные города, и выбрать «похожий» из другого
+        региона хуже, чем не выбрать никакой.
+        """
+        for candidate in await self._cities.search(city, limit=10):
+            if candidate.name.lower() != city.strip().lower():
+                continue
+            if region and not self._region_matches(candidate, region):
+                continue
+            return candidate
+
+        if self._dadata is None or not self._dadata.has_cleaner_credentials:
+            return None
+
+        query = f"{region}, {city}" if region else city
+        try:
+            data = await self._dadata.clean_address(query)
+        except DirectoryError as exc:
+            log.warning("directories.resolve_degraded", code=exc.code)
+            return None
+        if data is None:
+            return None
+
+        key = resolve_city_key(data)
+        if key is None:
+            return None
+        return await self._ensure_city(key, data.postal_code, data.timezone)
+
+    @staticmethod
+    def _region_matches(candidate: City, region: str) -> bool:
+        """Совпадает ли регион кандидата с заявленным.
+
+        Сравнение по вхождению: «Ярославская обл» и «Ярославская область» —
+        один регион, а точное равенство отбросило бы оба написания.
+        """
+        haystack = " ".join(filter(None, (candidate.full_name, candidate.region))).lower()
+        needle = region.strip().lower().removesuffix(".").split()[0]
+        return bool(needle) and needle in haystack
+
     async def _local(self, query: str, limit: int, *, reason: str) -> CitySuggestResponse:
         """Подсказки из локального справочника — путь деградации."""
         cities = await self._cities.search(query, limit)

@@ -12,7 +12,7 @@ export default defineConfig({
     // В разработке фронт и API живут на разных портах; в проде — один origin
     // (раздел 9.1 ТЗ), поэтому CORS не нужен ни там, ни там.
     proxy: {
-      '/api': { target: 'http://localhost:8000', changeOrigin: true },
+      '/v1': { target: 'http://localhost:8000', changeOrigin: true },
     },
   },
   test: {

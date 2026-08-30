@@ -212,7 +212,7 @@ async def seeded_tenants(app: object, database_url: str) -> tuple[UUID, UUID]:
 async def login(client: object, email: str) -> dict[str, str]:
     """Войти и получить заголовок авторизации."""
     response = await client.post(  # type: ignore[attr-defined]
-        "/api/v1/auth/login", json={"email": email, "password": TEST_PASSWORD}
+        "/v1/auth/login", json={"email": email, "password": TEST_PASSWORD}
     )
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

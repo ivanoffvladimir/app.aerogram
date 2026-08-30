@@ -6,13 +6,14 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Annotated, Self
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from aerogram.shared.money import Money
 
-__all__ = ["MoneySchema"]
+__all__ = ["AddressSchema", "MoneySchema", "PackageSchema"]
 
 CurrencyCode = Annotated[str, Field(min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")]
 
@@ -38,3 +39,39 @@ class MoneySchema(BaseModel):
     def to_money(self) -> Money:
         """Из схемы в доменный тип. Здесь же валидируется код валюты."""
         return Money(self.amount_minor, self.currency)
+
+
+class AddressSchema(BaseModel):
+    """Адрес в контракте API (схема ``Address`` из openapi.yaml).
+
+    Идентификатора ФИАС здесь нет намеренно: клиент присылает адрес так, как он
+    хранится у него в ERP. Разрешение города до кода перевозчика — наша забота
+    (системное ТЗ, раздел 7), и делается она в ``directories``.
+
+    ``address_line`` содержит улицу и дом, то есть персональные данные:
+    в логи и трассировки не попадает (CLAUDE.md §6).
+    """
+
+    country: str = Field(min_length=2, max_length=2, default="RU")
+    region: str | None = Field(default=None, max_length=255)
+    city: str = Field(min_length=1, max_length=255)
+    postal_code: str | None = Field(default=None, max_length=10)
+    address_line: str = Field(min_length=1, max_length=500)
+
+
+class PackageSchema(BaseModel):
+    """Грузовое место (схема ``Package`` из openapi.yaml).
+
+    Единицы — граммы и миллиметры, целыми числами. Дробный вес в килограммах
+    на границе API означал бы те же проблемы округления, что и дробные деньги.
+    """
+
+    weight_grams: int = Field(gt=0, le=1_000_000)
+    length_mm: int | None = Field(default=None, gt=0, le=10_000)
+    width_mm: int | None = Field(default=None, gt=0, le=10_000)
+    height_mm: int | None = Field(default=None, gt=0, le=10_000)
+
+    @property
+    def weight_kg(self) -> Decimal:
+        """Вес в килограммах для адаптеров, которые считают в них."""
+        return Decimal(self.weight_grams) / Decimal(1000)

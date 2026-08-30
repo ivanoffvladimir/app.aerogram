@@ -1,17 +1,17 @@
-"""Rate shopping: параллельный опрос перевозчиков, ранжирование, сохранение.
+"""Rate shopping: параллельный опрос перевозчиков, нормализация, сохранение.
 
-Три требования ТЗ определяют устройство модуля целиком:
+Устройство модуля задают три требования системного ТЗ, раздел 8:
 
-* **FR-1.3** — перевозчики опрашиваются параллельно, таймаут на одного
-  3 секунды, общий дедлайн выдачи 5 секунд;
-* **FR-1.4** — перевозчик, не ответивший в срок или вернувший ошибку,
-  становится отдельной строкой выдачи с человекочитаемой причиной; ошибка
-  одного не роняет выдачу;
-* **FR-1.7** — каждый запрос и каждая котировка сохраняются, включая сырой
-  ответ ТК.
+* перевозчики опрашиваются параллельно, и общий срок ответа не зависит
+  от самого медленного из них: таймаут на перевозчика и общий дедлайн;
+* partial success — нормальное состояние: не ответивший перевозчик попадает
+  в ``failures`` с причиной и не роняет выдачу остальных;
+* каждый запрос и каждое предложение сохраняются вместе с сырым ответом ТК —
+  это исходные данные Carrier Score и разбора спорных ситуаций.
 
-К конкретным адаптерам модуль не обращается: только ``carriers.registry``
-и DTO из ``carriers.base`` (контракт ``no-direct-carrier``).
+Ранжирование здесь не делается: этим занимается ``routing`` на уже полученных
+предложениях (ADR-0014). К конкретным адаптерам модуль не обращается — только
+``carriers.registry`` и DTO из ``carriers.base``.
 """
 
 from __future__ import annotations
@@ -21,8 +21,9 @@ import hashlib
 import json
 import time
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,13 +33,14 @@ from aerogram.carriers.base import Party, Place, Quote, QuoteRequest
 from aerogram.config import Settings
 from aerogram.core.models import CarrierAccount
 from aerogram.core.repository import CarrierAccountRepository
+from aerogram.directories.dadata import DadataClient
 from aerogram.directories.repository import CarrierRepository
-from aerogram.directories.service import CityMappingService
+from aerogram.directories.service import CityMappingService, CityService
 from aerogram.rating.models import RateOffer, RateQuote
 from aerogram.rating.repository import RateRepository
 from aerogram.rating.schemas import (
-    RateErrorOut,
-    RateQuoteOut,
+    CarrierFailureOut,
+    RateOfferOut,
     RateRequestIn,
     RateResponse,
 )
@@ -49,11 +51,15 @@ from aerogram.shared.errors import AerogramError, CarrierError, CarrierTimeout
 from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
 from aerogram.shared.money import Money
-from aerogram.shared.schemas import MoneySchema
+from aerogram.shared.schemas import AddressSchema, MoneySchema
 
 __all__ = ["RateShoppingService", "rank_quotes"]
 
 log = get_logger(__name__)
+
+#: Ошибки, при которых повтор запроса имеет смысл. Ошибка авторизации
+#: или валидации от повтора не исчезнет, и предлагать его — вводить в заблуждение.
+RETRYABLE_FAILURES = frozenset({"carrier_timeout", "carrier_unavailable", "carrier_rate_limited"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,12 +77,18 @@ class _CarrierOutcome:
 class RateShoppingService:
     """Расчёт по подключённым перевозчикам."""
 
-    def __init__(self, session: AsyncSession, settings: Settings) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        settings: Settings,
+        dadata: DadataClient | None = None,
+    ) -> None:
         self._session = session
         self._settings = settings
         self._accounts = CarrierAccountRepository(session)
         self._carriers = CarrierRepository(session)
         self._mappings = CityMappingService(session)
+        self._cities = CityService(session, dadata)
         self._rates = RateRepository(session)
 
     async def quote(
@@ -84,6 +96,14 @@ class RateShoppingService:
     ) -> RateResponse:
         """Опросить перевозчиков и вернуть выдачу."""
         started = time.monotonic()
+
+        # Город назначения разрешается один раз на запрос, а не на каждого
+        # перевозчика: от него зависит таймзона, в которой обещанный день
+        # превращается в момент.
+        destination = await self._cities.resolve(
+            payload.destination.city, payload.destination.region
+        )
+        destination_tz = destination.timezone if destination else None
 
         accounts = await self._eligible_accounts(payload)
         outcomes = await self._poll(accounts, payload)
@@ -95,70 +115,90 @@ class RateShoppingService:
             user_id=user_id,
             input_snapshot=payload.model_dump(mode="json"),
             hash=self._request_hash(payload),
+            strategy=payload.strategy,
+            deadline=payload.deadline,
             duration_ms=duration_ms,
             valid_until=utcnow() + timedelta(seconds=self._settings.quote_cache_ttl_seconds),
         )
         self._rates.add_quote(quote)
 
-        rows = self._persist(quote, outcomes, payload, tenant_id)
+        rows = self._persist(quote, outcomes, payload, tenant_id, destination_tz)
         await self._session.flush()
 
+        names = {c.id: c.name for c in await self._carriers.list_active()}
+
         offers = [
-            RateQuoteOut(
-                rate_id=row.id,
-                carrier=code,
-                service_code=row.service_code,
-                tariff_code=row.tariff_code,
+            RateOfferOut(
+                id=row.id,
+                carrier_id=row.carrier_id,
+                carrier_name=names.get(row.carrier_id),
+                service_code=row.service_code or "",
                 service_name=(row.raw_response or {}).get("service_name"),
-                price=MoneySchema.of(Money(row.total_amount_minor or 0, row.currency)),
-                price_source=row.price_source,
-                transit_days_min=row.transit_days_min,
-                transit_days_max=row.transit_days_max,
-                promised_delivery_date=row.promised_delivery_date,
-                meets_deadline=row.meets_deadline,
-                rank=row.rank,
+                source=row.source,
+                total_cost=MoneySchema.of(Money(row.total_amount_minor or 0, row.currency)),
+                eta=row.eta,
+                deadline_margin_seconds=row.deadline_margin_seconds,
+                lateness_seconds=row.lateness_seconds,
+                on_time_probability=row.on_time_probability,
+                probability_label=row.probability_label,
+                risk=row.risk,
+                confidence=row.score_confidence,
+                eligible=row.eligible,
+                ineligibility_reason=row.ineligibility_reason,
+                valid_until=row.valid_until,
             )
-            for row, code in rows
+            for row, _ in rows
             if row.error_code is None
         ]
-        errors = [
-            RateErrorOut(
-                carrier=outcome.carrier_code,
+        failures = [
+            CarrierFailureOut(
+                carrier_id=outcome.carrier_id,
+                carrier_code=outcome.carrier_code,
                 code=outcome.error_code or "carrier_error",
                 message=outcome.error_message or "Перевозчик не вернул расчёт",
+                retryable=outcome.error_code in RETRYABLE_FAILURES,
             )
             for outcome in outcomes
             if outcome.error_code is not None
         ]
 
+        # Признак отдельно от пустой выдачи: непригодные предложения всё равно
+        # показываются, и «никто не успевает» это не то же самое, что
+        # «никто не ответил» (продуктовое ТЗ, раздел 7).
+        no_deadline_match = bool(payload.deadline) and not any(o.eligible for o in offers)
+        quote.no_deadline_match = no_deadline_match
+
         log.info(
             "rating.completed",
             carriers=len(outcomes),
             offers=len(offers),
-            errors=len(errors),
+            failures=len(failures),
             duration_ms=duration_ms,
         )
         return RateResponse(
-            request_id=quote.id,
-            expires_at=quote.valid_until,
-            duration_ms=duration_ms,
-            quotes=offers,
-            errors=errors,
+            quote_id=quote.id,
+            offers=offers,
+            failures=failures,
+            no_deadline_match=no_deadline_match,
+            valid_until=quote.valid_until,
         )
 
     async def _eligible_accounts(self, payload: RateRequestIn) -> list[CarrierAccount]:
         """Активные учётные записи тенанта, отфильтрованные запросом.
 
-        Пустой список ``carriers`` означает «все подключённые», а не «ни одного»:
+        Пустой ``carrier_whitelist`` означает «все подключённые», а не «ни одного»:
         так расчёт из кабинета не требует перечислять перевозчиков руками.
+        Чёрный список сильнее белого: перевозчик, попавший в оба, исключается —
+        запрет должен побеждать разрешение, иначе запрет ничего не гарантирует.
         """
         accounts = await self._accounts.list_active()
-        if not payload.carriers:
-            return accounts
-
-        wanted = set(payload.carriers)
-        codes = {carrier.id: carrier.code for carrier in await self._carriers.list_active()}
-        return [a for a in accounts if codes.get(a.carrier_id) in wanted]
+        allowed = set(payload.carrier_whitelist)
+        denied = set(payload.carrier_blacklist)
+        if allowed:
+            accounts = [a for a in accounts if a.carrier_id in allowed]
+        if denied:
+            accounts = [a for a in accounts if a.carrier_id not in denied]
+        return accounts
 
     async def _poll(
         self, accounts: list[CarrierAccount], payload: RateRequestIn
@@ -241,44 +281,50 @@ class RateShoppingService:
             settings=dict(account.settings or {}),
         )
 
-        sender = await self._party(payload.sender, account.carrier_id)
-        recipient = await self._party(payload.recipient, account.carrier_id)
+        sender = await self._party(payload.origin, account.carrier_id)
+        recipient = await self._party(payload.destination, account.carrier_id)
 
         request = QuoteRequest(
             sender=sender,
             recipient=recipient,
             places=tuple(
                 Place(
-                    weight_kg=place.weight_kg,
-                    length_cm=place.length_cm,
-                    width_cm=place.width_cm,
-                    height_cm=place.height_cm,
+                    weight_kg=package.weight_kg,
+                    length_cm=_mm_to_cm(package.length_mm),
+                    width_cm=_mm_to_cm(package.width_mm),
+                    height_cm=_mm_to_cm(package.height_mm),
                 )
-                for place in payload.places
+                for package in payload.packages
             ),
-            declared_value=payload.cargo.declared_value.to_money(),
-            cargo_type=payload.cargo.type,
-            pickup=payload.options.pickup,
-            delivery_to_door=payload.options.delivery_to_door,
-            insurance=payload.options.insurance,
-            required_delivery_date=payload.required_delivery_date,
+            declared_value=payload.cargo_value.to_money(),
+            cargo_type=payload.cargo_type,
+            pickup=payload.pickup,
+            delivery_to_door=payload.delivery_to_door,
+            insurance=payload.insurance,
+            required_delivery_date=payload.deadline.date() if payload.deadline else None,
         )
         return account, carrier.code, carrier.id, adapter_account, request
 
-    async def _party(self, party: object, carrier_id: UUID) -> Party:
-        """Пункт с разрешённым кодом города перевозчика."""
-        city_fias_id = getattr(party, "city_fias_id", None)
+    async def _party(self, address: AddressSchema, carrier_id: UUID) -> Party:
+        """Адрес из запроса → пункт с разрешённым кодом города перевозчика.
+
+        Контракт не передаёт идентификатор ФИАС, поэтому город разрешается
+        по названию: сначала в локальном справочнике, при промахе — через
+        стандартизацию. Не разрешился — код перевозчика остаётся пустым,
+        и адаптер решает сам, справится ли он по названию и индексу.
+        """
+        city = await self._cities.resolve(address.city, address.region)
         carrier_city_code: str | None = None
-        if city_fias_id:
+        if city is not None:
             carrier_city_code, _ = await self._mappings.resolve_with_fallback(
-                carrier_id, city_fias_id
+                carrier_id, city.fias_id
             )
         return Party(
-            city_fias_id=city_fias_id,
-            city_name=str(getattr(party, "city_name", "")),
+            city_fias_id=city.fias_id if city else None,
+            city_name=address.city,
             carrier_city_code=carrier_city_code,
-            postal_code=getattr(party, "postal_code", None),
-            address=getattr(party, "address", None),
+            postal_code=address.postal_code,
+            address=address.address_line,
         )
 
     async def _ask_one(
@@ -337,6 +383,7 @@ class RateShoppingService:
         outcomes: list[_CarrierOutcome],
         payload: RateRequestIn,
         tenant_id: UUID,
+        destination_tz: str | None,
     ) -> list[tuple[RateOffer, str]]:
         """Сохранить предложения и строки ошибок."""
         rows: list[tuple[RateOffer, str]] = []
@@ -365,9 +412,9 @@ class RateShoppingService:
                 continue
 
             for offer in outcome.quotes:
-                meets = None
-                if payload.required_delivery_date and offer.promised_delivery_date:
-                    meets = offer.promised_delivery_date <= payload.required_delivery_date
+                eta = _end_of_day(offer.promised_delivery_date, destination_tz)
+                margin, lateness = _deadline_gap(eta, payload.deadline)
+                meets = None if payload.deadline is None or eta is None else lateness == 0
                 rows.append(
                     (
                         RateOffer(
@@ -385,6 +432,9 @@ class RateShoppingService:
                             transit_days_min=offer.transit_days_min,
                             transit_days_max=offer.transit_days_max,
                             promised_delivery_date=offer.promised_delivery_date,
+                            eta=eta,
+                            deadline_margin_seconds=margin,
+                            lateness_seconds=lateness,
                             meets_deadline=meets,
                             # Не уложившиеся в срок не скрываются, а помечаются
                             # причиной и уходят вниз (продуктовое ТЗ, раздел 7).
@@ -400,7 +450,7 @@ class RateShoppingService:
                 )
 
         priced = [row for row, _ in rows if row.error_code is None]
-        rank_quotes(priced, required_deadline=payload.required_delivery_date is not None)
+        rank_quotes(priced, required_deadline=payload.deadline is not None)
         self._rates.add_offers([row for row, _ in rows])
         return rows
 
@@ -422,6 +472,52 @@ class RateShoppingService:
         """Отпечаток нормализованного запроса — ключ кэша выдачи (FR-1.6)."""
         canonical = json.dumps(payload.model_dump(mode="json"), sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _end_of_day(day: date | None, timezone_name: str | None) -> datetime | None:
+    """Обещанный день → момент, к которому доставка обещана.
+
+    Перевозчик обещает день, а дедлайн задаётся моментом, и сравнивать их
+    напрямую нельзя. Берётся конец дня — самый поздний момент, совместимый
+    с обещанием: взять начало дня значило бы обещать за перевозчика больше,
+    чем он сказал.
+
+    Таймзона — города назначения: конец дня во Владивостоке наступает
+    на десять часов раньше московского, и в дедлайн по Москве такая доставка
+    укладывается, хотя по UTC выглядела бы опоздавшей.
+    """
+    if day is None:
+        return None
+    try:
+        tz = ZoneInfo(timezone_name) if timezone_name else UTC
+    except ZoneInfoNotFoundError:
+        log.warning("rating.unknown_timezone", timezone=timezone_name)
+        tz = UTC
+    return datetime.combine(day, datetime.max.time(), tzinfo=tz)
+
+
+def _deadline_gap(eta: datetime | None, deadline: datetime | None) -> tuple[int | None, int | None]:
+    """Запас до дедлайна и величина опоздания, в секундах.
+
+    Обе величины неотрицательны и взаимоисключающи: либо запас, либо опоздание.
+    Отрицательный запас читался бы двусмысленно.
+    """
+    if eta is None or deadline is None:
+        return None, None
+    gap = int((deadline - eta).total_seconds())
+    return (gap, 0) if gap >= 0 else (0, -gap)
+
+
+def _mm_to_cm(value: int | None) -> int:
+    """Миллиметры контракта → сантиметры адаптеров, вверх до целого.
+
+    Округление вниз занизило бы объёмный вес и, значит, цену: 305 мм это 31 см
+    для тарифа, а не 30. Отсутствующий габарит даёт 1 см, а не ноль: нулевой
+    габарит запрещён проверкой объёмного веса.
+    """
+    if value is None:
+        return 1
+    return max(1, -(-value // 10))
 
 
 def _offer_source(price_source: PriceSource | None) -> OfferSource | None:

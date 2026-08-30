@@ -129,7 +129,7 @@ class TestLogin:
     ) -> None:
         async with await _client(app) as client:
             response = await client.post(
-                "/api/v1/auth/login", json={"email": "a@example.com", "password": PASSWORD}
+                "/v1/auth/login", json={"email": "a@example.com", "password": PASSWORD}
             )
         assert response.status_code == 200
         body = response.json()
@@ -141,7 +141,7 @@ class TestLogin:
     ) -> None:
         async with await _client(app) as client:
             response = await client.post(
-                "/api/v1/auth/login", json={"email": "a@example.com", "password": "неверный"}
+                "/v1/auth/login", json={"email": "a@example.com", "password": "неверный"}
             )
         assert response.status_code == 401
         # Один и тот же текст для неверного e-mail и неверного пароля: иначе
@@ -153,7 +153,7 @@ class TestLogin:
     ) -> None:
         async with await _client(app) as client:
             response = await client.post(
-                "/api/v1/auth/login", json={"email": "нет@example.com", "password": PASSWORD}
+                "/v1/auth/login", json={"email": "нет@example.com", "password": PASSWORD}
             )
         assert response.status_code == 401
         assert response.json()["error"]["message"] == "Неверный e-mail или пароль"
@@ -163,7 +163,7 @@ class TestLogin:
     ) -> None:
         async with await _client(app) as client:
             response = await client.post(
-                "/api/v1/auth/login", json={"email": "a@example.com", "password": "неверный"}
+                "/v1/auth/login", json={"email": "a@example.com", "password": "неверный"}
             )
         assert set(response.json()["error"]) == {
             "code",
@@ -175,7 +175,7 @@ class TestLogin:
 
     async def test_malformed_body_reports_field(self, app: FastAPI) -> None:
         async with await _client(app) as client:
-            response = await client.post("/api/v1/auth/login", json={"email": "не-почта"})
+            response = await client.post("/v1/auth/login", json={"email": "не-почта"})
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "validation_failed"
         assert response.json()["error"]["field"] is not None
@@ -188,19 +188,17 @@ class TestAuthorizedAccess:
         async with await _client(app) as client:
             token = (
                 await client.post(
-                    "/api/v1/auth/login",
+                    "/v1/auth/login",
                     json={"email": "a@example.com", "password": PASSWORD},
                 )
             ).json()["access_token"]
-            response = await client.get(
-                "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
-            )
+            response = await client.get("/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         assert response.json()["email"] == "a@example.com"
 
     async def test_without_token_is_401(self, app: FastAPI) -> None:
         async with await _client(app) as client:
-            response = await client.get("/api/v1/auth/me")
+            response = await client.get("/v1/auth/me")
         assert response.status_code == 401
 
     async def test_refresh_token_is_not_accepted_as_access(
@@ -209,12 +207,12 @@ class TestAuthorizedAccess:
         async with await _client(app) as client:
             tokens = (
                 await client.post(
-                    "/api/v1/auth/login",
+                    "/v1/auth/login",
                     json={"email": "a@example.com", "password": PASSWORD},
                 )
             ).json()
             response = await client.get(
-                "/api/v1/auth/me",
+                "/v1/auth/me",
                 headers={"Authorization": f"Bearer {tokens['refresh_token']}"},
             )
         assert response.status_code == 401
@@ -225,13 +223,11 @@ class TestAuthorizedAccess:
         async with await _client(app) as client:
             token = (
                 await client.post(
-                    "/api/v1/auth/login",
+                    "/v1/auth/login",
                     json={"email": "a@example.com", "password": PASSWORD},
                 )
             ).json()["access_token"]
-            response = await client.get(
-                "/api/v1/users", headers={"Authorization": f"Bearer {token}"}
-            )
+            response = await client.get("/v1/users", headers={"Authorization": f"Bearer {token}"})
         emails = {u["email"] for u in response.json()}
         assert "a@example.com" in emails
         assert "b@example.com" not in emails

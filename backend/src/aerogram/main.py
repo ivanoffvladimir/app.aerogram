@@ -30,7 +30,8 @@ __all__ = ["app", "create_app"]
 
 log = get_logger(__name__)
 
-API_PREFIX = "/api/v1"
+#: Префикс контракта (``docs/tz/v3/openapi.yaml``): пути начинаются с /v1.
+API_PREFIX = "/v1"
 
 
 @asynccontextmanager
