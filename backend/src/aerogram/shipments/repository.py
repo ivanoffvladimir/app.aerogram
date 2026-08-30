@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import ShipmentStatus
 from aerogram.shipments.models import Shipment
 
@@ -58,6 +59,25 @@ class ShipmentRepository:
             select(Shipment)
             .where(Shipment.status == ShipmentStatus.DRAFT, Shipment.external_id.is_(None))
             .order_by(Shipment.created_at)
+            .limit(limit)
+        )
+        return list((await self._session.execute(stmt)).scalars())
+
+    async def due_for_poll(self, limit: int = 200) -> list[Shipment]:
+        """Отправления, которым пора опросить статус (FR-3.2).
+
+        Черновики исключены: у них нет заказа у перевозчика, спрашивать не о чем.
+        Сначала те, кого дольше всех не опрашивали, — иначе при нехватке лимита
+        одни и те же отправления обновлялись бы всегда, а другие никогда.
+        """
+        stmt = (
+            select(Shipment)
+            .where(
+                Shipment.external_id.is_not(None),
+                Shipment.next_poll_at.is_not(None),
+                Shipment.next_poll_at <= utcnow(),
+            )
+            .order_by(Shipment.next_poll_at)
             .limit(limit)
         )
         return list((await self._session.execute(stmt)).scalars())

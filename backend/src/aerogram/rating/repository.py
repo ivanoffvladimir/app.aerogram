@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -39,3 +40,22 @@ class RateRepository:
     async def get_quote(self, quote_id: UUID) -> RateQuote | None:
         """Снимок запроса со всеми предложениями — вход для рекомендации."""
         return await self._session.get(RateQuote, quote_id)
+
+    async def promises_by_offer(
+        self, offer_ids: list[UUID]
+    ) -> dict[UUID, tuple[datetime | None, datetime | None]]:
+        """Ожидаемая дата и крайний срок по каждому предложению, одним запросом.
+
+        Нужны списку отправлений: оператору важно не «когда обещали вообще»,
+        а «успеваем ли». Выбирается пакетом намеренно — по предложению
+        на строку списка получился бы запрос на каждую строку.
+        """
+        if not offer_ids:
+            return {}
+        stmt = (
+            select(RateOffer.id, RateOffer.eta, RateQuote.deadline)
+            .join(RateQuote, RateQuote.id == RateOffer.quote_id)
+            .where(RateOffer.id.in_(offer_ids))
+        )
+        rows = (await self._session.execute(stmt)).all()
+        return {row.id: (row.eta, row.deadline) for row in rows}

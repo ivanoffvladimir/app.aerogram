@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -41,7 +42,7 @@ from aerogram.rating.repository import RateRepository
 from aerogram.rating.schemas import RateRequestIn
 from aerogram.routing.repository import RoutingRepository
 from aerogram.shared.clock import utcnow
-from aerogram.shared.enums import ShipmentStatus
+from aerogram.shared.enums import EventSource, ShipmentStatus
 from aerogram.shared.errors import CarrierNotConfigured, Conflict, NotFound, ValidationFailed
 from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
@@ -55,6 +56,7 @@ from aerogram.shipments.schemas import (
     ShipmentPage,
     contract_status,
 )
+from aerogram.tracking.service import TrackingService
 
 __all__ = ["NUMBER_PREFIX", "ShipmentService", "shipment_number"]
 
@@ -131,8 +133,20 @@ class ShipmentService:
             status=status, carrier_id=carrier_id, q=q, page=page, page_size=page_size
         )
         names = {c.id: c.name for c in await self._carriers.list_active()}
+        promises = await self._rates.promises_by_offer(
+            [row.rate_offer_id for row in rows if row.rate_offer_id is not None]
+        )
         return ShipmentPage(
-            items=[_to_out(row, names.get(row.carrier_id)) for row in rows],
+            items=[
+                _to_out(
+                    row,
+                    names.get(row.carrier_id),
+                    promises.get(row.rate_offer_id, (None, None))
+                    if row.rate_offer_id
+                    else (None, None),
+                )
+                for row in rows
+            ],
             total=total,
             page=page,
             page_size=page_size,
@@ -273,7 +287,13 @@ class ShipmentService:
             reconciled=reconciled,
             pending=result.is_pending,
         )
-        return fresh.model_copy(update={"carrier_name": await self._carrier_name(shipment)})
+        return fresh.model_copy(
+            update={
+                "carrier_name": await self._carrier_name(shipment),
+                "eta": (promise := await self._promise(shipment))[0],
+                "deadline": promise[1],
+            }
+        )
 
     # --- Отмена -----------------------------------------------------------
 
@@ -318,7 +338,35 @@ class ShipmentService:
             fresh = _to_out(stored, None)
 
         log.info("shipment.cancelled", number=shipment.number, at_carrier=external_id is not None)
-        return fresh.model_copy(update={"carrier_name": await self._carrier_name(shipment)})
+        return fresh.model_copy(
+            update={
+                "carrier_name": await self._carrier_name(shipment),
+                "eta": (promise := await self._promise(shipment))[0],
+                "deadline": promise[1],
+            }
+        )
+
+    # --- Трекинг ----------------------------------------------------------
+
+    async def poll(self, shipment: Shipment) -> int:
+        """Спросить у перевозчика события отправления и принять их в ленту.
+
+        Живёт здесь, а не в ``tracking``: адаптер и расшифрованные учётные
+        данные уже есть тут, а трекинг сознательно не ходит к перевозчикам —
+        он нормализует и хранит то, что ему принесли.
+        """
+        adapter, account = await self._adapter_for(shipment)
+        if shipment.external_id is None:
+            # Заказа у перевозчика нет — спрашивать не о чем. Это черновик,
+            # и им занимается сверка «призраков», а не опрос статусов.
+            return 0
+        events = await adapter.track(shipment.external_id, account)
+        return await TrackingService(self._session).ingest(
+            shipment,
+            events,
+            carrier_code=account.carrier_code,
+            source=EventSource.API_POLL,
+        )
 
     # --- Сверка «призраков» -----------------------------------------------
 
@@ -425,8 +473,15 @@ class ShipmentService:
         carriers = await self._carriers.list_active()
         return next((c.name for c in carriers if c.id == shipment.carrier_id), None)
 
+    async def _promise(self, shipment: Shipment) -> tuple[datetime | None, datetime | None]:
+        """Ожидаемая дата и крайний срок из снимка расчёта."""
+        if shipment.rate_offer_id is None:
+            return (None, None)
+        promises = await self._rates.promises_by_offer([shipment.rate_offer_id])
+        return promises.get(shipment.rate_offer_id, (None, None))
+
     async def _to_out(self, shipment: Shipment) -> ShipmentOut:
-        return _to_out(shipment, await self._carrier_name(shipment))
+        return _to_out(shipment, await self._carrier_name(shipment), await self._promise(shipment))
 
 
 def _ensure_same_request(existing: Shipment, payload: CreateShipmentRequest, number: str) -> None:
@@ -456,7 +511,11 @@ def _apply(shipment: Shipment, result: ShipmentResult) -> None:
     shipment.status = ShipmentStatus.ACCEPTED if result.is_pending else ShipmentStatus.CREATED
 
 
-def _to_out(shipment: Shipment, carrier_name: str | None) -> ShipmentOut:
+def _to_out(
+    shipment: Shipment,
+    carrier_name: str | None,
+    promise: tuple[datetime | None, datetime | None] = (None, None),
+) -> ShipmentOut:
     quoted = Money(shipment.price_quoted_amount_minor or 0, shipment.currency)
     actual = (
         Money(shipment.price_actual_amount_minor, shipment.currency)
@@ -472,8 +531,8 @@ def _to_out(shipment: Shipment, carrier_name: str | None) -> ShipmentOut:
         carrier_name=carrier_name,
         tracking_number=shipment.tracking_number,
         status=contract_status(shipment.status),
-        eta=None,
-        deadline=None,
+        eta=promise[0],
+        deadline=promise[1],
         quoted_total_cost=MoneySchema.of(quoted),
         actual_total_cost=MoneySchema.of(actual) if actual is not None else None,
         created_at=shipment.created_at,
