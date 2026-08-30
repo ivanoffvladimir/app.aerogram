@@ -56,7 +56,7 @@ from aerogram.shipments.schemas import (
     ShipmentPage,
     contract_status,
 )
-from aerogram.tracking.service import TrackingService
+from aerogram.tracking.service import TrackingService, next_poll_after
 
 __all__ = ["NUMBER_PREFIX", "ShipmentService", "shipment_number"]
 
@@ -509,6 +509,12 @@ def _apply(shipment: Shipment, result: ShipmentResult) -> None:
     # ``is_pending`` — трек-номер придёт позже, но заказ уже принят: это
     # ACCEPTED, а не CREATED, и разница видна в ленте статусов.
     shipment.status = ShipmentStatus.ACCEPTED if result.is_pending else ShipmentStatus.CREATED
+    # Ставим отправление в очередь опроса прямо здесь. Расписание пересчитывается
+    # при каждом событии, но ПЕРВОГО события неоткуда взяться: пока срок опроса
+    # не назначен, задача это отправление не видит, и трекинг не начинается
+    # никогда. Обнаружено на стенде — тестами не ловилось, потому что
+    # проверялись создание и приём событий по отдельности.
+    shipment.next_poll_at, _ = next_poll_after(ShipmentStatus(shipment.status), None, utcnow())
 
 
 def _to_out(

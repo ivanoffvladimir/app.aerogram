@@ -76,6 +76,9 @@ export const CONFIDENCE_LABELS: Record<string, string> = {
   low: 'низкая',
   medium: 'средняя',
   high: 'высокая',
+  // Встречается только в аналитике перевозчиков: в карточке рекомендации
+  // такого значения не бывает. Без него на экран попадало английское слово.
+  insufficient: 'нет данных',
 }
 
 export const SOURCE_LABELS: Record<string, string> = {

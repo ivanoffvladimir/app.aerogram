@@ -1,6 +1,7 @@
 'use client'
 
 import { useMutation } from '@tanstack/react-query'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -13,6 +14,7 @@ import {
   type RateRequest,
   type RateResponse,
   type Recommendation,
+  type Shipment,
 } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
 import { OfferCard } from '@/components/OfferCard'
@@ -50,6 +52,7 @@ export default function RateShoppingPage() {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null)
   const [overriding, setOverriding] = useState<RateOffer | null>(null)
   const [decision, setDecision] = useState<DecisionResponse | null>(null)
+  const [shipment, setShipment] = useState<Shipment | null>(null)
   const [failure, setFailure] = useState<ApiError | null>(null)
   const [now, setNow] = useState(() => Date.now())
   //: Ключи идемпотентности выбора. Ref, а не состояние: их изменение
@@ -81,6 +84,23 @@ export default function RateShoppingPage() {
       pickup: true,
       insurance: true,
     },
+  })
+
+  //: Ключ идемпотентности создания. Живёт столько же, сколько намерение
+  //  оператора: повтор после сбоя обязан прийти с тем же ключом, иначе
+  //  у перевозчика окажется второй заказ на тот же груз.
+  const shipmentKeys = useRef(new IdempotencyKeys())
+
+  const create = useMutation({
+    mutationFn: (decisionId: string) =>
+      request<Shipment>('/shipments', {
+        method: 'POST',
+        body: { decision_id: decisionId },
+        idempotencyKey: shipmentKeys.current.for(decisionId),
+      }),
+    onMutate: () => setFailure(null),
+    onSuccess: (created) => setShipment(created),
+    onError: (error) => setFailure(error as ApiError),
   })
 
   const rates = useMutation({
@@ -313,6 +333,22 @@ export default function RateShoppingPage() {
             <div className={styles.card} style={{ borderColor: 'var(--success)' }}>
               <strong>Решение зафиксировано.</strong> Снимок {decision.snapshot_id.slice(0, 8)},
               решение {decision.decision_id.slice(0, 8)} от {formatDateTime(decision.created_at)}.
+              <div style={{ marginTop: 12 }}>
+                {shipment ? (
+                  <>
+                    Отправление <strong>{shipment.number}</strong> создано.{' '}
+                    <Link href={`/shipments/view?id=${shipment.id}`}>Открыть карточку</Link>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => create.mutate(decision.decision_id)}
+                    disabled={create.isPending}
+                  >
+                    {create.isPending ? 'Создаём заказ у перевозчика…' : 'Создать отправление'}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

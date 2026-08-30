@@ -36,6 +36,67 @@ export type RoutingRequest = components['schemas']['RoutingRequest']
 export type DecisionRequest = components['schemas']['DecisionRequest']
 export type DecisionResponse = components['schemas']['DecisionResponse']
 export type AuthResponse = components['schemas']['AuthResponse']
+export type TrackingEvent = components['schemas']['TrackingEvent']
+
+/**
+ * Отправление. Три поля добавлены к схеме контракта, и все три — то, без чего
+ * экран не собирается:
+ *
+ * - `number` — внутренний номер. FR-2.4 требует его отдавать, и именно по нему
+ *   идёт разговор с перевозчиком, но в схеме `Shipment` его нет;
+ * - `carrier_name` — иначе в списке пришлось бы показывать UUID перевозчика;
+ * - `created_at` — по нему список отсортирован, и без него нечего показать
+ *   в колонке даты.
+ *
+ * Расхождение записано в docs/status.md.
+ */
+export type Shipment = components['schemas']['Shipment'] & {
+  number: string
+  carrier_name: string | null
+  created_at: string
+}
+
+/**
+ * Страница списка отправлений. Схемы ответа у `GET /v1/shipments` в контракте
+ * нет вовсе — только `description: Shipment list`, — поэтому тип написан
+ * руками по параметрам страницы из того же контракта.
+ */
+export interface ShipmentPage {
+  items: Shipment[]
+  total: number
+  page: number
+  page_size: number
+}
+
+/**
+ * Строка аналитики перевозчика. У `GET /v1/analytics/carriers` в контракте
+ * схемы ответа тоже нет.
+ *
+ * `score === null` при `confidence === 'insufficient'` — это не ошибка,
+ * а обязательное поведение (FR-7.3): показывается «недостаточно данных»,
+ * а не число.
+ */
+export interface CarrierAnalytics {
+  carrier_id: string
+  carrier_code: string
+  carrier_name: string
+  score: number | null
+  confidence: 'high' | 'medium' | 'low' | 'insufficient'
+  scope_type: 'global' | 'direction' | 'direction_weight' | null
+  scope_key: string
+  sample_size: number
+  period_start: string | null
+  period_end: string | null
+  components: {
+    on_time_rate: number | null
+    reliability: number | null
+    incident_rate: number | null
+    price_index: number | null
+    data_quality: number | null
+  }
+  formula_version: string | null
+  calculated_at: string | null
+}
 
 /** Единый формат ошибки бэкенда. */
 export interface ApiErrorBody {

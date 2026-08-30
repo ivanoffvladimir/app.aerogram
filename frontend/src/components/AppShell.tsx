@@ -10,11 +10,14 @@ import styles from './AppShell.module.css'
 const AVAILABLE = [
   { href: '/rate-shopping', label: 'Расчёт и выбор' },
   { href: '/shipments', label: 'Отправления' },
+  { href: '/carriers', label: 'Перевозчики' },
 ]
 
 /** Экраны, эндпоинтов для которых ещё нет. Показываются приглушёнными,
- *  а не прячутся: оператор должен видеть границу готовности продукта. */
-const PLANNED = ['Дашборд', 'Трекинг', 'Перевозчики', 'Carrier Score', 'Правила', 'Пользователи']
+ *  а не прячутся: оператор должен видеть границу готовности продукта.
+ *  Трекинг отдельным пунктом не нужен — лента живёт в карточке отправления,
+ *  а не сама по себе. */
+const PLANNED = ['Дашборд', 'Правила', 'Пользователи']
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()

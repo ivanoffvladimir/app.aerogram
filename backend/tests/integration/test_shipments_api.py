@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -22,8 +22,11 @@ from aerogram.carriers.base import (
     ShipmentRequest,
     ShipmentResult,
 )
+from aerogram.db import session_scope
+from aerogram.shared.clock import utcnow
 from aerogram.shared.errors import CarrierTimeout
 from aerogram.shared.money import Money
+from aerogram.shipments.repository import ShipmentRepository
 from aerogram.shipments.service import shipment_number
 from tests.integration.conftest import RATE_REQUEST, FakeCarrier
 
@@ -151,6 +154,33 @@ class TestCreation:
         assert body["tracking_number"] == f"TRK-{body['number']}"
         assert body["decision_id"] == decision_id
         assert carrier.created == [body["number"]]
+
+    async def test_a_created_shipment_enters_the_polling_queue(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        carrier: ShippingCarrier,
+    ) -> None:
+        """Иначе трекинг не начинается никогда.
+
+        Расписание опроса пересчитывается при каждом событии, но первому
+        событию неоткуда взяться: пока срок опроса не назначен, фоновая
+        задача это отправление не видит. Найдено на стенде — тестами
+        не ловилось, потому что создание и приём событий проверялись порознь.
+        """
+        tenant_a, _ = carrier_setup
+        decision_id = await _decision(client, headers)
+        created = (await _create(client, headers, decision_id, "s-poll")).json()
+
+        async with session_scope(tenant_a) as session:
+            stored = await ShipmentRepository(session).get(UUID(created["id"]))
+
+        assert stored is not None
+        assert stored.next_poll_at is not None, "срок опроса не назначен — трекинг не начнётся"
+        # Груз ещё не забран: по таблице FR-3.2 это час, а не немедленно.
+        assert stored.next_poll_at - utcnow() < timedelta(hours=1, minutes=1)
+        assert stored.next_poll_at > utcnow()
 
     async def test_the_quoted_price_is_kept_beside_the_actual_one(
         self,

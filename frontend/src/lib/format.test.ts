@@ -49,3 +49,12 @@ describe('formatPercent', () => {
     expect(formatPercent(null)).toBe('—')
   })
 })
+
+describe('подписи доверия', () => {
+  it('переводит все значения, включая «данных не хватает»', async () => {
+    const { CONFIDENCE_LABELS } = await import('./format')
+    for (const level of ['low', 'medium', 'high', 'insufficient']) {
+      expect(CONFIDENCE_LABELS[level], level).toMatch(/[А-Яа-я]/)
+    }
+  })
+})
