@@ -260,8 +260,19 @@ class ApiKeyService:
             raise AuthenticationError("Ключ недействителен")
         if key.expires_at is not None and key.expires_at < utcnow():
             raise AuthenticationError("Срок действия ключа истёк")
-        await self._keys.touch_used(key.id)
         return key
+
+    async def mark_used(self, key_id: UUID) -> None:
+        """Отметить факт использования ключа.
+
+        Вызывается ТОЛЬКО после ``set_tenant``. Раньше отметка стояла внутри
+        ``resolve``, то есть до установки тенанта: окно поиска открыто лишь
+        на SELECT, а ``tenant_isolation`` без ``app.tenant_id`` не пропускает
+        ничего — ``UPDATE`` молча не находил строк, и ``last_used_at``
+        не записывался никогда. При компрометации ключа было бы не видно,
+        пользовались им или нет.
+        """
+        await self._keys.touch_used(key_id)
 
     async def _lookup_key(self, key_hash: str) -> ApiKey | None:
         await self._session.execute(

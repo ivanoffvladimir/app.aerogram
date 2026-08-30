@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -51,6 +52,22 @@ async def _recommend(
 
 def _decide_headers(headers: dict[str, str], key: str) -> dict[str, str]:
     return {**headers, "Idempotency-Key": key}
+
+
+async def _last_used_at(database_url: str, tenant_id: UUID) -> datetime | None:
+    """Когда ключ тенанта использовался в последний раз."""
+    engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(
+                text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant_id)}
+            )
+            row = (
+                await conn.execute(text("SELECT last_used_at FROM api_keys LIMIT 1"))
+            ).one_or_none()
+    finally:
+        await engine.dispose()
+    return None if row is None else row.last_used_at
 
 
 async def _issue_api_key(database_url: str, tenant_id: UUID) -> str:
@@ -314,6 +331,30 @@ class TestMachineClient:
 
         assert response.status_code == 422, response.text
         assert response.json()["error"]["field"] == "mode"
+
+    async def test_key_usage_is_recorded(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        database_url: str,
+    ) -> None:
+        """``last_used_at`` обязан заполняться при обращении по ключу.
+
+        Раньше отметка ставилась до установки тенанта, и под RLS ``UPDATE``
+        молча не находил строк: при компрометации ключа было бы не видно,
+        пользовались им или нет.
+        """
+        tenant_a, _ = carrier_setup
+        api_key = await _issue_api_key(database_url, tenant_a)
+
+        before = await _last_used_at(database_url, tenant_a)
+        assert before is None, "ключ ещё не использовался"
+
+        response = await client.get("/v1/counterparties", headers={"X-Api-Key": api_key})
+        assert response.status_code == 200, response.text
+
+        assert await _last_used_at(database_url, tenant_a) is not None
 
     async def test_machine_client_records_an_automatic_decision(
         self,

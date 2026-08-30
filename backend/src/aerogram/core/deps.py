@@ -72,9 +72,13 @@ async def current_principal(
     что выполняется до этого момента, RLS не пропускает.
     """
     if x_api_key:
-        key = await ApiKeyService(session, settings).resolve(x_api_key)
+        keys = ApiKeyService(session, settings)
+        key = await keys.resolve(x_api_key)
         await set_tenant(session, key.tenant_id)
         tenant_id_var.set(str(key.tenant_id))
+        # Отметка использования — уже после установки тенанта: это запись
+        # в таблицу под RLS, и до set_tenant она молча не находила строк.
+        await keys.mark_used(key.id)
         return Principal(
             user_id=None,
             tenant_id=key.tenant_id,
