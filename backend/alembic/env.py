@@ -25,7 +25,7 @@ from aerogram.directories import models as directories_models  # noqa: F401
 from aerogram.documents import models as documents_models  # noqa: F401
 from aerogram.rating import models as rating_models  # noqa: F401
 from aerogram.routing import models as routing_models  # noqa: F401
-from aerogram.scoring import models as scoring_models  # noqa: F401
+from aerogram.intelligence import models as intelligence_models  # noqa: F401
 from aerogram.shipments import models as shipments_models  # noqa: F401
 from aerogram.tracking import models as tracking_models  # noqa: F401
 

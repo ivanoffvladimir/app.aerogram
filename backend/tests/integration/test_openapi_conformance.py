@@ -58,7 +58,6 @@ BEYOND_CONTRACT: frozenset[str] = frozenset(
 NOT_IMPLEMENTED_YET: frozenset[str] = frozenset(
     {
         "/v1/carriers",
-        "/v1/analytics/carriers",
         "/v1/webhooks/{carrier_code}",
     }
 )

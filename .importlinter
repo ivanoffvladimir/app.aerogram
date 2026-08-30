@@ -18,7 +18,6 @@ containers =
     aerogram.shipments
     aerogram.tracking
     aerogram.documents
-    aerogram.scoring
     aerogram.reports
     aerogram.intelligence
     aerogram.billing
@@ -38,7 +37,6 @@ forbidden_modules =
     aerogram.shipments
     aerogram.tracking
     aerogram.documents
-    aerogram.scoring
     aerogram.reports
     aerogram.notifications
     aerogram.worker
@@ -56,7 +54,6 @@ forbidden_modules =
     aerogram.routing
     aerogram.tracking
     aerogram.documents
-    aerogram.scoring
     aerogram.reports
     aerogram.intelligence
     aerogram.billing
@@ -84,7 +81,6 @@ forbidden_modules =
 name = Аналитика не вызывает адаптеры
 type = forbidden
 source_modules =
-    aerogram.scoring
     aerogram.reports
     aerogram.intelligence
     aerogram.billing
@@ -103,7 +99,6 @@ forbidden_modules =
     aerogram.shipments
     aerogram.tracking
     aerogram.documents
-    aerogram.scoring
     aerogram.reports
 
 [importlinter:contract:routing-has-no-carriers]

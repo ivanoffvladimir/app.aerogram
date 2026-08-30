@@ -21,8 +21,8 @@ from aerogram.core.models import Counterparty, Tenant, User
 from aerogram.db import Base, reset_tenant, set_tenant
 from aerogram.directories import models as _directories_models  # noqa: F401
 from aerogram.documents import models as _documents_models  # noqa: F401
+from aerogram.intelligence import models as _intelligence_models  # noqa: F401
 from aerogram.rating import models as _rating_models  # noqa: F401
-from aerogram.scoring import models as _scoring_models  # noqa: F401
 from aerogram.shared.enums import TenantStatus
 from aerogram.shared.ids import uuid7
 from aerogram.shipments import models as _shipments_models  # noqa: F401
