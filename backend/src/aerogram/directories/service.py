@@ -16,7 +16,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from aerogram.carriers.base import CarrierCity, Party
+from aerogram.carriers.base import CarrierCity, Party, RefCatalog
 from aerogram.directories.dadata import DadataClient
 from aerogram.directories.models import City
 from aerogram.directories.normalization import (
@@ -37,6 +37,7 @@ from aerogram.directories.schemas import (
     CitySuggestResponse,
     NormalizedAddress,
     PartyDraft,
+    TerminalUpsert,
 )
 from aerogram.shared.clock import utcnow
 from aerogram.shared.errors import DirectoryError, NotFound
@@ -53,6 +54,7 @@ __all__ = [
     "CityService",
     "MatchResult",
     "RefSyncReport",
+    "RefSyncService",
 ]
 
 log = get_logger(__name__)
@@ -504,3 +506,84 @@ class CarrierPartyResolver:
             postal_code=address.postal_code,
             address=address.address_line,
         )
+
+
+class RefSyncService:
+    """Сведение справочников перевозчика с нашими (FR-8.3).
+
+    Данные приносит вызывающий: адаптер отдаёт ``RefCatalog``, а пишет его
+    домен (ADR-0009). Поэтому здесь нет ни обращения к реестру адаптеров,
+    ни учётных данных — только уже полученная выгрузка.
+    """
+
+    def __init__(self, session: AsyncSession, dadata: DadataClient | None = None) -> None:
+        self._terminals = TerminalRepository(session)
+        self._mappings = CityMappingService(session)
+        self._cities = CityService(session, dadata)
+
+    async def sync(self, carrier_id: UUID, catalog: RefCatalog) -> RefSyncReport:
+        """Записать выгрузку и вернуть отчёт.
+
+        Города и терминалы обрабатываются вместе намеренно: терминал ссылается
+        на город перевозчика, и записать терминалы, не сопоставив города,
+        значит получить сеть ПВЗ, которую нельзя найти по адресу.
+        """
+        cities = await self._mappings.match_carrier_cities(carrier_id, list(catalog.cities))
+        queued = cities.pop("queued", 0)
+
+        now = utcnow()
+        # Перевод из DTO адаптера делается здесь: репозиторию о перевозчиках
+        # знать нельзя, иначе через него от адаптеров начинает зависеть
+        # каждый, кто читает справочники.
+        rows = [
+            TerminalUpsert(
+                external_code=row.external_code,
+                city_fias_id=row.city_fias_id,
+                city_name=row.city_name,
+                address=row.address,
+                type=row.type,
+                work_hours=row.work_hours,
+                lat=row.lat,
+                lon=row.lon,
+                has_cash=row.has_cash,
+                has_card=row.has_card,
+                max_weight_kg=float(row.max_weight_kg) if row.max_weight_kg is not None else None,
+            )
+            for row in catalog.terminals
+        ]
+        created, updated = await self._terminals.upsert_many(carrier_id, rows, now)
+
+        deactivated = 0
+        if catalog.is_complete:
+            deactivated = await self._terminals.deactivate_missing(
+                carrier_id, {row.external_code for row in rows}, now
+            )
+        elif rows:
+            # Частичная выгрузка не гасит: оборванная страница не означает,
+            # что перевозчик закрыл сеть. Молчать об этом нельзя — иначе
+            # закрытые ПВЗ будут показываться неделями, и никто не поймёт
+            # почему.
+            log.warning(
+                "directories.refs_incomplete",
+                carrier_id=str(carrier_id),
+                terminals=len(rows),
+            )
+
+        report = RefSyncReport(
+            cities_total=len(catalog.cities),
+            cities_mapped=sum(cities.values()),
+            cities_queued=queued,
+            terminals_total=len(rows),
+            terminals_upserted=created + updated,
+            terminals_deactivated=deactivated,
+        )
+        log.info(
+            "directories.refs_synced",
+            carrier_id=str(carrier_id),
+            cities_mapped=report.cities_mapped,
+            cities_queued=report.cities_queued,
+            terminals_upserted=report.terminals_upserted,
+            terminals_deactivated=report.terminals_deactivated,
+            is_complete=catalog.is_complete,
+        )
+        return report

@@ -19,7 +19,13 @@ from sqlalchemy import text, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from aerogram.carriers import registry
-from aerogram.carriers.base import CarrierAccount, RawEvent, ShipmentResult
+from aerogram.carriers.base import (
+    CarrierAccount,
+    CarrierTerminalRow,
+    RawEvent,
+    RefCatalog,
+    ShipmentResult,
+)
 from aerogram.core.models import CarrierAccount as CarrierAccountModel
 from aerogram.core.models import Tenant
 from aerogram.db import session_scope
@@ -264,3 +270,158 @@ class TestPolling:
         await tasks._for_each_tenant("test", tasks._poll_tenant)
 
         assert carrier.asked == []
+
+
+class RefCarrier(FakeCarrier):
+    """Перевозчик с управляемой выгрузкой справочника."""
+
+    def __init__(self, code: str = "cdek") -> None:
+        super().__init__(code)
+        self.catalog = RefCatalog()
+        self.calls = 0
+
+    async def fetch_refs(self, acc: CarrierAccount) -> RefCatalog:
+        self.calls += 1
+        return self.catalog
+
+
+def terminal(code: str, city: str = "Москва") -> CarrierTerminalRow:
+    return CarrierTerminalRow(
+        external_code=code,
+        city_name=city,
+        address=f"ул. Складская, {code}",
+        type="pvz",
+        has_card=True,
+    )
+
+
+async def active_codes(carrier_id: UUID, tenant_id: UUID) -> set[str]:
+    async with session_scope(tenant_id) as session:
+        rows = await session.execute(
+            text("SELECT external_code FROM carrier_terminals WHERE carrier_id = :c AND is_active"),
+            {"c": carrier_id},
+        )
+        return set(rows.scalars())
+
+
+@pytest.fixture
+def ref_carrier(app: object) -> RefCarrier:
+    registry._reset_for_tests()
+    adapter = RefCarrier()
+    registry.register(adapter)
+    return adapter
+
+
+class TestReferenceSync:
+    """FR-8.3: терминалы и ПВЗ синхронизируются ежесуточно."""
+
+    async def test_the_catalogue_is_written(
+        self,
+        ref_carrier: RefCarrier,
+        two_tenants_with_shipments: tuple[UUID, UUID],
+    ) -> None:
+        """До этой задачи расписание звало имя, которого не существовало."""
+        tenant_a, _ = two_tenants_with_shipments
+        ref_carrier.catalog = RefCatalog(terminals=(terminal("MSK-1"), terminal("MSK-2")))
+
+        result = await tasks._for_each_tenant("sync", tasks._refs_tenant)
+
+        assert result["failed_tenants"] == 0
+        async with session_scope(tenant_a) as session:
+            carrier_id = (
+                await session.execute(text("SELECT id FROM carriers WHERE code = 'cdek'"))
+            ).scalar_one()
+        assert await active_codes(carrier_id, tenant_a) == {"MSK-1", "MSK-2"}
+
+    async def test_a_terminal_that_stopped_coming_is_switched_off(
+        self,
+        ref_carrier: RefCarrier,
+        two_tenants_with_shipments: tuple[UUID, UUID],
+    ) -> None:
+        """Закрытый ПВЗ, который продолжает предлагаться, — это сорванная выдача."""
+        tenant_a, _ = two_tenants_with_shipments
+        ref_carrier.catalog = RefCatalog(terminals=(terminal("MSK-1"), terminal("MSK-2")))
+        await tasks._for_each_tenant("sync", tasks._refs_tenant)
+
+        ref_carrier.catalog = RefCatalog(terminals=(terminal("MSK-1"),))
+        await tasks._for_each_tenant("sync", tasks._refs_tenant)
+
+        async with session_scope(tenant_a) as session:
+            carrier_id = (
+                await session.execute(text("SELECT id FROM carriers WHERE code = 'cdek'"))
+            ).scalar_one()
+            gone = (
+                await session.execute(
+                    text(
+                        "SELECT is_active, deactivated_at IS NOT NULL FROM carrier_terminals"
+                        " WHERE carrier_id = :c AND external_code = 'MSK-2'"
+                    ),
+                    {"c": carrier_id},
+                )
+            ).one()
+        # Строка остаётся: её код лежит в уже созданных отправлениях.
+        assert gone == (False, True)
+        assert await active_codes(carrier_id, tenant_a) == {"MSK-1"}
+
+    async def test_a_terminal_that_came_back_is_switched_on_again(
+        self,
+        ref_carrier: RefCarrier,
+        two_tenants_with_shipments: tuple[UUID, UUID],
+    ) -> None:
+        """ПВЗ закрывают на ремонт и открывают обратно."""
+        tenant_a, _ = two_tenants_with_shipments
+        ref_carrier.catalog = RefCatalog(terminals=(terminal("MSK-1"), terminal("MSK-2")))
+        await tasks._for_each_tenant("sync", tasks._refs_tenant)
+        ref_carrier.catalog = RefCatalog(terminals=(terminal("MSK-1"),))
+        await tasks._for_each_tenant("sync", tasks._refs_tenant)
+
+        ref_carrier.catalog = RefCatalog(terminals=(terminal("MSK-1"), terminal("MSK-2")))
+        await tasks._for_each_tenant("sync", tasks._refs_tenant)
+
+        async with session_scope(tenant_a) as session:
+            carrier_id = (
+                await session.execute(text("SELECT id FROM carriers WHERE code = 'cdek'"))
+            ).scalar_one()
+        assert await active_codes(carrier_id, tenant_a) == {"MSK-1", "MSK-2"}
+
+    async def test_an_incomplete_catalogue_switches_nothing_off(
+        self,
+        ref_carrier: RefCarrier,
+        two_tenants_with_shipments: tuple[UUID, UUID],
+    ) -> None:
+        """Оборванная страница не означает, что перевозчик закрыл сеть.
+
+        Погасить её целиком дороже, чем показать один закрытый ПВЗ: вернуть
+        сеть можно только следующей успешной синхронизацией.
+        """
+        tenant_a, _ = two_tenants_with_shipments
+        ref_carrier.catalog = RefCatalog(terminals=(terminal("MSK-1"), terminal("MSK-2")))
+        await tasks._for_each_tenant("sync", tasks._refs_tenant)
+
+        ref_carrier.catalog = RefCatalog(terminals=(terminal("MSK-1"),), is_complete=False)
+        await tasks._for_each_tenant("sync", tasks._refs_tenant)
+
+        async with session_scope(tenant_a) as session:
+            carrier_id = (
+                await session.execute(text("SELECT id FROM carriers WHERE code = 'cdek'"))
+            ).scalar_one()
+        assert await active_codes(carrier_id, tenant_a) == {"MSK-1", "MSK-2"}
+
+    async def test_a_carrier_that_fails_does_not_stop_the_others(
+        self,
+        ref_carrier: RefCarrier,
+        two_tenants_with_shipments: tuple[UUID, UUID],
+    ) -> None:
+        """У каждого перевозчика свой контур и свои доступы."""
+
+        async def explode(acc: CarrierAccount) -> RefCatalog:
+            raise RuntimeError("выгрузка не удалась")
+
+        ref_carrier.fetch_refs = explode  # type: ignore[method-assign]
+
+        result = await tasks._for_each_tenant("sync", tasks._refs_tenant)
+
+        # Тенант не считается упавшим: сбой перевозчика — штатное состояние,
+        # он ловится внутри и не роняет обход.
+        assert result["failed_tenants"] == 0
+        assert result["handled"] == 0

@@ -8,9 +8,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, func, or_, select, true, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +22,7 @@ from aerogram.directories.models import (
     CityCarrierMap,
     CityMappingQueue,
 )
+from aerogram.directories.schemas import TerminalUpsert
 from aerogram.shared.ids import uuid7
 
 __all__ = [
@@ -147,6 +149,85 @@ class TerminalRepository:
             .offset(offset)
         )
         return list((await self._session.execute(page)).scalars()), total
+
+    async def upsert_many(
+        self, carrier_id: UUID, rows: list[TerminalUpsert], now: datetime
+    ) -> tuple[int, int]:
+        """Записать выгрузку терминалов. Возвращает (создано, обновлено).
+
+        Терминал, вернувшийся после гашения, снова становится активным:
+        ПВЗ закрывают на ремонт и открывают обратно, и оставить его погашенным
+        значит навсегда убрать из выдачи работающий пункт.
+        """
+        created = 0
+        updated = 0
+        for row in rows:
+            existing = await self.get_by_code(carrier_id, row.external_code)
+            if existing is None:
+                self._session.add(
+                    CarrierTerminal(
+                        id=uuid7(),
+                        carrier_id=carrier_id,
+                        external_code=row.external_code,
+                        city_fias_id=row.city_fias_id,
+                        city_name=row.city_name,
+                        address=row.address,
+                        type=row.type,
+                        work_hours=row.work_hours,
+                        lat=row.lat,
+                        lon=row.lon,
+                        has_cash=row.has_cash,
+                        has_card=row.has_card,
+                        max_weight_kg=row.max_weight_kg,
+                        is_active=True,
+                        synced_at=now,
+                    )
+                )
+                created += 1
+                continue
+
+            existing.city_fias_id = row.city_fias_id
+            existing.city_name = row.city_name
+            existing.address = row.address
+            existing.type = row.type
+            existing.work_hours = row.work_hours
+            existing.lat = row.lat
+            existing.lon = row.lon
+            existing.has_cash = row.has_cash
+            existing.has_card = row.has_card
+            existing.max_weight_kg = row.max_weight_kg
+            existing.is_active = True
+            existing.deactivated_at = None
+            existing.synced_at = now
+            updated += 1
+        return created, updated
+
+    async def deactivate_missing(
+        self, carrier_id: UUID, seen_codes: set[str], now: datetime
+    ) -> int:
+        """Погасить терминалы, не пришедшие в выгрузке. Возвращает их число.
+
+        Гашение, а не удаление: код терминала лежит в уже созданных
+        отправлениях, и карточка старого заказа обязана остаться читаемой.
+
+        Вызывать только на ПОЛНОЙ выгрузке. На частичной это погасило бы
+        всю сеть перевозчика из-за одного оборванного соединения — а вернуть
+        её можно только следующей успешной синхронизацией.
+        """
+        stmt = (
+            update(CarrierTerminal)
+            .where(
+                CarrierTerminal.carrier_id == carrier_id,
+                CarrierTerminal.is_active.is_(True),
+                CarrierTerminal.external_code.notin_(seen_codes) if seen_codes else true(),
+            )
+            .values(is_active=False, deactivated_at=now)
+            # RETURNING, а не rowcount: считать погашенные по количеству
+            # затронутых строк — значит верить драйверу на слово, а тип
+            # результата этого не обещает.
+            .returning(CarrierTerminal.id)
+        )
+        return len(list((await self._session.execute(stmt)).scalars()))
 
     async def get_by_code(self, carrier_id: UUID, external_code: str) -> CarrierTerminal | None:
         """Терминал по коду, включая погашенный.

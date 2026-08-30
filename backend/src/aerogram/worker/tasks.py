@@ -27,9 +27,15 @@ from uuid import UUID
 
 from sqlalchemy import select
 
-from aerogram.config import get_settings
-from aerogram.core.models import Tenant
+from aerogram.carriers import registry
+from aerogram.carriers.base import CarrierAccount as AdapterAccount
+from aerogram.config import Settings, get_settings
+from aerogram.core.models import CarrierAccount, Tenant
+from aerogram.core.repository import CarrierAccountRepository
+from aerogram.core.service import decrypt_credentials
 from aerogram.db import session_scope
+from aerogram.directories.repository import CarrierRepository
+from aerogram.directories.service import RefSyncService
 from aerogram.intelligence.service import ScoreService
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import TenantStatus
@@ -45,6 +51,7 @@ __all__ = [
     "poll_shipment_statuses",
     "recalculate_carrier_score",
     "reconcile_ghost_shipments",
+    "sync_carrier_references",
 ]
 
 log = get_logger(__name__)
@@ -128,6 +135,63 @@ async def _webhooks_tenant(tenant_id: UUID) -> int:
         return await WebhookService(session, get_settings()).deliver_due()
 
 
+async def _refs_tenant(tenant_id: UUID) -> int:
+    """Синхронизировать справочники перевозчиков тенанта (FR-8.3).
+
+    Учётные данные принадлежат тенанту, а справочник терминалов — платформе:
+    ``carrier_terminals`` привязана к перевозчику, а не к клиенту. Это не
+    утечка: сеть ПВЗ — публичная информация перевозчика, а не данные клиента.
+    Следствие в том, что тенант с испорченными доступами не оставляет
+    платформу без справочника: его подтянет любой другой.
+
+    Сбой одного перевозчика не отменяет остальных: у каждого свой контур
+    и свои доступы.
+    """
+    settings = get_settings()
+    synced = 0
+    async with session_scope(tenant_id) as session:
+        accounts = await CarrierAccountRepository(session).list_active()
+        codes = {c.id: c.code for c in await CarrierRepository(session).list_active()}
+        service = RefSyncService(session)
+        for account in accounts:
+            code = codes.get(account.carrier_id)
+            if code is None:
+                continue
+            try:
+                adapter = registry.get_adapter(code)
+            except LookupError:
+                continue
+            try:
+                catalog = await asyncio.wait_for(
+                    adapter.fetch_refs(_adapter_account(account, code, settings)),
+                    timeout=settings.carrier_refs_timeout_seconds,
+                )
+                report = await service.sync(account.carrier_id, catalog)
+            except Exception as exc:
+                # Текст не логируем: в нём может оказаться шифротекст
+                # учётных данных.
+                log.warning(
+                    "sync_carrier_references.carrier_failed",
+                    carrier=code,
+                    error_type=type(exc).__name__,
+                )
+                continue
+            synced += report.terminals_upserted
+    return synced
+
+
+def _adapter_account(account: CarrierAccount, code: str, settings: Settings) -> AdapterAccount:
+    """Учётная запись в том виде, в каком её ждёт адаптер."""
+    return AdapterAccount(
+        account_id=str(account.id),
+        carrier_code=code,
+        mode=account.mode,  # type: ignore[arg-type]
+        credentials=decrypt_credentials(account, settings),
+        is_sandbox=account.is_sandbox,
+        settings=dict(account.settings or {}),
+    )
+
+
 async def _score_tenant(tenant_id: UUID) -> int:
     """Пересчитать скор по наблюдениям тенанта (FR-7.1).
 
@@ -168,3 +232,9 @@ def deliver_webhooks() -> dict[str, int]:
 def recalculate_carrier_score() -> dict[str, int]:
     """Ежесуточный пересчёт Carrier Score."""
     return asyncio.run(_for_each_tenant("recalculate_carrier_score", _score_tenant))
+
+
+@app.task(name="aerogram.worker.tasks.sync_carrier_references")  # type: ignore[untyped-decorator]
+def sync_carrier_references() -> dict[str, int]:
+    """Ежесуточная синхронизация справочников перевозчиков (FR-8.3)."""
+    return asyncio.run(_for_each_tenant("sync_carrier_references", _refs_tenant))

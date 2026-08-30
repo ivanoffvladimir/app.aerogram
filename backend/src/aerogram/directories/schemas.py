@@ -25,6 +25,7 @@ __all__ = [
     "PartyLookupRequest",
     "TerminalListResponse",
     "TerminalOut",
+    "TerminalUpsert",
 ]
 
 
@@ -238,3 +239,31 @@ class PartyDraft(BaseModel):
     address: str | None = None
     city_fias_id: str | None = None
     is_active: bool = True
+
+
+class TerminalUpsert(BaseModel):
+    """Терминал в том виде, в каком его записывает домен.
+
+    Отдельный тип, а не ``carriers.base.CarrierTerminalRow``: репозиторий
+    справочников не должен знать о модуле перевозчиков. Стоит ему заговорить
+    на DTO адаптера — и любой, кто читает справочники, начинает зависеть
+    от адаптеров: import-linter ловит это контрактом «Аналитика не вызывает
+    адаптеры», и ловит справедливо.
+
+    Перевод из DTO адаптера делает сервис, который к перевозчикам обращаться
+    вправе.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    external_code: str
+    city_fias_id: str | None = None
+    city_name: str | None = None
+    address: str | None = None
+    type: str = "pvz"
+    work_hours: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    has_cash: bool = False
+    has_card: bool = False
+    max_weight_kg: float | None = None
