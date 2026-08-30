@@ -25,6 +25,7 @@ from aerogram.directories.normalization import (
     assess_fitness,
     city_kladr_id,
     resolve_city_key,
+    resolve_geo,
 )
 from aerogram.directories.repository import (
     CarrierRepository,
@@ -216,6 +217,11 @@ class AddressService:
         if key is not None:
             await self._cities._ensure_city(key, data.postal_code, data.timezone)
 
+        # Координаты нужны перевозчикам, которые принимают заказ только вместе
+        # с ними, и карте выбора ПВЗ. В ``cities`` они не пишутся: это
+        # координаты дома получателя, а таблица городов общая и без RLS.
+        geo = resolve_geo(data)
+
         return NormalizedAddress(
             city_fias_id=key.fias_id if key else None,
             city_parent_fias_id=key.parent_fias_id if key else None,
@@ -225,6 +231,9 @@ class AddressService:
             street=data.street_with_type,
             house=data.house,
             flat=data.flat,
+            lat=geo.lat if geo is not None else None,
+            lon=geo.lon if geo is not None else None,
+            geo_precision=geo.precision.value if geo is not None and geo.precision else None,
             fitness=fitness.value,
             blockers=[b.value for b in blockers],
         )

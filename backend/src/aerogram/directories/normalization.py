@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -27,10 +28,13 @@ __all__ = [
     "AddressFitness",
     "CityKey",
     "FitnessBlocker",
+    "Geo",
+    "GeoPrecision",
     "assess_fitness",
     "city_kladr_id",
     "parse_level",
     "resolve_city_key",
+    "resolve_geo",
 ]
 
 #: Уровни ФИАС, на которых объект является пунктом доставки.
@@ -329,3 +333,86 @@ def assess_fitness(
         return AddressFitness.LOCALITY, blockers
 
     return AddressFitness.DOOR, blockers
+
+
+class GeoPrecision(StrEnum):
+    """Точность координат, отданных ДаData (код ``qc_geo``).
+
+    Координаты без точности опасны: часть перевозчиков принимает заказ только
+    вместе с ними, и центр города, переданный как координаты дома, отправляет
+    курьера не по адресу. Поэтому точность возвращается вызывающему всегда,
+    а решение «годится или нет» принимает тот, кто знает требования ТК.
+    """
+
+    #: Координаты дома.
+    HOUSE = "house"
+    #: Координаты ближайшего дома.
+    NEAREST_HOUSE = "nearest_house"
+    #: Координаты улицы.
+    STREET = "street"
+    #: Координаты населённого пункта.
+    SETTLEMENT = "settlement"
+    #: Координаты города.
+    CITY = "city"
+
+
+#: Коды ``qc_geo`` ДаData. Кода 5 («координаты не определены») здесь нет
+#: намеренно: он означает, что верить значениям нельзя.
+_QC_GEO: dict[str, GeoPrecision] = {
+    "0": GeoPrecision.HOUSE,
+    "1": GeoPrecision.NEAREST_HOUSE,
+    "2": GeoPrecision.STREET,
+    "3": GeoPrecision.SETTLEMENT,
+    "4": GeoPrecision.CITY,
+}
+
+
+@dataclass(frozen=True, slots=True)
+class Geo:
+    """Координаты адреса и их точность.
+
+    ``precision`` пуст, если ДаData не сообщила ``qc_geo``: в подсказках
+    коды качества не приходят вовсе.
+    """
+
+    lat: float
+    lon: float
+    precision: GeoPrecision | None
+
+
+def _parse_coordinate(value: str | None, *, limit: float) -> float | None:
+    """Разобрать координату. ДаData отдаёт её строкой, иногда пустой."""
+    raw = _clean(value)
+    if raw is None:
+        return None
+    try:
+        parsed = float(raw)
+    except ValueError:
+        return None
+    # ``float`` принимает "nan" и "inf": до проверки диапазона они дошли бы
+    # молча и уехали в БД.
+    if not math.isfinite(parsed) or abs(parsed) > limit:
+        return None
+    return parsed
+
+
+def resolve_geo(data: DadataAddressData) -> Geo | None:
+    """Координаты адреса, если им можно верить.
+
+    Пустой результат — нормальный случай, а не ошибка: у абонентского ящика
+    и у адреса, который ДаData не нашла, координат нет.
+    """
+    lat = _parse_coordinate(data.geo_lat, limit=90.0)
+    lon = _parse_coordinate(data.geo_lon, limit=180.0)
+    if lat is None or lon is None:
+        return None
+
+    qc_geo = _clean(data.qc_geo)
+    if qc_geo is None:
+        return Geo(lat=lat, lon=lon, precision=None)
+
+    precision = _QC_GEO.get(qc_geo)
+    if precision is None:
+        # Код 5 или незнакомый: координаты есть, но они ничего не значат.
+        return None
+    return Geo(lat=lat, lon=lon, precision=precision)

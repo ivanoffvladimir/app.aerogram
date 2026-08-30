@@ -13,10 +13,12 @@ import pytest
 from aerogram.directories.normalization import (
     AddressFitness,
     FitnessBlocker,
+    GeoPrecision,
     assess_fitness,
     city_kladr_id,
     parse_level,
     resolve_city_key,
+    resolve_geo,
 )
 from aerogram.directories.schemas import DadataAddressData
 
@@ -373,3 +375,52 @@ class TestFitness:
         fitness, blockers = assess_fitness(data, None)
         assert fitness is AddressFitness.UNUSABLE
         assert FitnessBlocker.FOREIGN_COUNTRY in blockers
+
+
+class TestGeo:
+    """Координаты и их точность.
+
+    Часть перевозчиков принимает заказ только вместе с координатами, поэтому
+    молча отданный центр города вместо дома — это курьер не по адресу,
+    а не косметика.
+    """
+
+    def test_house_coordinates_are_returned(self) -> None:
+        geo = resolve_geo(_data(geo_lat="55.7522200", geo_lon="37.6155600", qc_geo="0"))
+        assert geo is not None
+        assert (geo.lat, geo.lon) == (55.75222, 37.61556)
+        assert geo.precision is GeoPrecision.HOUSE
+
+    def test_city_center_is_returned_but_marked_as_such(self) -> None:
+        """Координаты города не выбрасываются: для расчёта их достаточно."""
+        geo = resolve_geo(_data(geo_lat="55.7522200", geo_lon="37.6155600", qc_geo="4"))
+        assert geo is not None
+        assert geo.precision is GeoPrecision.CITY
+
+    def test_suggestion_without_qc_has_no_precision(self) -> None:
+        """В подсказках коды качества не приходят вовсе."""
+        geo = resolve_geo(_data(geo_lat="55.7522200", geo_lon="37.6155600"))
+        assert geo is not None
+        assert geo.precision is None
+
+    def test_undefined_coordinates_are_dropped(self) -> None:
+        """qc_geo = 5 — «координаты не определены»."""
+        assert resolve_geo(_data(geo_lat="0", geo_lon="0", qc_geo="5")) is None
+
+    def test_unknown_qc_code_is_dropped(self) -> None:
+        """Незнакомый код качества означает, что значение нам не известно."""
+        assert resolve_geo(_data(geo_lat="55.75", geo_lon="37.61", qc_geo="9")) is None
+
+    @pytest.mark.parametrize("value", ["", "   ", "не число", "nan", "inf", "1e400"])
+    def test_garbage_gives_none(self, value: str) -> None:
+        assert resolve_geo(_data(geo_lat=value, geo_lon="37.61", qc_geo="0")) is None
+
+    @pytest.mark.parametrize(("lat", "lon"), [("95.0", "37.61"), ("55.75", "181.0")])
+    def test_out_of_range_is_dropped(self, lat: str, lon: str) -> None:
+        assert resolve_geo(_data(geo_lat=lat, geo_lon=lon, qc_geo="0")) is None
+
+    def test_half_of_the_pair_is_useless(self) -> None:
+        assert resolve_geo(_data(geo_lat="55.7522200", qc_geo="0")) is None
+
+    def test_address_without_coordinates_is_not_an_error(self) -> None:
+        assert resolve_geo(_data(city="Новосибирск")) is None

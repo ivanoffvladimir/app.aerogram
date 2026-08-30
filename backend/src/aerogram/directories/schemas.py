@@ -160,6 +160,11 @@ class NormalizedAddress(BaseModel):
     street: str | None = None
     house: str | None = None
     flat: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    #: Точность координат: ``house``, ``nearest_house``, ``street``,
+    #: ``settlement``, ``city``. Пусто, если координат нет.
+    geo_precision: str | None = None
     fitness: str
     blockers: list[str] = Field(default_factory=list)
     degraded: bool = False
