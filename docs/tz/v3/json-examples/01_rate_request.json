@@ -1,0 +1,34 @@
+{
+  "origin": {
+    "country": "RU",
+    "city": "Владивосток",
+    "address_line": "ул. Примерная, 1"
+  },
+  "destination": {
+    "country": "RU",
+    "city": "Москва",
+    "address_line": "ул. Получателя, 10"
+  },
+  "ship_at": "2026-09-01T10:00:00+10:00",
+  "deadline": "2026-09-05T12:00:00+03:00",
+  "packages": [
+    {
+      "weight_grams": 12000,
+      "length_mm": 500,
+      "width_mm": 350,
+      "height_mm": 250
+    }
+  ],
+  "cargo_value": {
+    "amount_minor": 150000000,
+    "currency": "RUB"
+  },
+  "cargo_type": "equipment",
+  "additional_services": [
+    "door_delivery",
+    "insurance"
+  ],
+  "carrier_whitelist": [],
+  "carrier_blacklist": [],
+  "strategy": "optimal"
+}

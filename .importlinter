@@ -14,11 +14,14 @@ containers =
     aerogram.core
     aerogram.directories
     aerogram.rating
+    aerogram.routing
     aerogram.shipments
     aerogram.tracking
     aerogram.documents
     aerogram.scoring
     aerogram.reports
+    aerogram.intelligence
+    aerogram.billing
 exhaustive = False
 
 [importlinter:contract:shared-independent]
@@ -31,6 +34,7 @@ forbidden_modules =
     aerogram.directories
     aerogram.carriers
     aerogram.rating
+    aerogram.routing
     aerogram.shipments
     aerogram.tracking
     aerogram.documents
@@ -49,10 +53,13 @@ source_modules =
 forbidden_modules =
     aerogram.shipments
     aerogram.rating
+    aerogram.routing
     aerogram.tracking
     aerogram.documents
     aerogram.scoring
     aerogram.reports
+    aerogram.intelligence
+    aerogram.billing
     aerogram.directories
     aerogram.core
 
@@ -61,6 +68,7 @@ name = К перевозчикам — только через реестр ад
 type = forbidden
 source_modules =
     aerogram.rating
+    aerogram.routing
     aerogram.shipments
     aerogram.tracking
     aerogram.documents
@@ -70,13 +78,16 @@ forbidden_modules =
     aerogram.carriers.major
     aerogram.carriers.dellin
     aerogram.carriers.pecom
+    aerogram.carriers.yandex
 
 [importlinter:contract:readonly-analytics]
-name = scoring и reports не вызывают адаптеры
+name = Аналитика не вызывает адаптеры
 type = forbidden
 source_modules =
     aerogram.scoring
     aerogram.reports
+    aerogram.intelligence
+    aerogram.billing
 forbidden_modules =
     aerogram.carriers
 
@@ -88,8 +99,17 @@ source_modules =
 forbidden_modules =
     aerogram.directories
     aerogram.rating
+    aerogram.routing
     aerogram.shipments
     aerogram.tracking
     aerogram.documents
     aerogram.scoring
     aerogram.reports
+
+[importlinter:contract:routing-has-no-carriers]
+name = routing ранжирует уже полученные offers и не ходит к перевозчикам
+type = forbidden
+source_modules =
+    aerogram.routing
+forbidden_modules =
+    aerogram.carriers

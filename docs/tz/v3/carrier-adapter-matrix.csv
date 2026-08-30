@@ -1,0 +1,6 @@
+﻿Carrier,Protocol,Auth,Rate,Create,Track,Docs,MVP note,Official source
+Major Express,SOAP/WSDL,Basic Auth,Yes,Yes,Yes,Yes/where supported,Express first; LTL sub-adapter,https://developers.major-express.ru/web-servisy-2/
+CDEK,HTTP API,API credentials/token,Yes,Yes,Yes,Yes,Pin exact API version in integration sprint,https://developer.cdek.ru/
+Delovye Linii,HTTP API,App/client auth,Yes,Yes,Yes,Yes/where supported,LTL and terminals/additional services,https://dev.dellin.ru/api/
+PEC,HTTP API,Public + authenticated cabinet,Yes,Yes via cabinet,Yes via cabinet,where supported,Do not confuse public quote with client contract tariff,https://pecom.ru/business/developers/api_public/
+Yandex Delivery,HTTP API,Bearer token,Yes,Yes,Yes,API-dependent,Separate express and Russia flows if needed,https://yandex.com/support/delivery-profile/ru/api/

@@ -1,0 +1,95 @@
+{
+  "quote_id": "8c79a90a-3b15-4a10-9012-3adf4cf9b111",
+  "valid_until": "2026-09-01T10:15:00+10:00",
+  "no_deadline_match": false,
+  "offers": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "carrier_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "carrier_name": "Carrier A",
+      "service_code": "EXP",
+      "service_name": "Экспресс",
+      "source": "logistics_os",
+      "cost_components": [
+        {
+          "type": "base",
+          "money": {
+            "amount_minor": 2140000,
+            "currency": "RUB"
+          }
+        },
+        {
+          "type": "insurance",
+          "money": {
+            "amount_minor": 270000,
+            "currency": "RUB"
+          },
+          "rate_percent": 0.18
+        }
+      ],
+      "total_cost": {
+        "amount_minor": 2410000,
+        "currency": "RUB"
+      },
+      "eta": "2026-09-04T18:00:00+03:00",
+      "deadline_margin_seconds": 64800,
+      "lateness_seconds": null,
+      "on_time_probability": 0.97,
+      "probability_label": "high",
+      "carrier_score": 92,
+      "risk": "low",
+      "confidence": "high",
+      "eligible": true,
+      "ineligibility_reason": null,
+      "valid_until": "2026-09-01T10:15:00+10:00"
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "carrier_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "carrier_name": "Carrier B",
+      "service_code": "STD",
+      "service_name": "Стандарт",
+      "source": "client_contract",
+      "cost_components": [
+        {
+          "type": "base",
+          "money": {
+            "amount_minor": 1860000,
+            "currency": "RUB"
+          }
+        },
+        {
+          "type": "insurance",
+          "money": {
+            "amount_minor": 300000,
+            "currency": "RUB"
+          },
+          "rate_percent": 0.2
+        }
+      ],
+      "total_cost": {
+        "amount_minor": 2160000,
+        "currency": "RUB"
+      },
+      "eta": "2026-09-07T12:00:00+03:00",
+      "deadline_margin_seconds": null,
+      "lateness_seconds": 172800,
+      "on_time_probability": 0.74,
+      "probability_label": "medium",
+      "carrier_score": 80,
+      "risk": "medium",
+      "confidence": "medium",
+      "eligible": false,
+      "ineligibility_reason": "deadline_miss",
+      "valid_until": "2026-09-01T10:15:00+10:00"
+    }
+  ],
+  "failures": [
+    {
+      "carrier_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      "code": "carrier_timeout",
+      "message": "Carrier did not answer before timeout",
+      "retryable": true
+    }
+  ]
+}

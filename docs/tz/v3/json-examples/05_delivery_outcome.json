@@ -1,0 +1,12 @@
+{
+  "shipment_id": "55555555-5555-4555-8555-555555555555",
+  "delivered_at": "2026-09-05T10:40:00+03:00",
+  "deadline_met": true,
+  "delay_seconds": 0,
+  "actual_cost": {
+    "amount_minor": 2475000,
+    "currency": "RUB"
+  },
+  "damage": false,
+  "claim": false
+}

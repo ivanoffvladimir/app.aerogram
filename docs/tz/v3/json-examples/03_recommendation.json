@@ -1,0 +1,21 @@
+{
+  "id": "33333333-3333-4333-8333-333333333333",
+  "quote_id": "8c79a90a-3b15-4a10-9012-3adf4cf9b111",
+  "strategy": "optimal",
+  "recommended_offer_id": "11111111-1111-4111-8111-111111111111",
+  "explanation": [
+    "Укладывается в обязательный срок",
+    "Вероятность доставки в срок 97%",
+    "Низкий риск",
+    "Запас до дедлайна 18 часов"
+  ],
+  "algorithm_version": "routing-1.0.0",
+  "policy_version": "tenant-policy-7",
+  "alternatives_delta": {
+    "vs_cheapest_eligible": {
+      "amount_minor": 220000,
+      "currency": "RUB"
+    },
+    "on_time_probability_delta": 0.06
+  }
+}
