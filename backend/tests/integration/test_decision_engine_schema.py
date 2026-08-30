@@ -304,8 +304,17 @@ async def _insert_shipment(conn: AsyncConnection, ids: dict[str, Any]) -> UUID:
 
 
 class TestTenantIsolation:
-    async def test_another_tenant_sees_no_decisions(self, conn: AsyncConnection) -> None:
-        """RLS на новых таблицах: без неё они открыты всем тенантам."""
+    async def test_another_tenant_sees_no_decisions(
+        self, conn: AsyncConnection, database_url: str
+    ) -> None:
+        """RLS на новых таблицах: без неё они открыты всем тенантам.
+
+        Проверка обязана идти под ролью ПРИЛОЖЕНИЯ, а не под миграционной.
+        ``FORCE ROW LEVEL SECURITY`` действует на владельца таблицы, но не
+        на суперпользователя, а миграционная роль на некоторых стендах
+        суперпользователь. Такая проверка молча ничего не проверяла бы —
+        именно этим она и отличается от осмысленной.
+        """
         ids = await _seed(conn)
         await _insert_decision(conn, ids)
 
@@ -317,10 +326,56 @@ class TestTenantIsolation:
             ),
             {"i": stranger},
         )
-        await _set_tenant(conn, stranger)
+        await conn.commit()
 
-        for table in ("decisions", "recommendations", "rate_offers", "routing_rules"):
-            visible = (
-                await conn.execute(text(f"SELECT count(*) FROM {table}"))  # noqa: S608
-            ).scalar_one()
-            assert visible == 0, f"{table} виден чужому тенанту"
+        app_engine = create_async_engine(database_url)
+        try:
+            async with app_engine.connect() as app_conn:
+                await _assert_role_cannot_bypass_rls(app_conn)
+                await _set_tenant(app_conn, stranger)
+                for table in ("decisions", "recommendations", "rate_offers", "routing_rules"):
+                    visible = (
+                        await app_conn.execute(text(f"SELECT count(*) FROM {table}"))  # noqa: S608
+                    ).scalar_one()
+                    assert visible == 0, f"{table} виден чужому тенанту"
+        finally:
+            await app_engine.dispose()
+
+    async def test_the_owner_tenant_still_sees_its_own_rows(
+        self, conn: AsyncConnection, database_url: str
+    ) -> None:
+        """Обратная сторона: изоляция не должна прятать свои же строки.
+
+        Без этой проверки предыдущий тест зеленел бы и на политике,
+        не пропускающей никого и никогда.
+        """
+        ids = await _seed(conn)
+        await _insert_decision(conn, ids)
+        await conn.commit()
+
+        app_engine = create_async_engine(database_url)
+        try:
+            async with app_engine.connect() as app_conn:
+                await _set_tenant(app_conn, ids["tenant"])
+                visible = (
+                    await app_conn.execute(text("SELECT count(*) FROM decisions"))
+                ).scalar_one()
+                assert visible == 1
+        finally:
+            await app_engine.dispose()
+
+
+async def _assert_role_cannot_bypass_rls(conn: AsyncConnection) -> None:
+    """Убедиться, что роль проверки вообще подчиняется RLS.
+
+    Роль с ``BYPASSRLS`` или суперпользователь пройдут любую проверку
+    изоляции, ничего не проверив. CLAUDE.md §6: приложение подключается
+    ролью БЕЗ ``BYPASSRLS`` — здесь это утверждение и проверяется.
+    """
+    row = (
+        await conn.execute(
+            text("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")
+        )
+    ).one()
+    assert not row.rolsuper, "роль приложения не должна быть суперпользователем"
+    assert not row.rolbypassrls, "роль приложения не должна иметь BYPASSRLS"
