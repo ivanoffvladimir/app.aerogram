@@ -11,9 +11,10 @@ from collections.abc import AsyncIterator
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from aerogram.carriers.base import CarrierCity
 from aerogram.directories.models import Carrier, City
 from aerogram.directories.repository import CityMappingRepository
-from aerogram.directories.service import CarrierCityRow, CityMappingService
+from aerogram.directories.service import CityMappingService
 from aerogram.shared.ids import uuid7
 
 pytestmark = pytest.mark.integration
@@ -74,7 +75,7 @@ class TestAutoMatching:
     ) -> None:
         service = CityMappingService(migrator_session)
         counters = await service.match_carrier_cities(
-            carrier.id, [CarrierCityRow(code="MSK", name="Москва", fias_id=MOSCOW)]
+            carrier.id, [CarrierCity(code="MSK", name="Москва", fias_id=MOSCOW)]
         )
 
         assert counters["fias"] == 1
@@ -85,7 +86,7 @@ class TestAutoMatching:
     ) -> None:
         service = CityMappingService(migrator_session)
         await service.match_carrier_cities(
-            carrier.id, [CarrierCityRow(code="MSK", name="Москва", fias_id=MOSCOW)]
+            carrier.id, [CarrierCity(code="MSK", name="Москва", fias_id=MOSCOW)]
         )
 
         mapping = await CityMappingRepository(migrator_session).resolve(carrier.id, MOSCOW)
@@ -98,7 +99,7 @@ class TestAutoMatching:
     ) -> None:
         service = CityMappingService(migrator_session)
         await service.match_carrier_cities(
-            carrier.id, [CarrierCityRow(code="YLT", name="Ялта", region="Крым")]
+            carrier.id, [CarrierCity(code="YLT", name="Ялта", region="Крым")]
         )
 
         assert await service.resolve(carrier.id, YALTA) == "YLT"
@@ -113,7 +114,7 @@ class TestAutoMatching:
         """
         service = CityMappingService(migrator_session)
         counters = await service.match_carrier_cities(
-            carrier.id, [CarrierCityRow(code="IVA", name="Ивановка")]
+            carrier.id, [CarrierCity(code="IVA", name="Ивановка")]
         )
 
         assert counters["queued"] == 1
@@ -128,7 +129,7 @@ class TestAutoMatching:
         """Регион работает как вето, а не как надбавка к оценке."""
         service = CityMappingService(migrator_session)
         await service.match_carrier_cities(
-            carrier.id, [CarrierCityRow(code="YLT", name="Ялта", region="Московская")]
+            carrier.id, [CarrierCity(code="YLT", name="Ялта", region="Московская")]
         )
 
         assert await service.resolve(carrier.id, YALTA) is None
@@ -138,7 +139,7 @@ class TestAutoMatching:
     ) -> None:
         service = CityMappingService(migrator_session)
         counters = await service.match_carrier_cities(
-            carrier.id, [CarrierCityRow(code="XXX", name="Урюпинск-Заречный", terminals_count=7)]
+            carrier.id, [CarrierCity(code="XXX", name="Урюпинск-Заречный", terminals_count=7)]
         )
 
         assert counters["queued"] == 1
@@ -170,7 +171,7 @@ class TestManualDecisionWins:
 
         service = CityMappingService(migrator_session)
         await service.match_carrier_cities(
-            carrier.id, [CarrierCityRow(code="MSK-AUTO", name="Москва", fias_id=MOSCOW)]
+            carrier.id, [CarrierCity(code="MSK-AUTO", name="Москва", fias_id=MOSCOW)]
         )
 
         assert await service.resolve(carrier.id, MOSCOW) == "MSK-MANUAL"
@@ -191,7 +192,7 @@ class TestManualDecisionWins:
 
         service = CityMappingService(migrator_session)
         await service.match_carrier_cities(
-            carrier.id, [CarrierCityRow(code="NEW", name="Москва", fias_id=MOSCOW)]
+            carrier.id, [CarrierCity(code="NEW", name="Москва", fias_id=MOSCOW)]
         )
 
         assert await service.resolve(carrier.id, MOSCOW) == "NEW"
@@ -200,9 +201,7 @@ class TestManualDecisionWins:
         self, migrator_session: AsyncSession, carrier: Carrier
     ) -> None:
         service = CityMappingService(migrator_session)
-        await service.match_carrier_cities(
-            carrier.id, [CarrierCityRow(code="IVA", name="Ивановка")]
-        )
+        await service.match_carrier_cities(carrier.id, [CarrierCity(code="IVA", name="Ивановка")])
         repo = CityMappingRepository(migrator_session)
         item = (await repo.list_open(carrier.id))[0]
 
@@ -231,7 +230,7 @@ class TestResolution:
         """Для Алупки родитель — Ялта: откат помечается, а не выполняется молча."""
         service = CityMappingService(migrator_session)
         await service.match_carrier_cities(
-            carrier.id, [CarrierCityRow(code="YLT", name="Ялта", region="Крым")]
+            carrier.id, [CarrierCity(code="YLT", name="Ялта", region="Крым")]
         )
 
         code, is_fallback = await service.resolve_with_fallback(carrier.id, ALUPKA)
@@ -243,7 +242,7 @@ class TestResolution:
     ) -> None:
         service = CityMappingService(migrator_session)
         await service.match_carrier_cities(
-            carrier.id, [CarrierCityRow(code="MSK", name="Москва", fias_id=MOSCOW)]
+            carrier.id, [CarrierCity(code="MSK", name="Москва", fias_id=MOSCOW)]
         )
 
         code, is_fallback = await service.resolve_with_fallback(carrier.id, MOSCOW)

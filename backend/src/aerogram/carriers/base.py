@@ -26,13 +26,16 @@ __all__ = [
     "Capabilities",
     "CarrierAccount",
     "CarrierAdapter",
+    "CarrierCity",
+    "CarrierServiceRow",
+    "CarrierTerminalRow",
     "LabelResult",
     "Party",
     "Place",
     "Quote",
     "QuoteRequest",
     "RawEvent",
-    "RefSyncReport",
+    "RefCatalog",
     "ShipmentRequest",
     "ShipmentResult",
 ]
@@ -237,14 +240,71 @@ class RawEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class RefSyncReport:
-    """Итог синхронизации справочников перевозчика."""
+class CarrierCity:
+    """Город в справочнике перевозчика, с его собственным кодом.
 
-    terminals_total: int = 0
-    terminals_updated: int = 0
-    cities_total: int = 0
-    cities_unmapped: int = 0
-    services_updated: int = 0
+    ``fias_id`` и ``kladr_id`` заполняются, если перевозчик их отдаёт: это
+    детерминированные ключи сопоставления, и они избавляют от сравнения имён.
+    """
+
+    code: str
+    name: str
+    region: str | None = None
+    fias_id: str | None = None
+    kladr_id: str | None = None
+    #: Сколько пунктов выдачи перевозчика в этом городе. Домен использует это
+    #: как приоритет разбора очереди ручного сопоставления.
+    terminals_count: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class CarrierTerminalRow:
+    """Терминал или пункт выдачи в справочнике перевозчика."""
+
+    external_code: str
+    city_code: str | None = None
+    city_fias_id: str | None = None
+    city_name: str | None = None
+    address: str | None = None
+    type: Literal["pvz", "terminal", "postamat"] = "pvz"
+    work_hours: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    has_cash: bool = False
+    has_card: bool = False
+    max_weight_kg: Decimal | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CarrierServiceRow:
+    """Услуга или тариф в справочнике перевозчика."""
+
+    code: str
+    name: str
+    mode: Literal["door_door", "door_terminal", "terminal_door", "terminal_terminal"]
+    is_express: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class RefCatalog:
+    """Справочники перевозчика, полученные адаптером.
+
+    Адаптер ВОЗВРАЩАЕТ данные, а записывает их домен. Обратный порядок означал
+    бы, что адаптер обращается к базе, а это запрещено (ADR-0005): адаптер
+    нельзя было бы проверить на записанных фикстурах без БД, и он немедленно
+    нарушил бы контракт ``carrier-isolation``.
+
+    Пустой кортеж означает «перевозчик не отдаёт этот справочник», а не
+    «справочник пуст»: домен на пустом наборе ничего не гасит.
+    """
+
+    cities: tuple[CarrierCity, ...] = ()
+    terminals: tuple[CarrierTerminalRow, ...] = ()
+    services: tuple[CarrierServiceRow, ...] = ()
+    #: Признак полноты выгрузки. Если перевозчик отдал справочник частично
+    #: (обрыв, пагинация не дочитана), домен обязан НЕ гасить отсутствующие
+    #: записи: погасить всю сеть ПВЗ дороже, чем показать один закрытый.
+    is_complete: bool = True
 
 
 @runtime_checkable
@@ -280,7 +340,14 @@ class CarrierAdapter(Protocol):
         """
         ...
 
-    async def sync_refs(self, acc: CarrierAccount) -> RefSyncReport: ...
+    async def fetch_refs(self, acc: CarrierAccount) -> RefCatalog:
+        """Выгрузить справочники перевозчика.
+
+        Метод называется ``fetch``, а не ``sync``, намеренно: синхронизация —
+        это запись в базу, а адаптер к базе не обращается. Он отдаёт данные,
+        а сводит их с ФИАС и сохраняет ``directories`` (ADR-0009).
+        """
+        ...
 
     def parse_webhook(self, payload: dict[str, object]) -> list[RawEvent]: ...
 

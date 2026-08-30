@@ -104,6 +104,20 @@ jobs:
           uv run alembic downgrade base
           uv run alembic upgrade head
 
+      # Расхождение моделей и схемы означает, что кто-то поправил модель
+      # и забыл миграцию. Проверка полезна ровно до тех пор, пока она
+      # не шумит, — поэтому она добавлена только после того, как шум устранён
+      # миграцией 0005.
+      - name: Модели и схема не разошлись
+        working-directory: backend
+        run: uv run alembic check
+
+      - name: Голова миграций одна
+        working-directory: backend
+        run: |
+          heads=$(uv run alembic heads | grep -c . || true)
+          test "$heads" -eq 1 || { echo "голов миграций: $heads, должна быть одна"; exit 1; }
+
       - name: pytest
         working-directory: backend
         run: uv run pytest --cov=src/aerogram --cov-report=term --cov-report=xml

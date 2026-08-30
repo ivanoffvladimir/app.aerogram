@@ -75,10 +75,13 @@ router  →  service  →  repository  →  models
 
 Межмодульные правила:
 
-1. `carriers` **не знает** ни о `shipments`, ни о `rating`, ни о `tracking`.
-   Адаптер принимает DTO и возвращает DTO.
-2. `rating`, `shipments`, `tracking` обращаются к перевозчикам **только** через
-   `carriers.registry`, никогда напрямую к `carriers.cdek` и т. п.
+1. `carriers` **не знает** ни об одном модуле домена — ни о `shipments`, ни о
+   `rating`, ни о `tracking`, ни о `directories`, ни о `core`. Адаптер принимает
+   DTO и возвращает DTO, к базе не обращается (ADR-0005) и ничего не «синхронизирует»:
+   он отдаёт данные, а пишет их домен (ADR-0009).
+2. `rating`, `shipments`, `tracking`, `documents` и `directories` обращаются
+   к перевозчикам **только** через `carriers.registry` и DTO из `carriers.base`,
+   никогда напрямую к `carriers.cdek` и т. п.
 3. `scoring` и `reports` работают **только на чтение** и не вызывают адаптеры.
 4. `shared` не зависит ни от чего внутри проекта.
 5. Любой доступ к БД — через `repository.py` модуля. SQL вне репозиториев запрещён.

@@ -26,6 +26,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from aerogram.db import Base, TenantMixin, TimestampMixin, uuid_pk
+from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import EventSource, ShipmentStatus
 
 __all__ = ["ShipmentEvent", "WebhookDelivery", "WebhookSubscription"]
@@ -46,7 +47,10 @@ class ShipmentEvent(Base, TenantMixin):
     )
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     received_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("now()")
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        server_default=text("now()"),
     )
     status_normalized: Mapped[ShipmentStatus] = mapped_column(String(30), nullable=False)
     status_raw: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -109,7 +113,10 @@ class WebhookDelivery(Base, TenantMixin):
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("now()")
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        server_default=text("now()"),
     )
 
     __table_args__ = (

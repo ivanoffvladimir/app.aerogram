@@ -88,6 +88,32 @@ class TestCreate:
         assert first.status_code == 201
         assert second.status_code == 201
 
+    async def test_branch_and_head_office_share_one_inn(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        """Головная организация и филиал — разные контрагенты с одним ИНН.
+
+        Проверка в сервисе обязана совпадать с уникальным индексом
+        ``(tenant_id, inn, coalesce(kpp, ''))``: иначе завести головную
+        организацию после филиала было бы невозможно.
+        """
+        branch = await client.post("/api/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+        head = await client.post(
+            "/api/v1/counterparties",
+            json={**ROSPLOMBA, "kpp": None, "addresses": []},
+            headers=headers_a,
+        )
+
+        assert branch.status_code == 201
+        assert head.status_code == 201
+
+    async def test_same_inn_and_same_kpp_is_still_conflict(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        await client.post("/api/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+        again = await client.post("/api/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+        assert again.status_code == 409
+
     async def test_malformed_inn_is_rejected(
         self, client: AsyncClient, headers_a: dict[str, str]
     ) -> None:

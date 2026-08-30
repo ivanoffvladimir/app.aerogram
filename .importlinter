@@ -53,6 +53,8 @@ forbidden_modules =
     aerogram.documents
     aerogram.scoring
     aerogram.reports
+    aerogram.directories
+    aerogram.core
 
 [importlinter:contract:no-direct-carrier]
 name = К перевозчикам — только через реестр адаптеров
@@ -62,6 +64,7 @@ source_modules =
     aerogram.shipments
     aerogram.tracking
     aerogram.documents
+    aerogram.directories
 forbidden_modules =
     aerogram.carriers.cdek
     aerogram.carriers.major

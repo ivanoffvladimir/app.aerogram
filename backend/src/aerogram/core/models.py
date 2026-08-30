@@ -30,6 +30,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from aerogram.db import Base, TenantMixin, TimestampMixin, uuid_pk
+from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import CarrierAccountMode, TenantStatus, UserRole
 
 __all__ = [
@@ -129,7 +130,10 @@ class AuditLog(Base, TenantMixin):
     user_agent: Mapped[str | None] = mapped_column(String(512))
     payload_diff: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("now()")
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        server_default=text("now()"),
     )
 
     __table_args__ = (
@@ -157,12 +161,46 @@ class Counterparty(Base, TenantMixin, TimestampMixin):
         back_populates="counterparty", cascade="all, delete-orphan", lazy="selectin"
     )
 
+    # Индексы объявлены здесь целиком, включая частичные и выражения: иначе
+    # автогенерация Alembic, не видя их в моделях, предложит их УДАЛИТЬ
+    # в следующей же миграции.
     __table_args__ = (
         CheckConstraint(
             "type IN ('legal', 'individual', 'entrepreneur')", name="counterparty_type"
         ),
-        Index("ix_counterparties_tenant_id_inn", "tenant_id", "inn"),
-        Index("ix_counterparties_tenant_id_name", "tenant_id", "name"),
+        # Автоподстановка ищет подстроку в середине слова: «плом» → «Роспломба».
+        Index(
+            "ix_counterparties_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        # Префиксный поиск по ИНН. Этот же индекс обслуживает и точное
+        # сравнение, поэтому отдельный (tenant_id, inn) не нужен.
+        Index(
+            "ix_counterparties_inn_prefix",
+            text("inn varchar_pattern_ops"),
+            postgresql_where=text("deleted_at IS NULL AND inn IS NOT NULL"),
+        ),
+        # Уникальность ИНН только среди живых строк: удалённый контрагент
+        # не должен вечно занимать ИНН.
+        Index(
+            "uq_counterparties_tenant_id_inn_kpp",
+            "tenant_id",
+            "inn",
+            text("coalesce(kpp, '')"),
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL AND inn IS NOT NULL"),
+        ),
+        # Списки адресной книги всегда отсекают удалённых, поэтому индекс
+        # частичный. Полный (tenant_id, name) был бы его дублем.
+        Index(
+            "ix_counterparties_tenant_id_alive",
+            "tenant_id",
+            "name",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
     )
 
 
@@ -208,6 +246,14 @@ class Address(Base, TenantMixin, TimestampMixin):
     __table_args__ = (
         Index("ix_addresses_tenant_id_counterparty_id", "tenant_id", "counterparty_id"),
         Index("ix_addresses_city_fias_id", "city_fias_id"),
+        # Отправитель по умолчанию у тенанта ровно один. Гарантия на уровне БД,
+        # а не кода: два оператора могут назначить его одновременно.
+        Index(
+            "uq_addresses_tenant_id_default_sender",
+            "tenant_id",
+            unique=True,
+            postgresql_where=text("is_default_sender AND deleted_at IS NULL"),
+        ),
     )
 
 
@@ -265,7 +311,10 @@ class CarrierRawCall(Base, TenantMixin):
     request_payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     response_payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("now()")
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        server_default=text("now()"),
     )
     #: Момент, после которого запись подлежит удалению.
     expires_at: Mapped[date] = mapped_column(Date, nullable=False)

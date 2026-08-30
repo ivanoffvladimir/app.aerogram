@@ -12,11 +12,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from difflib import SequenceMatcher
-from typing import Protocol
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from aerogram.carriers.base import CarrierCity
 from aerogram.directories.dadata import DadataClient
 from aerogram.directories.models import City
 from aerogram.directories.normalization import (
@@ -47,11 +47,10 @@ __all__ = [
     "AUTO_CONFIRM_THRESHOLD",
     "FUZZY_THRESHOLD",
     "AddressService",
-    "CarrierCityRow",
-    "CarrierRefCatalog",
     "CityMappingService",
     "CityService",
     "MatchResult",
+    "RefSyncReport",
 ]
 
 log = get_logger(__name__)
@@ -67,39 +66,20 @@ AMBIGUITY_MARGIN = 0.05
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierCityRow:
-    """Город в справочнике перевозчика.
+class RefSyncReport:
+    """Итог синхронизации справочников перевозчика.
 
-    DTO принадлежит ``directories``, а не ``carriers``: домен описывает, что ему
-    нужно, а адаптер это поставляет. Обратная зависимость сделала бы добавление
-    перевозчика изменением в ядре (раздел 4.2 ТЗ).
+    Отчёт составляет ДОМЕН, а не адаптер: адаптер отдаёт данные, а сколько
+    строк записано, сколько городов ушло в очередь и что погашено — знает
+    только тот, кто писал в базу (ADR-0009).
     """
 
-    code: str
-    name: str
-    region: str | None = None
-    fias_id: str | None = None
-    kladr_id: str | None = None
-    terminals_count: int = 0
-
-
-class CarrierRefCatalog(Protocol):
-    """Порт получения справочников перевозчика.
-
-    Объявлен здесь и только здесь. Адаптер удовлетворяет ему структурно —
-    менять ``carriers/base.py`` ради этого не требуется.
-
-    Причина существования порта: метод ``CarrierAdapter.sync_refs`` возвращает
-    счётчики ``RefSyncReport``, то есть предполагает, что адаптер сам пишет
-    в базу. Адаптеру доступ к БД запрещён (ADR-0005), поэтому подписи в текущем
-    виде исполнить невозможно. Порт возвращает данные, а пишет их домен.
-    """
-
-    async def fetch_cities(
-        self, credentials: dict[str, str], *, is_sandbox: bool
-    ) -> list[CarrierCityRow]:
-        """Города перевозчика с его кодами."""
-        ...
+    cities_total: int = 0
+    cities_mapped: int = 0
+    cities_queued: int = 0
+    terminals_total: int = 0
+    terminals_upserted: int = 0
+    terminals_deactivated: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -301,7 +281,7 @@ class CityMappingService:
         return parent_code, parent_code is not None
 
     async def match_carrier_cities(
-        self, carrier_id: UUID, rows: list[CarrierCityRow]
+        self, carrier_id: UUID, rows: list[CarrierCity]
     ) -> dict[str, int]:
         """Сопоставить справочник городов перевозчика с ФИАС.
 
@@ -339,7 +319,7 @@ class CityMappingService:
 
         return counters
 
-    async def _match_one(self, row: CarrierCityRow) -> MatchResult:
+    async def _match_one(self, row: CarrierCity) -> MatchResult:
         """Лестница сопоставления: от идентификатора к имени.
 
         Порядок от детерминированного к вероятностному. Автоподтверждение даётся
@@ -393,7 +373,7 @@ class CityMappingService:
         )
 
     @staticmethod
-    def _score(row: CarrierCityRow, city: City) -> float:
+    def _score(row: CarrierCity, city: City) -> float:
         """Похожесть названий с вето по региону."""
         name_score = SequenceMatcher(None, _norm(row.name), _norm(city.name)).ratio()
         if row.region and city.region:
