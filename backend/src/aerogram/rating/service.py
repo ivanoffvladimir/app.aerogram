@@ -34,7 +34,7 @@ from aerogram.core.models import CarrierAccount
 from aerogram.core.repository import CarrierAccountRepository
 from aerogram.directories.repository import CarrierRepository
 from aerogram.directories.service import CityMappingService
-from aerogram.rating.models import RateQuote, RateRequest
+from aerogram.rating.models import RateOffer, RateQuote
 from aerogram.rating.repository import RateRepository
 from aerogram.rating.schemas import (
     RateErrorOut,
@@ -44,6 +44,7 @@ from aerogram.rating.schemas import (
 )
 from aerogram.shared.clock import utcnow
 from aerogram.shared.crypto import CredentialCipher
+from aerogram.shared.enums import IneligibilityReason, OfferSource, PriceSource
 from aerogram.shared.errors import AerogramError, CarrierError, CarrierTimeout
 from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
@@ -88,28 +89,28 @@ class RateShoppingService:
         outcomes = await self._poll(accounts, payload)
         duration_ms = int((time.monotonic() - started) * 1000)
 
-        request = RateRequest(
+        quote = RateQuote(
             id=uuid7(),
             tenant_id=tenant_id,
             user_id=user_id,
-            payload=payload.model_dump(mode="json"),
+            input_snapshot=payload.model_dump(mode="json"),
             hash=self._request_hash(payload),
             duration_ms=duration_ms,
-            expires_at=utcnow() + timedelta(seconds=self._settings.quote_cache_ttl_seconds),
+            valid_until=utcnow() + timedelta(seconds=self._settings.quote_cache_ttl_seconds),
         )
-        self._rates.add_request(request)
+        self._rates.add_quote(quote)
 
-        rows = self._persist(request, outcomes, payload, tenant_id)
+        rows = self._persist(quote, outcomes, payload, tenant_id)
         await self._session.flush()
 
-        quotes = [
+        offers = [
             RateQuoteOut(
                 rate_id=row.id,
                 carrier=code,
                 service_code=row.service_code,
                 tariff_code=row.tariff_code,
                 service_name=(row.raw_response or {}).get("service_name"),
-                price=MoneySchema.of(Money(row.price_amount_minor or 0, row.currency)),
+                price=MoneySchema.of(Money(row.total_amount_minor or 0, row.currency)),
                 price_source=row.price_source,
                 transit_days_min=row.transit_days_min,
                 transit_days_max=row.transit_days_max,
@@ -133,15 +134,15 @@ class RateShoppingService:
         log.info(
             "rating.completed",
             carriers=len(outcomes),
-            quotes=len(quotes),
+            offers=len(offers),
             errors=len(errors),
             duration_ms=duration_ms,
         )
         return RateResponse(
-            request_id=request.id,
-            expires_at=request.expires_at,
+            request_id=quote.id,
+            expires_at=quote.valid_until,
             duration_ms=duration_ms,
-            quotes=quotes,
+            quotes=offers,
             errors=errors,
         )
 
@@ -332,56 +333,67 @@ class RateShoppingService:
 
     def _persist(
         self,
-        request: RateRequest,
+        quote: RateQuote,
         outcomes: list[_CarrierOutcome],
         payload: RateRequestIn,
         tenant_id: UUID,
-    ) -> list[tuple[RateQuote, str]]:
-        """Сохранить котировки и строки ошибок."""
-        rows: list[tuple[RateQuote, str]] = []
+    ) -> list[tuple[RateOffer, str]]:
+        """Сохранить предложения и строки ошибок."""
+        rows: list[tuple[RateOffer, str]] = []
 
         for outcome in outcomes:
             if outcome.error_code is not None:
                 rows.append(
                     (
-                        RateQuote(
+                        RateOffer(
                             id=uuid7(),
                             tenant_id=tenant_id,
-                            rate_request_id=request.id,
+                            quote_id=quote.id,
                             carrier_id=outcome.carrier_id,
                             carrier_account_id=outcome.account_id,
                             error_code=outcome.error_code,
                             error_message=outcome.error_message,
-                            expires_at=request.expires_at,
+                            # Строка ошибки в рекомендации не участвует, но и не
+                            # исчезает из выдачи: причина названа явно.
+                            eligible=False,
+                            ineligibility_reason=IneligibilityReason.SERVICE_UNAVAILABLE,
+                            valid_until=quote.valid_until,
                         ),
                         outcome.carrier_code,
                     )
                 )
                 continue
 
-            for quote in outcome.quotes:
+            for offer in outcome.quotes:
                 meets = None
-                if payload.required_delivery_date and quote.promised_delivery_date:
-                    meets = quote.promised_delivery_date <= payload.required_delivery_date
+                if payload.required_delivery_date and offer.promised_delivery_date:
+                    meets = offer.promised_delivery_date <= payload.required_delivery_date
                 rows.append(
                     (
-                        RateQuote(
+                        RateOffer(
                             id=uuid7(),
                             tenant_id=tenant_id,
-                            rate_request_id=request.id,
+                            quote_id=quote.id,
                             carrier_id=outcome.carrier_id,
                             carrier_account_id=outcome.account_id,
-                            service_code=quote.service_code,
-                            tariff_code=quote.tariff_code,
-                            price_amount_minor=quote.price.amount_minor,
-                            currency=quote.price.currency,
-                            price_source=quote.price_source,
-                            transit_days_min=quote.transit_days_min,
-                            transit_days_max=quote.transit_days_max,
-                            promised_delivery_date=quote.promised_delivery_date,
+                            service_code=offer.service_code,
+                            tariff_code=offer.tariff_code,
+                            total_amount_minor=offer.price.amount_minor,
+                            currency=offer.price.currency,
+                            source=_offer_source(offer.price_source),
+                            price_source=offer.price_source,
+                            transit_days_min=offer.transit_days_min,
+                            transit_days_max=offer.transit_days_max,
+                            promised_delivery_date=offer.promised_delivery_date,
                             meets_deadline=meets,
-                            raw_response={**quote.raw, "service_name": quote.service_name},
-                            expires_at=request.expires_at,
+                            # Не уложившиеся в срок не скрываются, а помечаются
+                            # причиной и уходят вниз (продуктовое ТЗ, раздел 7).
+                            eligible=meets is not False,
+                            ineligibility_reason=(
+                                IneligibilityReason.MISSES_DEADLINE if meets is False else None
+                            ),
+                            raw_response={**offer.raw, "service_name": offer.service_name},
+                            valid_until=quote.valid_until,
                         ),
                         outcome.carrier_code,
                     )
@@ -389,7 +401,7 @@ class RateShoppingService:
 
         priced = [row for row, _ in rows if row.error_code is None]
         rank_quotes(priced, required_deadline=payload.required_delivery_date is not None)
-        self._rates.add_quotes([row for row, _ in rows])
+        self._rates.add_offers([row for row, _ in rows])
         return rows
 
     def _decrypt(self, account: CarrierAccount) -> dict[str, str]:
@@ -412,7 +424,20 @@ class RateShoppingService:
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def rank_quotes(quotes: list[RateQuote], *, required_deadline: bool = False) -> None:
+def _offer_source(price_source: PriceSource | None) -> OfferSource | None:
+    """Внутренний источник цены → значение контракта (``RateOffer.source``).
+
+    Публичный тариф ПЭК ни в одно из двух значений контракта не укладывается —
+    расхождение вынесено в docs/status.md и здесь даёт None, а не выдумку.
+    """
+    if price_source is PriceSource.OWN_CONTRACT:
+        return OfferSource.CLIENT_CONTRACT
+    if price_source is PriceSource.AEROGRAM:
+        return OfferSource.LOGISTICS_OS
+    return None
+
+
+def rank_quotes(quotes: list[RateOffer], *, required_deadline: bool = False) -> None:
     """Проставить ранг строкам выдачи.
 
     Комбинированный ранг по умолчанию (FR-5.3): нормализованная цена 0,4,
@@ -427,7 +452,7 @@ def rank_quotes(quotes: list[RateQuote], *, required_deadline: bool = False) -> 
     if not quotes:
         return
 
-    prices = [q.price_amount_minor for q in quotes if q.price_amount_minor is not None]
+    prices = [q.total_amount_minor for q in quotes if q.total_amount_minor is not None]
     days = [q.transit_days_max for q in quotes if q.transit_days_max is not None]
     if not prices:
         return
@@ -435,10 +460,10 @@ def rank_quotes(quotes: list[RateQuote], *, required_deadline: bool = False) -> 
     min_price, max_price = min(prices), max(prices)
     min_days, max_days = (min(days), max(days)) if days else (0, 0)
 
-    def score(quote: RateQuote) -> tuple[int, float]:
+    def score(quote: RateOffer) -> tuple[int, float]:
         price_part = 0.0
-        if quote.price_amount_minor is not None and max_price > min_price:
-            price_part = (quote.price_amount_minor - min_price) / (max_price - min_price)
+        if quote.total_amount_minor is not None and max_price > min_price:
+            price_part = (quote.total_amount_minor - min_price) / (max_price - min_price)
         transit_part = 0.0
         if quote.transit_days_max is not None and max_days > min_days:
             transit_part = (quote.transit_days_max - min_days) / (max_days - min_days)

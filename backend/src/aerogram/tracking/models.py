@@ -11,6 +11,8 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    CHAR,
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -29,7 +31,7 @@ from aerogram.db import Base, TenantMixin, TimestampMixin, uuid_pk
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import EventSource, ShipmentStatus
 
-__all__ = ["ShipmentEvent", "WebhookDelivery", "WebhookSubscription"]
+__all__ = ["DeliveryOutcome", "ShipmentEvent", "WebhookDelivery", "WebhookSubscription"]
 
 
 class ShipmentEvent(Base, TenantMixin):
@@ -122,4 +124,64 @@ class WebhookDelivery(Base, TenantMixin):
     __table_args__ = (
         Index("ix_webhook_deliveries_next_attempt_at", "next_attempt_at"),
         Index("ix_webhook_deliveries_subscription_id_created_at", "subscription_id", "created_at"),
+    )
+
+
+class DeliveryOutcome(Base, TenantMixin):
+    """Факт доставки: то, ради чего собирается вся история решений.
+
+    Одна строка на отправление, поэтому первичный ключ — сам ``shipment_id``:
+    отдельный суррогатный ключ допускал бы два противоречащих факта об одной
+    доставке.
+
+    Фактическая стоимость отделена от факта доставки намеренно: она приходит
+    из счёта и может появиться сильно позже (системное ТЗ, раздел 10). Пока
+    её нет, ``actual_amount_minor`` пуст, но ``delivered_at`` уже заполнен —
+    и SLA считается, не дожидаясь бухгалтерии.
+    """
+
+    __tablename__ = "delivery_outcomes"
+
+    shipment_id: Mapped[UUID] = mapped_column(
+        ForeignKey("shipments.id", ondelete="CASCADE"), primary_key=True
+    )
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    #: Уложились ли в дедлайн. NULL означает «дедлайна не было», а не «неизвестно».
+    deadline_met: Mapped[bool | None] = mapped_column(Boolean)
+    delay_seconds: Mapped[int | None] = mapped_column(BigInteger)
+    actual_amount_minor: Mapped[int | None] = mapped_column(BigInteger)
+    currency: Mapped[str | None] = mapped_column(CHAR(3))
+    damage: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    claim: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    claim_amount_minor: Mapped[int | None] = mapped_column(BigInteger)
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        server_default=text("now()"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        onupdate=utcnow,
+        server_default=text("now()"),
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "actual_amount_minor IS NULL OR actual_amount_minor >= 0",
+            name="actual_cost_non_negative",
+        ),
+        CheckConstraint(
+            "actual_amount_minor IS NULL OR currency IS NOT NULL",
+            name="actual_cost_has_a_currency",
+        ),
+        CheckConstraint("currency IS NULL OR currency ~ '^[A-Z]{3}$'", name="currency_is_iso_4217"),
+        Index("ix_delivery_outcomes_tenant_id_delivered_at", "tenant_id", "delivered_at"),
     )

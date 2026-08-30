@@ -246,7 +246,7 @@ class TestSuccessfulRating:
             )
             stored = (
                 await conn.execute(
-                    text("SELECT count(*) FROM rate_quotes WHERE rate_request_id = :r"),
+                    text("SELECT count(*) FROM rate_offers WHERE quote_id = :r"),
                     {"r": body["request_id"]},
                 )
             ).scalar_one()

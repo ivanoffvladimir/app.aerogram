@@ -71,6 +71,12 @@ class Shipment(Base, TenantMixin, TimestampMixin):
     recipient_address_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("addresses.id", ondelete="RESTRICT")
     )
+    #: Решение, из которого создано отправление (контракт, CreateShipmentRequest).
+    #: NULL допустим для отправлений, созданных до появления Decision Engine
+    #: и для прямого создания в обход расчёта.
+    decision_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("decisions.id", ondelete="RESTRICT")
+    )
     #: Снимок адресов на момент создания: адресная книга может измениться,
     #: а отправление обязано остаться воспроизводимым в спорной ситуации.
     sender_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
@@ -100,8 +106,10 @@ class Shipment(Base, TenantMixin, TimestampMixin):
         String(20), nullable=False, default=CreatedVia.WEB
     )
     created_by_user_id: Mapped[UUID | None] = mapped_column()
-    rate_quote_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("rate_quotes.id", ondelete="SET NULL")
+    #: Выбранное предложение. Отдельно от ``decision_id``: решение может быть
+    #: удалено политикой хранения, а номер предложения нужен для сверки со счётом.
+    rate_offer_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("rate_offers.id", ondelete="SET NULL")
     )
     #: Ключ идемпотентности первого успешного создания (FR-2.3), для сверки «призраков».
     idempotency_key: Mapped[str | None] = mapped_column(String(255))
@@ -140,6 +148,7 @@ class Shipment(Base, TenantMixin, TimestampMixin):
         ),
         CheckConstraint("currency ~ '^[A-Z]{3}$'", name="currency_is_iso_4217"),
         Index("ix_shipments_tenant_id_created_at", "tenant_id", "created_at"),
+        Index("ix_shipments_decision_id", "decision_id"),
         Index("ix_shipments_tracking_number", "tracking_number"),
         # Частичный индекс по незавершённым: планировщик polling обращается к нему
         # каждую минуту, без него он сканирует всю таблицу (раздел 7.3 ТЗ).

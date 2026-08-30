@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from aerogram.rating.models import RateQuote
+from aerogram.rating.models import RateOffer
 from aerogram.rating.service import rank_quotes
 from aerogram.shared.ids import uuid7
 from aerogram.shared.money import Money
@@ -20,19 +20,19 @@ def _quote(
     *,
     meets: bool | None = None,
     promised: date | None = None,
-) -> RateQuote:
-    return RateQuote(
+) -> RateOffer:
+    return RateOffer(
         id=uuid7(),
         tenant_id=uuid7(),
-        rate_request_id=uuid7(),
+        quote_id=uuid7(),
         carrier_id=uuid7(),
-        price_amount_minor=Money.from_major(price, "RUB").amount_minor,
+        total_amount_minor=Money.from_major(price, "RUB").amount_minor,
         currency="RUB",
         transit_days_min=days,
         transit_days_max=days,
         promised_delivery_date=promised,
         meets_deadline=meets,
-        expires_at=None,
+        valid_until=None,
     )
 
 

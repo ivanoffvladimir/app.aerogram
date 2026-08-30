@@ -8,13 +8,21 @@ __all__ = [
     "FINAL_STATUSES",
     "CargoType",
     "CarrierAccountMode",
+    "CostComponentType",
     "CreatedVia",
+    "DecisionMode",
     "DeliveryMode",
     "DocumentFormat",
     "DocumentType",
     "EventSource",
+    "IneligibilityReason",
     "LabelFormat",
+    "OfferSource",
+    "OverrideReason",
     "PriceSource",
+    "ProbabilityLabel",
+    "RiskLevel",
+    "RoutingStrategy",
     "ScoreConfidence",
     "ScoreScope",
     "SelectionRule",
@@ -83,6 +91,95 @@ class PriceSource(StrEnum):
     OWN_CONTRACT = "own_contract"
     AEROGRAM = "aerogram"
     PUBLIC = "public"
+
+
+class RoutingStrategy(StrEnum):
+    """Стратегия выбора. Значения — из схемы контракта."""
+
+    OPTIMAL = "optimal"
+    CHEAPEST = "cheapest"
+    FASTEST = "fastest"
+    RELIABLE = "reliable"
+
+
+class OfferSource(StrEnum):
+    """Чей тариф: договор клиента или тариф платформы.
+
+    Ровно два значения контракта (``RateOffer.source`` в openapi.yaml).
+    Публичный расчёт ПЭК в эту пару не укладывается — см. «Требует решения
+    человека» в docs/status.md.
+    """
+
+    CLIENT_CONTRACT = "client_contract"
+    LOGISTICS_OS = "logistics_os"
+
+
+class CostComponentType(StrEnum):
+    """Составляющая стоимости. Значения — из схемы ``CostComponent``."""
+
+    BASE = "base"
+    INSURANCE = "insurance"
+    PICKUP = "pickup"
+    DOOR_DELIVERY = "door_delivery"
+    PACKAGING = "packaging"
+    REMOTE_AREA = "remote_area"
+    PALLET = "pallet"
+    WAITING = "waiting"
+    DECLARED_VALUE = "declared_value"
+    OTHER = "other"
+
+
+class DecisionMode(StrEnum):
+    """Кто принял решение: человек или правило автовыбора."""
+
+    MANUAL = "manual"
+    AUTO = "auto"
+
+
+class OverrideReason(StrEnum):
+    """Почему выбран не рекомендованный вариант (фронт-ТЗ, раздел 5).
+
+    Список закрытый: свободный текст не сворачивается в метрику Override Rate,
+    ради которой это поле и существует. Развёрнутое пояснение живёт рядом,
+    в ``override_comment``.
+    """
+
+    CHEAPER = "cheaper"
+    FASTER = "faster"
+    RECIPIENT_REQUIREMENT = "recipient_requirement"
+    CORPORATE_POLICY = "corporate_policy"
+    NEGATIVE_EXPERIENCE = "negative_experience"
+    CARRIER_PREFERENCE = "carrier_preference"
+    OTHER = "other"
+
+
+class RiskLevel(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class ProbabilityLabel(StrEnum):
+    """Категория вероятности доставки в срок. Показывается вместо голого процента."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class IneligibilityReason(StrEnum):
+    """Почему предложение не участвует в рекомендации.
+
+    Не укладывающиеся в дедлайн строки не скрываются, а показываются ниже
+    с указанием причины (продуктовое ТЗ, раздел 7).
+    """
+
+    MISSES_DEADLINE = "misses_deadline"
+    CARRIER_BLACKLISTED = "carrier_blacklisted"
+    NOT_IN_WHITELIST = "not_in_whitelist"
+    SERVICE_UNAVAILABLE = "service_unavailable"
+    CARGO_RESTRICTED = "cargo_restricted"
+    TENANT_POLICY = "tenant_policy"
 
 
 class CargoType(StrEnum):
