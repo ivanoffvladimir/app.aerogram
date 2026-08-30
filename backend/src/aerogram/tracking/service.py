@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from aerogram.carriers.base import RawEvent
 from aerogram.carriers.status_map import load_status_map, normalize_status
+from aerogram.config import Settings
 from aerogram.rating.repository import RateRepository
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import EventSource, ShipmentStatus
@@ -34,6 +35,7 @@ from aerogram.shipments.repository import ShipmentRepository
 from aerogram.tracking.models import DeliveryOutcome, ShipmentEvent
 from aerogram.tracking.repository import TrackingRepository
 from aerogram.tracking.schemas import TrackingEventOut
+from aerogram.tracking.webhooks import WebhookService
 
 __all__ = [
     "POLL_INTERVALS",
@@ -68,6 +70,16 @@ POLL_INTERVALS: dict[ShipmentStatus, timedelta | None] = {
     ShipmentStatus.RETURNED: None,
     ShipmentStatus.CANCELLED: None,
 }
+
+#: Состояния, о которых получателя уведомляют как о проблеме (FR-3.6).
+_PROBLEM_STATES = frozenset(
+    {
+        ShipmentStatus.EXCEPTION,
+        ShipmentStatus.DELIVERY_ATTEMPT_FAILED,
+        ShipmentStatus.RETURN_IN_PROGRESS,
+        ShipmentStatus.RETURNED,
+    }
+)
 
 #: После скольких суток тишины отправление считается зависшим (FR-3.2).
 STALE_AFTER = timedelta(days=5)
@@ -121,10 +133,14 @@ def _mapper_for(carrier_code: str) -> Callable[[str], tuple[ShipmentStatus, bool
 class TrackingService:
     """Лента событий отправления."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, settings: Settings | None = None) -> None:
         self._session = session
         self._tracking = TrackingRepository(session)
         self._shipments = ShipmentRepository(session)
+        # Без настроек вебхуки не ставятся: шифрование секрета без ключей
+        # невозможно. Так модуль остаётся вызываемым там, где уведомления
+        # не нужны — например, в проверке ленты.
+        self._webhooks = WebhookService(session, settings) if settings is not None else None
 
     async def timeline(self, shipment_id: UUID) -> list[TrackingEventOut]:
         """Лента в едином виде, независимо от перевозчика (FR-3.4)."""
@@ -222,6 +238,11 @@ class TrackingService:
             return
 
         latest = events[-1]
+        # Прошлое состояние запоминается ДО присваивания: уведомление
+        # «статус изменился» на неизменившемся статусе — шум, из-за которого
+        # получатель перестаёт читать уведомления вообще.
+        previous = ShipmentStatus(shipment.status)
+        was_late = bool(shipment.is_late)
         shipment.status = latest.status_normalized
         shipment.carrier_status_raw = latest.status_raw
         shipment.last_event_at = latest.occurred_at
@@ -243,6 +264,32 @@ class TrackingService:
             shipment.has_incident = True
             shipment.incident_type = STALLED_INCIDENT
             log.warning("tracking.stalled", number=shipment.number)
+
+        await self._notify(shipment, previous, was_late)
+
+    async def _notify(self, shipment: Shipment, previous: ShipmentStatus, was_late: bool) -> None:
+        """Поставить в очередь исходящие уведомления (FR-3.6).
+
+        Ставится в той же транзакции, что и изменение отправления: иначе сбой
+        отправки откатил бы приём события, и статус, который перевозчик уже
+        сообщил, был бы потерян ради уведомления.
+        """
+        if self._webhooks is None:
+            return
+
+        current = ShipmentStatus(shipment.status)
+        if current == previous:
+            return
+
+        await self._webhooks.enqueue(shipment, "shipment.status_changed")
+        if current is ShipmentStatus.DELIVERED:
+            await self._webhooks.enqueue(shipment, "shipment.delivered")
+        if current in _PROBLEM_STATES:
+            await self._webhooks.enqueue(shipment, "shipment.exception")
+        # Опоздание — отдельное событие: доставленное с опозданием всё равно
+        # доставлено, и по одному лишь статусу этого не увидеть.
+        if shipment.is_late and not was_late:
+            await self._webhooks.enqueue(shipment, "shipment.delayed")
 
     async def _settle(self, shipment: Shipment, delivered_at: datetime) -> None:
         """Зафиксировать факт доставки — вход обучающего датасета.

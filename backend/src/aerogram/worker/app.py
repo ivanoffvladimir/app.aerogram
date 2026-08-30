@@ -53,6 +53,12 @@ app.conf.beat_schedule = {
         "task": "aerogram.worker.tasks.reconcile_ghost_shipments",
         "schedule": crontab(minute="*/10"),
     },
+    # Исходящие вебхуки тенанту (FR-3.6). Чаще опроса: событие уже получено,
+    # и задержка уведомления — это задержка реакции клиента.
+    "deliver-webhooks": {
+        "task": "aerogram.worker.tasks.deliver_webhooks",
+        "schedule": crontab(minute="*"),
+    },
     # Справочники терминалов и ПВЗ синхронизируются ежесуточно (FR-8.3).
     "sync-carrier-references": {
         "task": "aerogram.worker.tasks.sync_carrier_references",

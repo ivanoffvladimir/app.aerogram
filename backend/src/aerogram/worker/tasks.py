@@ -36,10 +36,12 @@ from aerogram.shared.enums import TenantStatus
 from aerogram.shared.logging import get_logger
 from aerogram.shipments.repository import ShipmentRepository
 from aerogram.shipments.service import ShipmentService
+from aerogram.tracking.webhooks import WebhookService
 from aerogram.worker.app import app
 
 __all__ = [
     "SCORE_PERIOD_DAYS",
+    "deliver_webhooks",
     "poll_shipment_statuses",
     "recalculate_carrier_score",
     "reconcile_ghost_shipments",
@@ -120,6 +122,12 @@ async def _reconcile_tenant(tenant_id: UUID) -> int:
         )
 
 
+async def _webhooks_tenant(tenant_id: UUID) -> int:
+    """Отправить накопившиеся исходящие уведомления (FR-3.6)."""
+    async with session_scope(tenant_id) as session:
+        return await WebhookService(session, get_settings()).deliver_due()
+
+
 async def _score_tenant(tenant_id: UUID) -> int:
     """Пересчитать скор по наблюдениям тенанта (FR-7.1).
 
@@ -149,6 +157,12 @@ def poll_shipment_statuses() -> dict[str, int]:
 def reconcile_ghost_shipments() -> dict[str, int]:
     """Сверка «призраков»: заказ у перевозчика есть, записи у нас нет."""
     return asyncio.run(_for_each_tenant("reconcile_ghost_shipments", _reconcile_tenant))
+
+
+@app.task(name="aerogram.worker.tasks.deliver_webhooks")  # type: ignore[untyped-decorator]
+def deliver_webhooks() -> dict[str, int]:
+    """Доставка исходящих вебхуков с повторами."""
+    return asyncio.run(_for_each_tenant("deliver_webhooks", _webhooks_tenant))
 
 
 @app.task(name="aerogram.worker.tasks.recalculate_carrier_score")  # type: ignore[untyped-decorator]

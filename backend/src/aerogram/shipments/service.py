@@ -361,7 +361,9 @@ class ShipmentService:
             # и им занимается сверка «призраков», а не опрос статусов.
             return 0
         events = await adapter.track(shipment.external_id, account)
-        return await TrackingService(self._session).ingest(
+        # Настройки передаются, чтобы приём событий поставил в очередь
+        # исходящие уведомления тенанту (FR-3.6).
+        return await TrackingService(self._session, self._settings).ingest(
             shipment,
             events,
             carrier_code=account.carrier_code,

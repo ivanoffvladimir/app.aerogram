@@ -12,7 +12,7 @@ import asyncio
 import json
 import os
 from collections.abc import AsyncIterator
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
@@ -22,7 +22,15 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from aerogram.carriers import registry
-from aerogram.carriers.base import Capabilities, CarrierAccount, Quote, QuoteRequest
+from aerogram.carriers.base import (
+    Capabilities,
+    CarrierAccount,
+    Quote,
+    QuoteRequest,
+    RawEvent,
+    ShipmentRequest,
+    ShipmentResult,
+)
 from aerogram.core.models import CarrierAccount as CarrierAccountModel
 from aerogram.directories.models import Carrier, City, CityCarrierMap
 from aerogram.shared.crypto import CredentialCipher
@@ -205,3 +213,101 @@ RATE_REQUEST = {
     "additional_services": ["pickup", "door_delivery"],
     "strategy": "optimal",
 }
+
+
+#: Дедлайн эталонного запроса. Задаётся явно: без него нечем проверить,
+#: считается ли соблюдение срока.
+DEADLINE = datetime(2026, 9, 5, 23, 59, tzinfo=UTC)
+RATE_REQUEST_WITH_DEADLINE = {**RATE_REQUEST, "deadline": DEADLINE.isoformat()}
+
+
+class TrackingCarrier(FakeCarrier):
+    """Перевозчик, умеющий отдавать историю событий."""
+
+    capabilities = Capabilities(supports_cancel=True)
+
+    def __init__(self, code: str = "cdek") -> None:
+        super().__init__(code)
+        self.events: list[RawEvent] = []
+
+    async def create(self, req: ShipmentRequest, acc: CarrierAccount) -> ShipmentResult:
+        return ShipmentResult(
+            external_id=f"EXT-{req.number}",
+            tracking_number=f"TRK-{req.number}",
+            promised_delivery_date=None,
+            price_actual=None,
+        )
+
+    async def find_by_number(self, number: str, acc: CarrierAccount) -> ShipmentResult | None:
+        return None
+
+    async def track(self, ext_id: str, acc: CarrierAccount) -> list[RawEvent]:
+        return list(self.events)
+
+
+def event(status_raw: str, *, at: datetime, city: str | None = None) -> RawEvent:
+    return RawEvent(occurred_at=at, status_raw=status_raw, city=city)
+
+
+@pytest.fixture
+async def cdek_setup(seeded_tenants: tuple[UUID, UUID], database_url: str) -> UUID:
+    """Перевозчик с настоящим кодом, города, сопоставление и учётная запись."""
+    tenant_a, _ = seeded_tenants
+    engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    carrier_id, account_id = uuid7(), uuid7()
+
+    cipher = CredentialCipher({"k1": TEST_KEY.split(":", 1)[1]}, "k1")
+    encrypted = cipher.encrypt(
+        json.dumps({"client_id": "i", "client_secret": "s"}), aad=str(account_id).encode()
+    )
+
+    async with factory() as db, db.begin():
+        db.add(Carrier(id=carrier_id, code="cdek", name="СДЭК"))
+        db.add_all(
+            [
+                City(id=uuid7(), fias_id=MOSCOW, name="Москва", fias_level=1),
+                City(id=uuid7(), fias_id=VLADIVOSTOK, name="Владивосток", fias_level=4),
+            ]
+        )
+        db.add_all(
+            [
+                CityCarrierMap(
+                    id=uuid7(),
+                    carrier_id=carrier_id,
+                    city_fias_id=fias,
+                    carrier_city_code=code,
+                    match_method="fias",
+                    is_confirmed=True,
+                )
+                for fias, code in ((MOSCOW, "44"), (VLADIVOSTOK, "75"))
+            ]
+        )
+        await db.flush()
+        await db.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant_a)})
+        db.add(
+            CarrierAccountModel(
+                id=account_id,
+                tenant_id=tenant_a,
+                carrier_id=carrier_id,
+                mode="own_contract",
+                credentials_encrypted=encrypted,
+                is_active=True,
+            )
+        )
+    await engine.dispose()
+    return tenant_a
+
+
+@pytest.fixture
+def carrier(cdek_setup: UUID) -> TrackingCarrier:
+    """Подменить адаптер СДЭК поддельным, оставив его код.
+
+    Код настоящий намеренно: карта статусов существует только для настоящих
+    перевозчиков, и тест проверяет её, а не выдуманную. Настоящий адаптер
+    регистрируется при сборке приложения, поэтому реестр сначала очищается.
+    """
+    registry._reset_for_tests()
+    adapter = TrackingCarrier()
+    registry.register(adapter)
+    return adapter
