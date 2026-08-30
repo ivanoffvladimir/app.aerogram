@@ -99,18 +99,33 @@ class RateShoppingService:
     async def quote(
         self, payload: RateRequestIn, *, tenant_id: UUID, user_id: UUID | None
     ) -> RateResponse:
-        """Опросить перевозчиков и вернуть выдачу."""
+        """Опросить перевозчиков и вернуть выдачу.
+
+        Тот же запрос в пределах срока жизни выдачи не опрашивает перевозчиков
+        заново, а возвращает уже полученную (FR-1.6).
+        """
         started = time.monotonic()
+        request_hash = self._request_hash(payload)
+        accounts = await self._eligible_accounts(payload)
+
+        reused = await self._reusable(request_hash, accounts)
+        if reused is not None:
+            log.info(
+                "rating.reused",
+                quote_id=str(reused.id),
+                age_seconds=int((utcnow() - reused.created_at).total_seconds()),
+            )
+            return await self._response(reused, list(reused.offers))
 
         # Город назначения разрешается один раз на запрос, а не на каждого
         # перевозчика: от него зависит таймзона, в которой обещанный день
-        # превращается в момент.
+        # превращается в момент. Делается это после проверки на повтор:
+        # готовой выдаче разрешение города уже не нужно.
         destination = await self._cities.resolve(
             payload.destination.city, payload.destination.region
         )
         destination_tz = destination.timezone if destination else None
 
-        accounts = await self._eligible_accounts(payload)
         outcomes = await self._poll(accounts, payload)
         duration_ms = int((time.monotonic() - started) * 1000)
 
@@ -119,7 +134,7 @@ class RateShoppingService:
             tenant_id=tenant_id,
             user_id=user_id,
             input_snapshot=payload.model_dump(mode="json"),
-            hash=self._request_hash(payload),
+            hash=request_hash,
             strategy=payload.strategy,
             deadline=payload.deadline,
             duration_ms=duration_ms,
@@ -130,9 +145,74 @@ class RateShoppingService:
         rows = self._persist(quote, outcomes, payload, tenant_id, destination_tz)
         await self._session.flush()
 
-        names = {c.id: c.name for c in await self._carriers.list_active()}
+        # ``carrier_code`` берётся из опроса, а не из справочника: перевозчика
+        # могли отключить между расчётом и ответом, а отказ обязан назвать того,
+        # кто отказал.
+        response = await self._response(
+            quote,
+            [row for row, _ in rows],
+            codes={outcome.carrier_id: outcome.carrier_code for outcome in outcomes},
+        )
+        quote.no_deadline_match = response.no_deadline_match
 
-        offers = [
+        log.info(
+            "rating.completed",
+            carriers=len(outcomes),
+            offers=len(response.offers),
+            failures=len(response.failures),
+            duration_ms=duration_ms,
+        )
+        return response
+
+    async def _reusable(
+        self, request_hash: str, accounts: list[CarrierAccount]
+    ) -> RateQuote | None:
+        """Выдача, которую можно вернуть вместо нового опроса (FR-1.6).
+
+        Возвращается не всякая живая выдача с тем же отпечатком.
+
+        Пустая — никогда: расчёт, в котором не ответил никто, означает сбой,
+        и отдавать его следующие пятнадцать минут значит растянуть минутную
+        недоступность перевозчиков на четверть часа.
+
+        И только та, что снята при том же наборе подключённых учётных записей.
+        Иначе перевозчик, подключённый минуту назад, не появлялся бы в выдаче
+        до конца срока жизни предыдущей, а отключённый — продолжал бы в ней
+        показываться.
+
+        Сравнение неточно в одну сторону: перевозчик, ответивший без ошибки,
+        но без единого тарифа, строк не оставляет, и следующий такой же запрос
+        будет посчитан заново. Это лишний расчёт, а не неверный ответ; точное
+        сравнение требует хранить состав опроса в самой выдаче, то есть
+        изменения схемы, а это решение человека (CLAUDE.md §7).
+        """
+        quote = await self._rates.find_reusable(request_hash, utcnow())
+        if quote is None:
+            return None
+        priced = [offer for offer in quote.offers if offer.error_code is None]
+        if not priced:
+            return None
+        if {offer.carrier_account_id for offer in quote.offers} != {a.id for a in accounts}:
+            return None
+        return quote
+
+    async def _response(
+        self,
+        quote: RateQuote,
+        offers: list[RateOffer],
+        codes: dict[UUID, str] | None = None,
+    ) -> RateResponse:
+        """Собрать ответ по снимку выдачи.
+
+        Сборка одна на оба пути — свежий расчёт и повтор. Разойдись они,
+        повтор отличался бы от первого ответа, а FR-1.6 обещает ровно
+        обратное.
+        """
+        carriers = await self._carriers.list_active()
+        names = {c.id: c.name for c in carriers}
+        carrier_codes = {c.id: c.code for c in carriers} | (codes or {})
+
+        priced = [
             RateOfferOut(
                 id=row.id,
                 carrier_id=row.carrier_id,
@@ -152,7 +232,7 @@ class RateShoppingService:
                 ineligibility_reason=row.ineligibility_reason,
                 valid_until=row.valid_until,
             )
-            for row, _ in rows
+            for row in offers
             if row.error_code is None
         ]
         # Порядок выдачи задаётся здесь, иначе он достался бы от порядка
@@ -160,7 +240,7 @@ class RateShoppingService:
         # Это не ранжирование (ранжирует ``routing``, ADR-0014), а показ:
         # сначала валюта, чтобы рубли никогда не сравнивались с юанями числом,
         # затем сумма, затем имя и идентификатор — чтобы порядок был полным.
-        offers.sort(
+        priced.sort(
             key=lambda o: (
                 o.total_cost.currency,
                 o.total_cost.amount_minor,
@@ -170,14 +250,14 @@ class RateShoppingService:
         )
         failures = [
             CarrierFailureOut(
-                carrier_id=outcome.carrier_id,
-                carrier_code=outcome.carrier_code,
-                code=outcome.error_code or "carrier_error",
-                message=outcome.error_message or "Перевозчик не вернул расчёт",
-                retryable=outcome.error_code in RETRYABLE_FAILURES,
+                carrier_id=row.carrier_id,
+                carrier_code=carrier_codes.get(row.carrier_id),
+                code=row.error_code or "carrier_error",
+                message=row.error_message or "Перевозчик не вернул расчёт",
+                retryable=row.error_code in RETRYABLE_FAILURES,
             )
-            for outcome in outcomes
-            if outcome.error_code is not None
+            for row in offers
+            if row.error_code is not None
         ]
 
         # Порядок отказов задаётся по той же причине, что и порядок
@@ -193,20 +273,11 @@ class RateShoppingService:
         # разобраться с доступностью перевозчиков. Поэтому признак ставится
         # только когда предложения есть и ни одно из них не проходит по сроку.
         no_deadline_match = (
-            bool(payload.deadline) and bool(offers) and not any(o.eligible for o in offers)
-        )
-        quote.no_deadline_match = no_deadline_match
-
-        log.info(
-            "rating.completed",
-            carriers=len(outcomes),
-            offers=len(offers),
-            failures=len(failures),
-            duration_ms=duration_ms,
+            bool(quote.deadline) and bool(priced) and not any(o.eligible for o in priced)
         )
         return RateResponse(
             quote_id=quote.id,
-            offers=offers,
+            offers=priced,
             failures=failures,
             no_deadline_match=no_deadline_match,
             valid_until=quote.valid_until,
@@ -476,8 +547,30 @@ class RateShoppingService:
 
     @staticmethod
     def _request_hash(payload: RateRequestIn) -> str:
-        """Отпечаток нормализованного запроса — ключ кэша выдачи (FR-1.6)."""
-        canonical = json.dumps(payload.model_dump(mode="json"), sort_keys=True, ensure_ascii=False)
+        """Отпечаток нормализованного запроса — ключ повторного использования
+        выдачи (FR-1.6).
+
+        Нормализация здесь — не украшение: без неё два запроса, отличающиеся
+        только записью, считались бы разными, и выдача не переиспользовалась
+        бы почти никогда.
+
+        Приводится два вида различий. Моменты времени — к UTC: «12:00+03:00»
+        и «09:00Z» это один момент, а в JSON это разные строки. Списки услуг
+        и списки перевозчиков — к отсортированному виду: по смыслу это
+        множества, и порядок в них ничего не значит.
+
+        ``packages`` намеренно не сортируются. Их порядок отражает порядок
+        мест в отправлении, и он попадает в этикетки и опись, а не только
+        в расчёт: сортировать их значило бы объявить одинаковыми запросы,
+        по которым получатся разные документы.
+        """
+        data = payload.model_dump(mode="json")
+        for field in ("ship_at", "deadline"):
+            value = getattr(payload, field)
+            data[field] = None if value is None else value.astimezone(UTC).isoformat()
+        for field in ("additional_services", "carrier_whitelist", "carrier_blacklist"):
+            data[field] = sorted(data[field])
+        canonical = json.dumps(data, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 

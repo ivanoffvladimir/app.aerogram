@@ -37,6 +37,24 @@ class RateRepository:
         stmt = select(RateOffer).where(RateOffer.id == offer_id)
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
+    async def find_reusable(self, request_hash: str, now: datetime) -> RateQuote | None:
+        """Живая выдача по тому же запросу — вход для FR-1.6.
+
+        Тенант не указывается в условии намеренно: его ставит RLS, и дублировать
+        её здесь значило бы завести второе место, где можно ошибиться.
+
+        Берётся самая свежая: под одним отпечатком их может быть несколько,
+        и старая, которой жить осталось минуту, вернула бы клиенту почти
+        просроченный ``valid_until``.
+        """
+        stmt = (
+            select(RateQuote)
+            .where(RateQuote.hash == request_hash, RateQuote.valid_until > now)
+            .order_by(RateQuote.created_at.desc())
+            .limit(1)
+        )
+        return (await self._session.execute(stmt)).scalar_one_or_none()
+
     async def get_quote(self, quote_id: UUID) -> RateQuote | None:
         """Снимок запроса со всеми предложениями — вход для рекомендации."""
         return await self._session.get(RateQuote, quote_id)

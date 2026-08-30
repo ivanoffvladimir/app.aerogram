@@ -221,7 +221,15 @@ class TestDecision:
     ) -> None:
         """Иначе снимок решения перестал бы объяснять сам себя."""
         first = await _quote(client, headers)
-        second = await _quote(client, headers)
+        # Второй запрос отличается по существу, а не по времени: одинаковое
+        # тело в пределах срока жизни вернуло бы ту же выдачу (FR-1.6),
+        # и «предложение из другой выдачи» проверять было бы нечем.
+        second = await _quote(
+            client,
+            headers,
+            packages=[{"weight_grams": 3_000, "length_mm": 200, "width_mm": 150, "height_mm": 100}],
+        )
+        assert second["quote_id"] != first["quote_id"]
         recommendation = await _recommend(client, headers, first["quote_id"])
 
         response = await client.post(
