@@ -77,6 +77,11 @@ class Settings(BaseSettings):
     s3_secret_key: str | None = None
     s3_region: str = "ru-1"
 
+    #: Адрес веб-сервиса Major Express, если он отличается от указанного в WSDL.
+    #: Логин и пароль сюда НЕ попадают: учётные данные перевозчика у каждого
+    #: тенанта свои и лежат зашифрованными в ``carrier_accounts`` (ADR-0005).
+    major_express_endpoint_url: str | None = None
+
     dadata_token: str | None = None
     dadata_secret: str | None = None
 

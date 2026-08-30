@@ -130,6 +130,19 @@ class CarrierValidationError(CarrierError):
     message_ru = "Перевозчик отклонил данные отправления"
 
 
+class CarrierNotConfigured(CarrierError):
+    """Интеграция объявлена, но не готова к работе.
+
+    Отдельно от ``CarrierUnavailable`` намеренно: «недоступен» означает
+    «подождите и повторите», а здесь ждать бесполезно — нужны действия
+    администратора. Повторять такой отказ не следует, поэтому его кода нет
+    в наборе повторяемых.
+    """
+
+    code = "carrier_not_configured"
+    message_ru = "Интеграция с перевозчиком не настроена"
+
+
 class CarrierUnavailable(CarrierError):
     code = "carrier_unavailable"
     message_ru = "Перевозчик временно недоступен"

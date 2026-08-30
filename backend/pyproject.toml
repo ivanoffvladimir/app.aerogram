@@ -83,6 +83,9 @@ ignore = [
 # Имена доменных ошибок заданы ТЗ (раздел 8.2) и читаются как предметные понятия:
 # NotFound, Conflict, PermissionDenied. Суффикс Error здесь ухудшил бы читаемость.
 "src/aerogram/shared/errors.py" = ["N818"]
+# Служебные скрипты запускаются человеком из консоли: их вывод — это print,
+# а не журнал приложения.
+"scripts/*" = ["T201"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["aerogram"]
