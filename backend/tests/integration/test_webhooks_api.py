@@ -46,12 +46,12 @@ def public_dns(monkeypatch: pytest.MonkeyPatch) -> None:
     сети остаётся той же, что в бою.
     """
 
-    def fake(host: str, *args: object, **kwargs: object) -> list[Any]:
+    def fake(host: str) -> list[str]:
         if host == "hooks.client.example":
-            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))]
+            return ["93.184.216.34"]
         raise socket.gaierror(f"нет записи для {host}")
 
-    monkeypatch.setattr(outgoing.socket, "getaddrinfo", fake)
+    monkeypatch.setattr(outgoing, "resolve", fake)
 
 
 async def _subscribe(

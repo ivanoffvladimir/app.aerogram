@@ -37,6 +37,7 @@ __all__ = [
     "WEBHOOK_EVENTS",
     "deliver",
     "generate_secret",
+    "resolve",
     "sign",
     "validate_url",
 ]
@@ -95,6 +96,17 @@ def validate_url(url: str) -> None:
     _ensure_public(parsed.hostname)
 
 
+def resolve(hostname: str) -> list[str]:
+    """Все адреса, в которые разрешается имя.
+
+    Отдельная функция, а не вызов `socket.getaddrinfo` по месту: тесту нужно
+    подменить разрешение имени получателя, и подменять ради этого атрибут
+    самого модуля `socket` нельзя — под подмену попадает всё, что в этот
+    момент открывает соединение, включая пул к базе.
+    """
+    return [str(info[4][0]) for info in socket.getaddrinfo(hostname, None)]
+
+
 def _ensure_public(hostname: str) -> None:
     """Отвергнуть адрес, ведущий внутрь инфраструктуры.
 
@@ -103,12 +115,12 @@ def _ensure_public(hostname: str) -> None:
     не следует.
     """
     try:
-        resolved = socket.getaddrinfo(hostname, None)
+        resolved = resolve(hostname)
     except socket.gaierror:
         raise ValidationFailed("Имя узла в адресе вебхука не разрешается", field="url") from None
 
-    for info in resolved:
-        address = ipaddress.ip_address(str(info[4][0]))
+    for found in resolved:
+        address = ipaddress.ip_address(found)
         if (
             address.is_private
             or address.is_loopback
