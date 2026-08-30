@@ -10,6 +10,7 @@ from aerogram.shared.money import (
     CurrencyMismatchError,
     Money,
     chargeable_weight,
+    format_ru,
     minor_unit_exponent,
     round_weight,
     total,
@@ -167,3 +168,37 @@ class TestChargeableWeight:
 
 def test_round_weight_keeps_grams() -> None:
     assert round_weight(Decimal("1.2345")) == Decimal("1.235")
+
+
+class TestRussianFormat:
+    """Сумма, которую видит оператор (CLAUDE.md §6: интерфейс на русском).
+
+    Формат обязан совпадать с ``Intl.NumberFormat('ru-RU')`` на фронте, иначе
+    одна и та же сумма выглядит на экране двумя разными способами. Пробелы
+    здесь неразрывные: сумма не должна разрываться переносом строки.
+    """
+
+    def test_matches_the_frontend_format(self) -> None:
+        assert format_ru(Money(206_000, "RUB")) == "2\u00a0060,00\u00a0\u20bd"
+
+    def test_groups_every_three_digits(self) -> None:
+        assert format_ru(Money(123_456_789, "RUB")) == "1\u00a0234\u00a0567,89\u00a0\u20bd"
+
+    def test_keeps_the_sign(self) -> None:
+        assert format_ru(Money(-87_000, "RUB")) == "-870,00\u00a0\u20bd"
+
+    def test_pads_amounts_smaller_than_the_major_unit(self) -> None:
+        """Пять копеек — это «0,05», а не «,5» и не «5»."""
+        assert format_ru(Money(5, "RUB")) == "0,05\u00a0\u20bd"
+        assert format_ru(Money(0, "RUB")) == "0,00\u00a0\u20bd"
+
+    def test_respects_the_currency_exponent(self) -> None:
+        assert format_ru(Money(123_456, "JPY")) == "123\u00a0456\u00a0JPY"
+        assert format_ru(Money(1_234_567, "KWD")) == "1\u00a0234,567\u00a0KWD"
+
+    def test_unknown_currency_shows_its_code_not_an_invented_symbol(self) -> None:
+        assert format_ru(Money(100, "XTS")).endswith("XTS")
+
+    def test_str_stays_the_debug_form(self) -> None:
+        """``str`` остаётся отладочным: иначе логи и тесты станут нечитаемыми."""
+        assert str(Money(87_000, "RUB")) == "870.00 RUB"

@@ -150,6 +150,19 @@ class RateShoppingService:
             for row, _ in rows
             if row.error_code is None
         ]
+        # Порядок выдачи задаётся здесь, иначе он достался бы от порядка
+        # подключения перевозчиков — величины, к расчёту отношения не имеющей.
+        # Это не ранжирование (ранжирует ``routing``, ADR-0014), а показ:
+        # сначала валюта, чтобы рубли никогда не сравнивались с юанями числом,
+        # затем сумма, затем имя и идентификатор — чтобы порядок был полным.
+        offers.sort(
+            key=lambda o: (
+                o.total_cost.currency,
+                o.total_cost.amount_minor,
+                o.carrier_name or "",
+                str(o.id),
+            )
+        )
         failures = [
             CarrierFailureOut(
                 carrier_id=outcome.carrier_id,
@@ -161,6 +174,14 @@ class RateShoppingService:
             for outcome in outcomes
             if outcome.error_code is not None
         ]
+
+        # Порядок отказов задаётся по той же причине, что и порядок
+        # предложений: иначе он достался бы от порядка подключения
+        # перевозчиков и переставлялся бы вместе с ним.
+        # ``carrier_code`` необязателен в контракте, поэтому пустая строка:
+        # без запасного значения сортировка упала бы на первом же отказе
+        # перевозчика, которого не удалось опознать.
+        failures.sort(key=lambda f: f.carrier_code or "")
 
         # «Никто не успевает» и «никто не ответил» — разные состояния, и путать
         # их нельзя: первое требует показать ближайшие альтернативы, второе —
@@ -227,12 +248,15 @@ class RateShoppingService:
 
         tasks = [asyncio.create_task(self._ask_one(*item)) for item in prepared]
 
-        done, pending = await asyncio.wait(tasks, timeout=self._settings.rating_deadline_seconds)
+        _, pending = await asyncio.wait(tasks, timeout=self._settings.rating_deadline_seconds)
         for task in pending:
             task.cancel()
 
-        outcomes = [task.result() for task in done]
+        # Обходим задачи в порядке запуска, а не множество ``done``: обход
+        # множества отдаёт результаты в произвольном порядке, и выдача
+        # переставлялась от расчёта к расчёту без единого изменения данных.
         # Не успевшие в общий дедлайн — тоже строки выдачи, а не тишина.
+        outcomes: list[_CarrierOutcome] = []
         for item, task in zip(prepared, tasks, strict=True):
             if task in pending:
                 account, carrier_code, carrier_id, _, _ = item
@@ -245,6 +269,8 @@ class RateShoppingService:
                         error_message="Перевозчик не ответил за отведённое время",
                     )
                 )
+            else:
+                outcomes.append(task.result())
         return outcomes
 
     async def _prepare(

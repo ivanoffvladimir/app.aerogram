@@ -225,6 +225,17 @@ class TestExplanation:
         assert "Самый дешёвый вариант" in lines
         assert any("запас" in line for line in lines)
 
+    def test_money_in_the_explanation_is_written_in_russian(self) -> None:
+        """Объяснение читает оператор: «870,00 ₽», а не отладочное «870.00 RUB»."""
+        cheap = offer(price=100_000, days=9, probability="0.55", risk=RiskLevel.HIGH)
+        pricey = offer(price=160_000, days=1, probability="0.98", risk=RiskLevel.LOW)
+        ranking = rank([cheap, pricey], RoutingStrategy.OPTIMAL)
+
+        lines = render([f.as_json() for f in build_facts(ranking, RoutingStrategy.OPTIMAL)])
+        line = next(line for line in lines if "Дороже" in line)
+        assert line.endswith("600,00\u00a0\u20bd")
+        assert "RUB" not in line
+
     def test_unknown_fact_is_skipped_not_fatal(self) -> None:
         """Незнакомый код не должен ломать экран (фронт-ТЗ, раздел 3)."""
         assert render([{"code": "invented_later", "value": 1}]) == []

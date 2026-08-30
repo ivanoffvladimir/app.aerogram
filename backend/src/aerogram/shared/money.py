@@ -23,6 +23,7 @@ __all__ = [
     "CurrencyMismatchError",
     "Money",
     "chargeable_weight",
+    "format_ru",
     "minor_unit_exponent",
     "round_weight",
     "total",
@@ -118,6 +119,7 @@ class Money:
         return Decimal(self.amount_minor).scaleb(-exponent)
 
     def __str__(self) -> str:
+        """Отладочное представление. Человеку показывается ``format_ru``."""
         return f"{self.to_major()} {self.currency}"
 
     # --- арифметика ---
@@ -173,6 +175,40 @@ class Money:
     def __ge__(self, other: Money) -> bool:
         self._same_currency(other)
         return self.amount_minor >= other.amount_minor
+
+
+#: Символы валют, с которыми мы работаем. Для остальных показывается код:
+#: выдуманный символ хуже честного «CNY».
+_CURRENCY_SYMBOLS: Final[dict[str, str]] = {
+    "RUB": "\u20bd",
+    "USD": "$",
+    "EUR": "\u20ac",
+    "CNY": "\u00a5",
+}
+
+#: Неразрывный пробел: сумма не должна разрываться переносом строки.
+_NBSP: Final = "\u00a0"
+
+
+def format_ru(money: Money) -> str:
+    """Сумма для человека: русский формат, как на фронте.
+
+    Интерфейс, письма и тексты ошибок у нас русские (CLAUDE.md §6), а
+    ``str(Money)`` даёт отладочное «870.00 RUB». Формат совпадает с тем, что
+    выдаёт ``Intl.NumberFormat('ru-RU')`` на фронте: запятая как разделитель
+    дробной части, неразрывный пробел между разрядами и перед символом.
+    """
+    exponent = minor_unit_exponent(money.currency)
+    symbol = _CURRENCY_SYMBOLS.get(money.currency, money.currency)
+    sign = "-" if money.amount_minor < 0 else ""
+    digits = str(abs(money.amount_minor)).rjust(exponent + 1, "0")
+    whole, fraction = (digits[:-exponent], digits[-exponent:]) if exponent else (digits, "")
+
+    groups = [whole[max(i - 3, 0) : i] for i in range(len(whole), 0, -3)][::-1]
+    body = _NBSP.join(groups)
+    if fraction:
+        body = f"{body},{fraction}"
+    return f"{sign}{body}{_NBSP}{symbol}"
 
 
 def total(amounts: list[Money], currency: str) -> Money:

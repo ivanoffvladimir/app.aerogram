@@ -19,7 +19,7 @@ from typing import Any
 
 from aerogram.routing.strategies import Ranking
 from aerogram.shared.enums import RoutingStrategy
-from aerogram.shared.money import Money
+from aerogram.shared.money import Money, format_ru
 
 __all__ = ["ExplanationFact", "alternatives_delta", "build_facts", "render"]
 
@@ -151,4 +151,5 @@ def _hours(seconds: int) -> str:
 
 
 def _money(params: dict[str, Any]) -> str:
-    return str(Money(int(params["amount_minor"]), str(params["currency"])))
+    """Сумма по-русски: объяснение читает оператор, а не разработчик."""
+    return format_ru(Money(int(params["amount_minor"]), str(params["currency"])))

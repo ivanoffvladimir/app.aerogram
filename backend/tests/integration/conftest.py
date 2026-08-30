@@ -41,10 +41,23 @@ class FakeCarrier:
     name = "Поддельный"
     capabilities = Capabilities(supports_cancel=True)
 
-    def __init__(self, code: str, *, behaviour: str = "ok", delay: float = 0.0) -> None:
+    def __init__(
+        self,
+        code: str,
+        *,
+        behaviour: str = "ok",
+        delay: float = 0.0,
+        prices: tuple[int, ...] | None = None,
+    ) -> None:
+        """``prices`` — суммы в минорных единицах, по одному тарифу на каждую.
+
+        Нужны там, где проверяется порядок выдачи: с одинаковыми ценами
+        у двух перевозчиков сортировку по стоимости не отличить от случайности.
+        """
         self.code = code
         self._behaviour = behaviour
         self._delay = delay
+        self._prices = prices
         self.seen: list[QuoteRequest] = []
 
     async def quote(self, req: QuoteRequest, acc: CarrierAccount) -> list[Quote]:
@@ -57,6 +70,20 @@ class FakeCarrier:
             raise CarrierValidationError("Направление не обслуживается", carrier_code=self.code)
         if self._behaviour == "crash":
             raise RuntimeError("что-то пошло не так внутри адаптера")
+        if self._prices is not None:
+            return [
+                Quote(
+                    service_code=f"p{index}",
+                    tariff_code=f"p{index}",
+                    service_name=f"Тариф {index}",
+                    price=Money(minor, "RUB"),
+                    transit_days_min=2,
+                    transit_days_max=3,
+                    promised_delivery_date=date(2026, 9, 4),
+                    price_source=acc.price_source,
+                )
+                for index, minor in enumerate(self._prices)
+            ]
         return [
             Quote(
                 service_code="136",

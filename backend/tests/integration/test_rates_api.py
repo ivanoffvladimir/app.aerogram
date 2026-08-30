@@ -290,6 +290,111 @@ class TestSeveralCarriers:
         assert [e["carrier_code"] for e in errors] == ["slow"]
 
 
+class TestOfferOrder:
+    """Порядок выдачи не должен зависеть от того, кто ответил первым.
+
+    Перевозчики опрашиваются параллельно, и результаты собирались обходом
+    множества ``done``: одна и та же выдача переставлялась от расчёта
+    к расчёту без единого изменения данных. Оператор при этом видит, что
+    список «прыгает», и перестаёт ему доверять.
+    """
+
+    @pytest.fixture
+    async def fast_and_slow(
+        self, seeded_tenants: tuple[UUID, UUID], database_url: str
+    ) -> tuple[UUID, UUID]:
+        """Два работающих перевозчика: быстрый дорогой и медленный дешёвый."""
+        tenant_a, _ = seeded_tenants
+        engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        cipher = CredentialCipher({"k1": TEST_KEY.split(":", 1)[1]}, "k1")
+
+        quick_id, slow_id = uuid7(), uuid7()
+        # Записи заводятся в обратном алфавиту порядке намеренно: так видно,
+        # что порядок ответа задаётся сортировкой, а не порядком подключения.
+        accounts = {slow_id: uuid7(), quick_id: uuid7()}
+
+        async with factory() as db, db.begin():
+            db.add_all(
+                [
+                    Carrier(id=quick_id, code="quick", name="Быстрый"),
+                    Carrier(id=slow_id, code="slow", name="Медленный"),
+                ]
+            )
+            await db.flush()
+            await db.execute(
+                text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant_a)}
+            )
+            db.add_all(
+                [
+                    CarrierAccountModel(
+                        id=account_id,
+                        tenant_id=tenant_a,
+                        carrier_id=carrier_id,
+                        mode="own_contract",
+                        credentials_encrypted=cipher.encrypt(
+                            json.dumps({"client_id": "i", "client_secret": "s"}),
+                            aad=str(account_id).encode(),
+                        ),
+                        is_active=True,
+                    )
+                    for carrier_id, account_id in accounts.items()
+                ]
+            )
+        await engine.dispose()
+        return quick_id, slow_id
+
+    async def test_cheapest_comes_first_even_when_it_answers_last(
+        self, client: AsyncClient, headers: dict[str, str], fast_and_slow: tuple[UUID, UUID]
+    ) -> None:
+        """Дешёвый вариант не уезжает в конец из-за того, что ТК тормозит."""
+        registry.register(FakeCarrier("quick", prices=(300_00,)))
+        registry.register(FakeCarrier("slow", delay=0.3, prices=(100_00,)))
+
+        body = (await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)).json()
+
+        assert [o["total_cost"]["amount_minor"] for o in body["offers"]] == [100_00, 300_00]
+
+    async def test_failures_have_a_defined_order_too(
+        self, client: AsyncClient, headers: dict[str, str], fast_and_slow: tuple[UUID, UUID]
+    ) -> None:
+        """Отказы упорядочены по коду, а не по тому, кто раньше подключён.
+
+        Записи заведены в обратном алфавиту порядке: «slow» раньше «quick».
+        Если бы порядок доставался от подключения, ответ начинался бы
+        с «slow».
+        """
+        registry.register(FakeCarrier("quick", behaviour="error"))
+        registry.register(FakeCarrier("slow", behaviour="error"))
+
+        body = (await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)).json()
+
+        assert [f["carrier_code"] for f in body["failures"]] == ["quick", "slow"]
+
+    async def test_the_same_request_gives_the_same_order(
+        self, client: AsyncClient, headers: dict[str, str], fast_and_slow: tuple[UUID, UUID]
+    ) -> None:
+        """Два одинаковых расчёта подряд — одна и та же последовательность."""
+        registry.register(FakeCarrier("quick", prices=(300_00, 150_00)))
+        registry.register(FakeCarrier("slow", delay=0.2, prices=(100_00, 220_00)))
+
+        orders = []
+        for _ in range(3):
+            body = (await client.post("/v1/rates", json=RATE_REQUEST, headers=headers)).json()
+            orders.append(
+                [(o["carrier_name"], o["total_cost"]["amount_minor"]) for o in body["offers"]]
+            )
+
+        assert orders[0] == [
+            ("Медленный", 100_00),
+            ("Быстрый", 150_00),
+            ("Медленный", 220_00),
+            ("Быстрый", 300_00),
+        ]
+        assert orders[1] == orders[0]
+        assert orders[2] == orders[0]
+
+
 class TestDeadline:
     """Дедлайн — жёсткое ограничение активной рекомендации (продуктовое ТЗ, раздел 7)."""
 
