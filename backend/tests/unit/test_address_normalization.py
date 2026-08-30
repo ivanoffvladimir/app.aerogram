@@ -373,3 +373,50 @@ class TestFitness:
         fitness, blockers = assess_fitness(data, None)
         assert fitness is AddressFitness.UNUSABLE
         assert FitnessBlocker.FOREIGN_COUNTRY in blockers
+
+
+class TestSharedFitnessRule:
+    """Правило пригодности одно на оба пути ввода адреса.
+
+    Адрес из стандартизации ДаData и адрес, введённый руками в адресной книге,
+    обязаны получать одинаковую оценку: два ответа на один адрес — это ошибка,
+    которую пользователь заметит раньше нас.
+    """
+
+    def test_city_and_house_give_door(self) -> None:
+        from aerogram.shared.addresses import assess_fitness as assess_fields
+
+        fitness, blockers = assess_fields(city_known=True, house_known=True)
+        assert fitness is AddressFitness.DOOR
+        assert blockers == []
+
+    def test_city_without_house_gives_locality(self) -> None:
+        from aerogram.shared.addresses import assess_fitness as assess_fields
+
+        fitness, blockers = assess_fields(city_known=True, house_known=False)
+        assert fitness is AddressFitness.LOCALITY
+        assert FitnessBlocker.NO_HOUSE in blockers
+
+    def test_no_city_gives_unusable(self) -> None:
+        from aerogram.shared.addresses import assess_fitness as assess_fields
+
+        fitness, blockers = assess_fields(city_known=False, house_known=True)
+        assert fitness is AddressFitness.UNUSABLE
+        assert FitnessBlocker.NO_CITY in blockers
+
+    def test_dadata_path_and_manual_path_agree(self) -> None:
+        """Обёртка над ответом ДаData даёт тот же ответ, что и общее правило."""
+        from aerogram.shared.addresses import assess_fitness as assess_fields
+
+        data = _data(
+            city="Новосибирск",
+            city_with_type="г Новосибирск",
+            city_fias_id="8dea00e3-9aab-4d8e-887c-ef2aaa546456",
+            fias_id="8dea00e3-9aab-4d8e-887c-ef2aaa546456",
+            fias_level="4",
+            street="Ленина",
+            house="12",
+        )
+        from_dadata, _ = assess_fitness(data, resolve_city_key(data))
+        from_fields, _ = assess_fields(city_known=True, house_known=True)
+        assert from_dadata is from_fields

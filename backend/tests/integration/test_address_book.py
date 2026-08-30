@@ -65,6 +65,41 @@ class TestCreate:
         assert len(body["addresses"]) == 1
         assert body["addresses"][0]["city_fias_id"] == "0c5b2444-70a0-4932-980c-b4dc0d3f02b5"
 
+    async def test_address_with_city_and_house_is_fit_for_door_delivery(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        """Пригодность вычисляется, а не берётся из значения по умолчанию.
+
+        Найдено запуском приложения: адрес с городом, улицей и домом
+        сохранялся как непригодный и заблокировал бы создание отправления
+        до двери.
+        """
+        response = await client.post("/api/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+        assert response.json()["addresses"][0]["fitness"] == "door"
+
+    async def test_address_without_house_is_fit_for_pickup_point_only(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        payload = {
+            **ROSPLOMBA,
+            "addresses": [
+                {
+                    "city": "Москва",
+                    "city_fias_id": "0c5b2444-70a0-4932-980c-b4dc0d3f02b5",
+                }
+            ],
+        }
+        response = await client.post("/api/v1/counterparties", json=payload, headers=headers_a)
+        assert response.json()["addresses"][0]["fitness"] == "locality"
+
+    async def test_address_without_city_is_unusable(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        # Без города адрес не годится ни для расчёта, ни для доставки.
+        payload = {**ROSPLOMBA, "addresses": [{"city": "Неизвестно", "house": "1"}]}
+        response = await client.post("/api/v1/counterparties", json=payload, headers=headers_a)
+        assert response.json()["addresses"][0]["fitness"] == "unusable"
+
     async def test_duplicate_inn_is_conflict_not_500(
         self, client: AsyncClient, headers_a: dict[str, str]
     ) -> None:

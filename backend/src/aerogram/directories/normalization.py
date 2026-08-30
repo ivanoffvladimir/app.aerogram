@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
 
 from aerogram.directories.schemas import DadataAddressData
+from aerogram.shared.addresses import AddressFitness, FitnessBlocker
+from aerogram.shared.addresses import assess_fitness as assess_fields
 
 __all__ = [
     "CITY_LEVELS",
@@ -48,35 +49,6 @@ FEDERAL_CITY_KLADR: frozenset[str] = frozenset({"7700000000000", "7800000000000"
 _KLADR_LOCALITY_DIGITS = 11
 #: Полный код населённого пункта — значащая часть плюс два знака актуальности.
 _KLADR_ACTUALITY_SUFFIX = "00"
-
-
-class AddressFitness(StrEnum):
-    """Пригодность адреса к перевозке.
-
-    Единой проверки «адрес валиден» недостаточно: для расчёта хватает города,
-    для доставки до пункта выдачи улица и дом получателя не нужны вовсе —
-    их подставляет перевозчик, а для доставки до двери дом обязателен.
-    Одна общая проверка либо отсекла бы половину заказов до ПВЗ, либо
-    пропустила бы в доставку до двери адрес без дома — то есть возврат
-    за наш счёт.
-    """
-
-    #: Известен дом — годится для доставки до двери.
-    DOOR = "door"
-    #: Известен только населённый пункт — годится для расчёта и доставки до ПВЗ.
-    LOCALITY = "locality"
-    #: Не годится ни для чего: не определён населённый пункт.
-    UNUSABLE = "unusable"
-
-
-class FitnessBlocker(StrEnum):
-    """Причина, по которой адрес не пригоден. Показывается пользователю."""
-
-    NO_CITY = "no_city"
-    FOREIGN_COUNTRY = "foreign_country"
-    NO_HOUSE = "no_house"
-    POSTAL_BOX = "postal_box"
-    LOW_CONFIDENCE = "low_confidence"
 
 
 @dataclass(frozen=True, slots=True)
@@ -301,31 +273,16 @@ def _first_non_empty(*values: str | None) -> str | None:
 def assess_fitness(
     data: DadataAddressData, city: CityKey | None
 ) -> tuple[AddressFitness, list[FitnessBlocker]]:
-    """Оценить пригодность адреса к перевозке.
+    """Оценить пригодность адреса, разобранного ДаData.
 
-    Наличие дома и уровень объекта ФИАС — РАЗНЫЕ величины, и путать их нельзя.
-    Оператор выбирает город из подсказки (уровень 4) и дописывает улицу и дом
-    руками; если считать «дом есть» только на уровнях 8-9, такой адрес навсегда
-    останется непригодным для доставки до двери, хотя дом в нём указан.
+    Обёртка над общим правилом из ``shared.addresses``: то же самое правило
+    применяется к адресу, введённому руками в адресной книге, и расходиться
+    эти два ответа не имеют права.
     """
-    blockers: list[FitnessBlocker] = []
-
     country = _clean(data.country_iso_code)
-    if country is not None and country != "RU":
-        blockers.append(FitnessBlocker.FOREIGN_COUNTRY)
-        return AddressFitness.UNUSABLE, blockers
-
-    if city is None:
-        blockers.append(FitnessBlocker.NO_CITY)
-        return AddressFitness.UNUSABLE, blockers
-
-    # Абонентский ящик — не адрес курьерской доставки ни при каком качестве.
-    if _clean(data.postal_box) is not None:
-        blockers.append(FitnessBlocker.POSTAL_BOX)
-        return AddressFitness.LOCALITY, blockers
-
-    if _clean(data.house) is None:
-        blockers.append(FitnessBlocker.NO_HOUSE)
-        return AddressFitness.LOCALITY, blockers
-
-    return AddressFitness.DOOR, blockers
+    return assess_fields(
+        city_known=city is not None,
+        house_known=_clean(data.house) is not None,
+        postal_box=_clean(data.postal_box) is not None,
+        foreign=country is not None and country != "RU",
+    )

@@ -29,6 +29,7 @@ from aerogram.core.security import (
     verify_password,
 )
 from aerogram.db import set_tenant
+from aerogram.shared.addresses import assess_fitness
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import TenantStatus, UserRole
 from aerogram.shared.errors import AuthenticationError, Conflict, NotFound, PermissionDenied
@@ -333,11 +334,21 @@ class AddressBookService:
             # нового, иначе частичный уникальный индекс отвергнет запись.
             await self._addresses.clear_default_sender()
 
+        # Пригодность вычисляется по тому, что известно об адресе, а не берётся
+        # из значения по умолчанию. Иначе адрес с городом, улицей и домом,
+        # введённый в адресной книге, навсегда оставался бы непригодным
+        # и блокировал создание отправления до двери.
+        fitness, _ = assess_fitness(
+            city_known=bool(payload.get("city_fias_id")),
+            house_known=bool(payload.get("house")),
+            foreign=str(payload.get("country_code") or "RU") != "RU",
+        )
         address = Address(
             tenant_id=tenant_id,
             counterparty_id=counterparty.id,
             **{k: v for k, v in payload.items() if k != "is_default_sender"},
             is_default_sender=is_default,
+            fitness=fitness.value,
         )
         # Адрес добавляется В КОЛЛЕКЦИЮ контрагента, а не отдельной вставкой:
         # иначе связь остаётся незагруженной, и сериализация ответа пытается
