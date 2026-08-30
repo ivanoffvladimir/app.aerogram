@@ -12,6 +12,8 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    CHAR,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
@@ -74,11 +76,14 @@ class Shipment(Base, TenantMixin, TimestampMixin):
     sender_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     recipient_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
-    declared_value: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
-    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="RUB")
+    #: Все суммы отправления — в минорных единицах валюты ``currency`` (ADR-0011).
+    #: Валюта одна на отправление: перевозчик выставляет счёт в одной валюте,
+    #: и вторая колонка у строк означала бы возможность расхождения с шапкой.
+    declared_value_amount_minor: Mapped[int | None] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(CHAR(3), nullable=False, default="RUB")
     payment_type: Mapped[str] = mapped_column(String(20), nullable=False, default="sender")
-    price_quoted: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
-    price_actual: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    price_quoted_amount_minor: Mapped[int | None] = mapped_column(BigInteger)
+    price_actual_amount_minor: Mapped[int | None] = mapped_column(BigInteger)
 
     promised_delivery_date: Mapped[date | None] = mapped_column(Date)
     actual_delivery_date: Mapped[date | None] = mapped_column(Date)
@@ -122,8 +127,18 @@ class Shipment(Base, TenantMixin, TimestampMixin):
             "tenant_id", "idempotency_key", name="uq_shipments_tenant_id_idempotency_key"
         ),
         CheckConstraint(
-            "price_quoted IS NULL OR price_quoted >= 0", name="shipment_price_quoted_non_negative"
+            "price_quoted_amount_minor IS NULL OR price_quoted_amount_minor >= 0",
+            name="shipment_price_quoted_non_negative",
         ),
+        CheckConstraint(
+            "price_actual_amount_minor IS NULL OR price_actual_amount_minor >= 0",
+            name="shipment_price_actual_non_negative",
+        ),
+        CheckConstraint(
+            "declared_value_amount_minor IS NULL OR declared_value_amount_minor >= 0",
+            name="shipment_declared_value_non_negative",
+        ),
+        CheckConstraint("currency ~ '^[A-Z]{3}$'", name="currency_is_iso_4217"),
         Index("ix_shipments_tenant_id_created_at", "tenant_id", "created_at"),
         Index("ix_shipments_tracking_number", "tracking_number"),
         # Частичный индекс по незавершённым: планировщик polling обращается к нему
@@ -181,7 +196,8 @@ class ShipmentItem(Base, TenantMixin):
     )
     name: Mapped[str] = mapped_column(String(500), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    #: В минорных единицах валюты отправления (``Shipment.currency``).
+    price_amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
     weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(10, 3))
     nds_rate: Mapped[int | None] = mapped_column(Integer)
     marking_code: Mapped[str | None] = mapped_column(String(255))
@@ -190,6 +206,6 @@ class ShipmentItem(Base, TenantMixin):
 
     __table_args__ = (
         CheckConstraint("quantity > 0", name="item_quantity_positive"),
-        CheckConstraint("price >= 0", name="item_price_non_negative"),
+        CheckConstraint("price_amount_minor >= 0", name="item_price_non_negative"),
         Index("ix_shipment_items_shipment_id", "shipment_id"),
     )

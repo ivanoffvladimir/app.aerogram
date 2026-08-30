@@ -13,7 +13,6 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from decimal import Decimal
 from typing import Any
 
 from aerogram.carriers.base import (
@@ -42,6 +41,7 @@ from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import LabelFormat
 from aerogram.shared.errors import CarrierError, CarrierValidationError
 from aerogram.shared.logging import get_logger
+from aerogram.shared.money import Money
 
 __all__ = ["CDEK_CODE", "CdekAdapter"]
 
@@ -188,9 +188,10 @@ class CdekAdapter:
             tariff_code=str(tariff_code),
             service_name=str(row.get("tariff_name") or f"Тариф {tariff_code}"),
             # Деньги только через строку: float из JSON уже потерял точность,
-            # и Decimal(float) закрепил бы потерю (ADR-0006).
-            price=Decimal(str(delivery_sum)),
-            currency="RUB",
+            # и Decimal(float) закрепил бы потерю. Валюта не угадывается —
+            # расчёт запрошен в рублях (CDEK_CURRENCY_RUB в теле запроса),
+            # значит и ответ в рублях.
+            price=Money.from_major(str(delivery_sum), "RUB"),
             transit_days_min=period_min,
             transit_days_max=period_max,
             promised_delivery_date=self._promised_date(row),

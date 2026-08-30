@@ -12,7 +12,6 @@ import json
 import os
 from collections.abc import AsyncIterator
 from datetime import date
-from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -27,6 +26,7 @@ from aerogram.core.models import CarrierAccount as CarrierAccountModel
 from aerogram.directories.models import Carrier, City, CityCarrierMap
 from aerogram.shared.crypto import CredentialCipher
 from aerogram.shared.ids import uuid7
+from aerogram.shared.money import Money
 from tests.conftest import login
 
 pytestmark = pytest.mark.integration
@@ -63,8 +63,7 @@ class FakeCarrier:
                 service_code="136",
                 tariff_code="136",
                 service_name="Посылка дверь-дверь",
-                price=Decimal("2450.50"),
-                currency="RUB",
+                price=Money(245_050, "RUB"),
                 transit_days_min=2,
                 transit_days_max=3,
                 promised_delivery_date=date(2026, 9, 4),
@@ -74,8 +73,7 @@ class FakeCarrier:
                 service_code="137",
                 tariff_code="137",
                 service_name="Посылка склад-склад",
-                price=Decimal("1505.00"),
-                currency="RUB",
+                price=Money(150_500, "RUB"),
                 transit_days_min=3,
                 transit_days_max=5,
                 promised_delivery_date=date(2026, 9, 8),
@@ -166,7 +164,10 @@ RATE_REQUEST = {
     "sender": {"city_fias_id": VLADIVOSTOK, "city_name": "Владивосток"},
     "recipient": {"city_fias_id": MOSCOW, "city_name": "Москва"},
     "places": [{"weight_kg": "12.0", "length_cm": 40, "width_cm": 30, "height_cm": 25}],
-    "cargo": {"type": "equipment", "declared_value": "480000.00"},
+    "cargo": {
+        "type": "equipment",
+        "declared_value": {"amount_minor": 48_000_000, "currency": "RUB"},
+    },
     "options": {"pickup": True, "delivery_to_door": True},
 }
 
@@ -192,15 +193,22 @@ class TestSuccessfulRating:
         ranks = sorted(q["rank"] for q in body["quotes"])
         assert ranks == [1, 2]
 
-    async def test_price_survives_as_decimal_string(
+    async def test_price_is_whole_minor_units_end_to_end(
         self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
     ) -> None:
-        """Деньги не должны проходить через float ни на одном участке."""
+        """Деньги не проходят через float ни на одном участке пути.
+
+        Проверяется весь путь: адаптер → БД → JSON. Сумма приходит целым
+        числом минорных единиц с валютой рядом — как требует схема ``Money``
+        контракта (ADR-0011).
+        """
         registry.register(FakeCarrier("fake"))
         body = (await client.post("/api/v1/rates", json=RATE_REQUEST, headers=headers)).json()
 
-        prices = sorted(str(q["price"]) for q in body["quotes"])
-        assert prices == ["1505.00", "2450.50"]
+        prices = sorted(q["price"]["amount_minor"] for q in body["quotes"])
+        assert prices == [150_500, 245_050]
+        assert all(isinstance(q["price"]["amount_minor"], int) for q in body["quotes"])
+        assert {q["price"]["currency"] for q in body["quotes"]} == {"RUB"}
 
     async def test_carrier_city_codes_are_resolved_before_the_call(
         self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]

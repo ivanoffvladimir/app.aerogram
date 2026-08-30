@@ -22,7 +22,6 @@ import json
 import time
 from dataclasses import dataclass
 from datetime import timedelta
-from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,6 +47,8 @@ from aerogram.shared.crypto import CredentialCipher
 from aerogram.shared.errors import AerogramError, CarrierError, CarrierTimeout
 from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
+from aerogram.shared.money import Money
+from aerogram.shared.schemas import MoneySchema
 
 __all__ = ["RateShoppingService", "rank_quotes"]
 
@@ -108,8 +109,7 @@ class RateShoppingService:
                 service_code=row.service_code,
                 tariff_code=row.tariff_code,
                 service_name=(row.raw_response or {}).get("service_name"),
-                price=row.price or Decimal("0"),
-                currency=row.currency,
+                price=MoneySchema.of(Money(row.price_amount_minor or 0, row.currency)),
                 price_source=row.price_source,
                 transit_days_min=row.transit_days_min,
                 transit_days_max=row.transit_days_max,
@@ -255,7 +255,7 @@ class RateShoppingService:
                 )
                 for place in payload.places
             ),
-            declared_value=payload.cargo.declared_value,
+            declared_value=payload.cargo.declared_value.to_money(),
             cargo_type=payload.cargo.type,
             pickup=payload.options.pickup,
             delivery_to_door=payload.options.delivery_to_door,
@@ -373,8 +373,8 @@ class RateShoppingService:
                             carrier_account_id=outcome.account_id,
                             service_code=quote.service_code,
                             tariff_code=quote.tariff_code,
-                            price=quote.price,
-                            currency=quote.currency,
+                            price_amount_minor=quote.price.amount_minor,
+                            currency=quote.price.currency,
                             price_source=quote.price_source,
                             transit_days_min=quote.transit_days_min,
                             transit_days_max=quote.transit_days_max,
@@ -427,7 +427,7 @@ def rank_quotes(quotes: list[RateQuote], *, required_deadline: bool = False) -> 
     if not quotes:
         return
 
-    prices = [q.price for q in quotes if q.price is not None]
+    prices = [q.price_amount_minor for q in quotes if q.price_amount_minor is not None]
     days = [q.transit_days_max for q in quotes if q.transit_days_max is not None]
     if not prices:
         return
@@ -437,8 +437,8 @@ def rank_quotes(quotes: list[RateQuote], *, required_deadline: bool = False) -> 
 
     def score(quote: RateQuote) -> tuple[int, float]:
         price_part = 0.0
-        if quote.price is not None and max_price > min_price:
-            price_part = float((quote.price - min_price) / (max_price - min_price))
+        if quote.price_amount_minor is not None and max_price > min_price:
+            price_part = (quote.price_amount_minor - min_price) / (max_price - min_price)
         transit_part = 0.0
         if quote.transit_days_max is not None and max_days > min_days:
             transit_part = (quote.transit_days_max - min_days) / (max_days - min_days)

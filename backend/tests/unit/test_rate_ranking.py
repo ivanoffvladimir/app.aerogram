@@ -7,11 +7,11 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 
 from aerogram.rating.models import RateQuote
 from aerogram.rating.service import rank_quotes
 from aerogram.shared.ids import uuid7
+from aerogram.shared.money import Money
 
 
 def _quote(
@@ -26,7 +26,7 @@ def _quote(
         tenant_id=uuid7(),
         rate_request_id=uuid7(),
         carrier_id=uuid7(),
-        price=Decimal(price),
+        price_amount_minor=Money.from_major(price, "RUB").amount_minor,
         currency="RUB",
         transit_days_min=days,
         transit_days_max=days,

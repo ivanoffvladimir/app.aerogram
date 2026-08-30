@@ -9,6 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from aerogram.shared.enums import CargoType, PriceSource
+from aerogram.shared.schemas import MoneySchema
 
 __all__ = [
     "CargoIn",
@@ -42,8 +43,7 @@ class PartyIn(BaseModel):
 
 class CargoIn(BaseModel):
     type: CargoType = CargoType.PARCEL
-    declared_value: Decimal = Field(default=Decimal("0"), ge=0)
-    currency: str = Field(default="RUB", min_length=3, max_length=3)
+    declared_value: MoneySchema = MoneySchema(amount_minor=0, currency="RUB")
 
 
 class OptionsIn(BaseModel):
@@ -75,8 +75,7 @@ class RateQuoteOut(BaseModel):
     service_code: str | None = None
     tariff_code: str | None = None
     service_name: str | None = None
-    price: Decimal
-    currency: str
+    price: MoneySchema
     price_source: PriceSource | None = None
     transit_days_min: int | None = None
     transit_days_max: int | None = None

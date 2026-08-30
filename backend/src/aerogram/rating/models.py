@@ -7,18 +7,18 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    CHAR,
+    BigInteger,
     CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
     Index,
     Integer,
-    Numeric,
     String,
     Text,
     text,
@@ -82,8 +82,9 @@ class RateQuote(Base, TenantMixin):
     )
     service_code: Mapped[str | None] = mapped_column(String(50))
     tariff_code: Mapped[str | None] = mapped_column(String(50))
-    price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
-    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="RUB")
+    #: Сумма в минорных единицах валюты ``currency`` (ADR-0011).
+    price_amount_minor: Mapped[int | None] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(CHAR(3), nullable=False, default="RUB")
     price_source: Mapped[PriceSource | None] = mapped_column(String(20))
     transit_days_min: Mapped[int | None] = mapped_column(Integer)
     transit_days_max: Mapped[int | None] = mapped_column(Integer)
@@ -109,11 +110,15 @@ class RateQuote(Base, TenantMixin):
 
     __table_args__ = (
         CheckConstraint(
-            "(price IS NOT NULL AND error_code IS NULL)"
-            " OR (price IS NULL AND error_code IS NOT NULL)",
+            "(price_amount_minor IS NOT NULL AND error_code IS NULL)"
+            " OR (price_amount_minor IS NULL AND error_code IS NOT NULL)",
             name="quote_price_xor_error",
         ),
-        CheckConstraint("price IS NULL OR price >= 0", name="quote_price_non_negative"),
+        CheckConstraint(
+            "price_amount_minor IS NULL OR price_amount_minor >= 0",
+            name="quote_price_non_negative",
+        ),
+        CheckConstraint("currency ~ '^[A-Z]{3}$'", name="currency_is_iso_4217"),
         Index("ix_rate_quotes_rate_request_id", "rate_request_id"),
         Index("ix_rate_quotes_tenant_id_created_at", "tenant_id", "created_at"),
     )

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import hmac
 from datetime import UTC, datetime
-from decimal import Decimal
 
 import pytest
 
@@ -33,6 +32,7 @@ from aerogram.carriers.base import (
     ShipmentResult,
 )
 from aerogram.shared.enums import CargoType, LabelFormat, PriceSource
+from aerogram.shared.money import Money
 
 
 class FakeCarrier:
@@ -54,8 +54,7 @@ class FakeCarrier:
                 service_code="EXPRESS",
                 tariff_code="1",
                 service_name="Экспресс",
-                price=Decimal("2450.00"),
-                currency="RUB",
+                price=Money(245000, "RUB"),
                 transit_days_min=2,
                 transit_days_max=3,
                 promised_delivery_date=None,
@@ -68,7 +67,7 @@ class FakeCarrier:
             external_id=f"ext-{req.number}",
             tracking_number=f"TRK{req.number}",
             promised_delivery_date=None,
-            price_actual=Decimal("2450.00"),
+            price_actual=Money(245000, "RUB"),
         )
 
     async def label(self, ext_id: str, fmt: LabelFormat, acc: CarrierAccount) -> LabelResult:
@@ -201,7 +200,7 @@ class TestQuoteRespectsAccountMode:
                 sender=Party(city_fias_id=None, city_name="Москва"),
                 recipient=Party(city_fias_id=None, city_name="Новосибирск"),
                 places=(),
-                declared_value=Decimal("1000"),
+                declared_value=Money(100_000, "RUB"),
                 cargo_type=CargoType.PARCEL,
                 pickup=True,
                 delivery_to_door=True,

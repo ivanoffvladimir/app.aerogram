@@ -21,6 +21,7 @@ from aerogram.carriers.cdek.mapping import grams_from_kg, modes_for_request
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import CargoType, LabelFormat, PriceSource
 from aerogram.shared.errors import CarrierError, CarrierValidationError
+from aerogram.shared.money import Money
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "cdek"
 
@@ -71,7 +72,7 @@ def _request(*, pickup: bool = True, to_door: bool = True, weight: str = "12.5")
             carrier_city_code="44",
         ),
         places=(Place(weight_kg=Decimal(weight), length_cm=40, width_cm=30, height_cm=25),),
-        declared_value=Decimal("480000.00"),
+        declared_value=Money.from_major("480000.00", "RUB"),
         cargo_type=CargoType.EQUIPMENT,
         pickup=pickup,
         delivery_to_door=to_door,
@@ -165,21 +166,37 @@ class TestQuoteMapping:
 
         quote = quotes[0]
         assert quote.service_name == "Посылка дверь-дверь"
-        assert quote.currency == "RUB"
+        assert quote.price.currency == "RUB"
         assert quote.transit_days_min == 2
         assert quote.transit_days_max == 3
 
-    async def test_price_is_decimal_without_float_error(self, account: CarrierAccount) -> None:
-        """Деньги только Decimal (ADR-0006).
+    async def test_price_is_exact_minor_units_without_float_error(
+        self, account: CarrierAccount
+    ) -> None:
+        """Деньги — целое число минорных единиц (ADR-0011).
 
-        Путь через float закрепил бы потерю точности: Decimal(2450.5) даёт
-        не 2450.5, а длинный двоичный хвост.
+        Путь через float закрепил бы потерю точности: 2450.5 рубля в float
+        не представимо точно, и умножение на 100 дало бы 245049 копеек.
+        Проверяем именно точное значение, а не приблизительное равенство.
         """
-        quotes = await _adapter(_handler_for(load("tarifflist_ok"))).quote(
-            _request(pickup=True, to_door=True), account
+        body = {
+            "tariff_codes": [
+                {
+                    "tariff_code": 137,
+                    "tariff_name": "Посылка склад-склад",
+                    "delivery_mode": 4,
+                    "delivery_sum": 2450.5,
+                    "period_min": 2,
+                    "period_max": 3,
+                }
+            ]
+        }
+        quotes = await _adapter(_handler_for(body)).quote(
+            _request(pickup=False, to_door=False), account
         )
-        assert quotes[0].price == Decimal("2450.5")
-        assert isinstance(quotes[0].price, Decimal)
+
+        assert quotes[0].price == Money(245_050, "RUB")
+        assert isinstance(quotes[0].price.amount_minor, int)
 
     async def test_promised_date_uses_calendar_days(self, account: CarrierAccount) -> None:
         """Плановая дата — обещание в календаре, а не в рабочих днях.
@@ -250,7 +267,7 @@ class TestLocationResolution:
             sender=Party(city_fias_id=None, city_name="Владивосток", postal_code="690000"),
             recipient=Party(city_fias_id=None, city_name="Москва", postal_code="101000"),
             places=(Place(Decimal("1"), 10, 10, 10),),
-            declared_value=Decimal("1000"),
+            declared_value=Money.from_major("1000", "RUB"),
             cargo_type=CargoType.PARCEL,
             pickup=True,
             delivery_to_door=True,
@@ -272,7 +289,7 @@ class TestLocationResolution:
             sender=Party(city_fias_id=None, city_name="Владивосток"),
             recipient=Party(city_fias_id=None, city_name="Москва"),
             places=(Place(Decimal("1"), 10, 10, 10),),
-            declared_value=Decimal("1000"),
+            declared_value=Money.from_major("1000", "RUB"),
             cargo_type=CargoType.PARCEL,
             pickup=True,
             delivery_to_door=True,

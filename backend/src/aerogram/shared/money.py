@@ -1,33 +1,186 @@
-"""Деньги и вес. Только Decimal.
+"""Деньги — целое число минорных единиц и код валюты. Вес — Decimal.
 
-float для денег — ошибка ревью (CLAUDE.md §6): 0.1 + 0.2 != 0.3 всплывает в сверке
-с перевозчиком через месяцы после релиза.
+Денежная величина никогда не бывает `float` и никогда не бывает без валюты
+(ADR-0011). `Decimal` остаётся для неденежных дробных величин: вес, доли,
+проценты.
+
+Почему минорные единицы, а не `Decimal`: деньги ходят через четыре границы —
+адаптер перевозчика, наша БД, наш API и фронт, — и `Decimal` не переживает JSON.
+Целое `2410000` одинаково читается везде, строка `"24100.00"` рано или поздно
+попадёт в `parseFloat`.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Final
 
 __all__ = [
+    "DEFAULT_MINOR_UNIT_EXPONENT",
     "DEFAULT_VOLUMETRIC_DIVISOR",
-    "MONEY_QUANT",
     "WEIGHT_QUANT",
+    "CurrencyMismatchError",
+    "Money",
     "chargeable_weight",
-    "round_money",
+    "minor_unit_exponent",
     "round_weight",
+    "total",
     "volumetric_weight",
 ]
 
-MONEY_QUANT = Decimal("0.01")
 WEIGHT_QUANT = Decimal("0.001")
 
-#: Делитель объёмного веса по умолчанию (FR-1.2). Переопределяется на уровне перевозчика.
+#: Делитель объёмного веса по умолчанию. Переопределяется на уровне перевозчика.
 DEFAULT_VOLUMETRIC_DIVISOR = 5000
 
+#: Сколько знаков в минорной единице у большинства валют.
+DEFAULT_MINOR_UNIT_EXPONENT: Final = 2
 
-def round_money(value: Decimal) -> Decimal:
-    """Округлить сумму до копеек, ROUND_HALF_UP — как считает бухгалтерия."""
-    return value.quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
+#: Валюты, у которых число знаков отличается от двух (ISO 4217).
+#: Список неполный намеренно: сюда добавляется валюта, с которой мы реально
+#: работаем, а не весь справочник, который потом некому проверять.
+_MINOR_UNIT_EXPONENTS: Final[dict[str, int]] = {
+    "JPY": 0,
+    "KRW": 0,
+    "CLP": 0,
+    "VND": 0,
+    "ISK": 0,
+    "BHD": 3,
+    "KWD": 3,
+    "OMR": 3,
+    "TND": 3,
+}
+
+
+class CurrencyMismatchError(ValueError):
+    """Попытка сложить или сравнить суммы в разных валютах.
+
+    Это ошибка нашего кода, а не запроса клиента, поэтому не наследуется
+    от ``AerogramError``: превращать её в 400 значило бы обвинить клиента
+    в нашей ошибке.
+    """
+
+    def __init__(self, left: str, right: str) -> None:
+        super().__init__(f"нельзя работать с {left} и {right} как с одной валютой")
+        self.left = left
+        self.right = right
+
+
+def minor_unit_exponent(currency: str) -> int:
+    """Число знаков после запятой у валюты."""
+    return _MINOR_UNIT_EXPONENTS.get(currency.upper(), DEFAULT_MINOR_UNIT_EXPONENT)
+
+
+@dataclass(frozen=True, slots=True, order=False)
+class Money:
+    """Сумма в минорных единицах и валюта ISO 4217.
+
+    Неизменяема: сумма из снимка решения не должна меняться из-за того,
+    что кто-то держит на неё ссылку.
+    """
+
+    amount_minor: int
+    currency: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.amount_minor, int) or isinstance(self.amount_minor, bool):
+            raise TypeError("сумма задаётся целым числом минорных единиц")
+        code = self.currency.upper()
+        if len(code) != 3 or not code.isalpha():
+            raise ValueError(
+                f"код валюты должен быть тремя буквами ISO 4217, получено {self.currency!r}"
+            )
+        object.__setattr__(self, "currency", code)
+
+    # --- конструкторы ---
+
+    @classmethod
+    def zero(cls, currency: str) -> Money:
+        return cls(0, currency)
+
+    @classmethod
+    def from_major(cls, value: Decimal | int | str, currency: str) -> Money:
+        """Из основной единицы: ``Money.from_major("241.00", "RUB")`` → 24100 копеек.
+
+        Нужен на границе с перевозчиками, которые отдают суммы в рублях.
+        Округление явное: ROUND_HALF_UP до минорной единицы.
+        """
+        exponent = minor_unit_exponent(currency)
+        scaled = Decimal(value) * (10**exponent)
+        return cls(int(scaled.quantize(Decimal(1), rounding=ROUND_HALF_UP)), currency)
+
+    # --- представление ---
+
+    def to_major(self) -> Decimal:
+        """В основную единицу — только для отображения и выгрузок, не для арифметики."""
+        exponent = minor_unit_exponent(self.currency)
+        return Decimal(self.amount_minor).scaleb(-exponent)
+
+    def __str__(self) -> str:
+        return f"{self.to_major()} {self.currency}"
+
+    # --- арифметика ---
+
+    def _same_currency(self, other: Money) -> None:
+        if self.currency != other.currency:
+            raise CurrencyMismatchError(self.currency, other.currency)
+
+    def __add__(self, other: Money) -> Money:
+        self._same_currency(other)
+        return Money(self.amount_minor + other.amount_minor, self.currency)
+
+    def __sub__(self, other: Money) -> Money:
+        self._same_currency(other)
+        return Money(self.amount_minor - other.amount_minor, self.currency)
+
+    def __neg__(self) -> Money:
+        return Money(-self.amount_minor, self.currency)
+
+    def __mul__(self, factor: int) -> Money:
+        """Умножение на целое — например, цена места на количество мест."""
+        if not isinstance(factor, int) or isinstance(factor, bool):
+            raise TypeError("деньги умножаются только на целое; для долей есть percentage")
+        return Money(self.amount_minor * factor, self.currency)
+
+    __rmul__ = __mul__
+
+    def percentage(self, rate_percent: Decimal) -> Money:
+        """Процент от суммы, ROUND_HALF_UP до минорной единицы.
+
+        ``rate_percent`` — именно проценты: ``Decimal("0.18")`` это 0.18 %,
+        как в ``cost_components[].rate_percent`` контракта API.
+        """
+        if rate_percent < 0:
+            raise ValueError("ставка не может быть отрицательной")
+        exact = Decimal(self.amount_minor) * rate_percent / Decimal(100)
+        return Money(int(exact.quantize(Decimal(1), rounding=ROUND_HALF_UP)), self.currency)
+
+    # --- сравнение ---
+
+    def __lt__(self, other: Money) -> bool:
+        self._same_currency(other)
+        return self.amount_minor < other.amount_minor
+
+    def __le__(self, other: Money) -> bool:
+        self._same_currency(other)
+        return self.amount_minor <= other.amount_minor
+
+    def __gt__(self, other: Money) -> bool:
+        self._same_currency(other)
+        return self.amount_minor > other.amount_minor
+
+    def __ge__(self, other: Money) -> bool:
+        self._same_currency(other)
+        return self.amount_minor >= other.amount_minor
+
+
+def total(amounts: list[Money], currency: str) -> Money:
+    """Сумма списка. Валюта передаётся явно: у пустого списка её взять неоткуда."""
+    result = Money.zero(currency)
+    for amount in amounts:
+        result = result + amount
+    return result
 
 
 def round_weight(value: Decimal) -> Decimal:
@@ -41,7 +194,7 @@ def volumetric_weight(
     height_cm: int,
     divisor: int = DEFAULT_VOLUMETRIC_DIVISOR,
 ) -> Decimal:
-    """Объёмный вес в килограммах: Д × Ш × В (см) / делитель (FR-1.2)."""
+    """Объёмный вес в килограммах: Д × Ш × В (см) / делитель."""
     if min(length_cm, width_cm, height_cm) <= 0:
         raise ValueError("габариты должны быть положительными")
     if divisor <= 0:
@@ -57,7 +210,7 @@ def chargeable_weight(
     height_cm: int,
     divisor: int = DEFAULT_VOLUMETRIC_DIVISOR,
 ) -> Decimal:
-    """Расчётный вес места: максимум из фактического и объёмного (FR-1.2).
+    """Расчётный вес места: максимум из фактического и объёмного.
 
     Применяется только если перевозчик не считает объёмный вес сам — иначе
     получится двойной учёт. Решение принимается в адаптере, по capabilities.

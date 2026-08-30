@@ -20,6 +20,7 @@ from decimal import Decimal
 from typing import Literal, Protocol, runtime_checkable
 
 from aerogram.shared.enums import CargoType, LabelFormat, PriceSource
+from aerogram.shared.money import Money
 
 __all__ = [
     "CancelResult",
@@ -132,12 +133,12 @@ class QuoteRequest:
     sender: Party
     recipient: Party
     places: tuple[Place, ...]
-    declared_value: Decimal
+    declared_value: Money
     cargo_type: CargoType
     pickup: bool
     delivery_to_door: bool
     insurance: bool = False
-    cod_amount: Decimal | None = None
+    cod_amount: Money | None = None
     required_delivery_date: date | None = None
     extras: dict[str, object] = field(default_factory=dict)
 
@@ -153,15 +154,15 @@ class Quote:
     service_code: str
     tariff_code: str
     service_name: str
-    price: Decimal
-    currency: str
+    price: Money
     transit_days_min: int
     transit_days_max: int
     promised_delivery_date: date | None
     price_source: PriceSource
     raw: dict[str, object] = field(default_factory=dict)
-    #: Составляющие цены, если ТК их возвращает — для расшифровки строки выдачи (FR-5.6).
-    price_breakdown: dict[str, Decimal] = field(default_factory=dict)
+    #: Составляющие цены, если ТК их возвращает — для расшифровки строки выдачи.
+    #: Ключ — тип составляющей, значение — сумма в той же валюте, что и ``price``.
+    price_breakdown: dict[str, Money] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,13 +177,12 @@ class ShipmentRequest:
     sender: Party
     recipient: Party
     places: tuple[Place, ...]
-    declared_value: Decimal
-    currency: str
+    declared_value: Money
     cargo_type: CargoType
     pickup: bool
     delivery_to_door: bool
     insurance: bool = False
-    cod_amount: Decimal | None = None
+    cod_amount: Money | None = None
     comment: str | None = None
     items: tuple[dict[str, object], ...] = ()
     extras: dict[str, object] = field(default_factory=dict)
@@ -195,7 +195,7 @@ class ShipmentResult:
     external_id: str
     tracking_number: str | None
     promised_delivery_date: date | None
-    price_actual: Decimal | None
+    price_actual: Money | None
     #: true — перевозчик принял заказ асинхронно, трек-номер придёт позже.
     is_pending: bool = False
     raw: dict[str, object] = field(default_factory=dict)
