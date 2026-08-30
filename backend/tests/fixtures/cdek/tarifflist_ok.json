@@ -1,0 +1,48 @@
+{
+  "tariff_codes": [
+    {
+      "tariff_code": 137,
+      "tariff_name": "Посылка склад-склад",
+      "tariff_description": "Услуга экономичной доставки товаров по России для интернет-магазинов",
+      "delivery_mode": 4,
+      "delivery_sum": 1505.0,
+      "period_min": 2,
+      "period_max": 3,
+      "calendar_min": 3,
+      "calendar_max": 4
+    },
+    {
+      "tariff_code": 136,
+      "tariff_name": "Посылка дверь-дверь",
+      "tariff_description": "Доставка от двери отправителя до двери получателя",
+      "delivery_mode": 1,
+      "delivery_sum": 2450.5,
+      "period_min": 2,
+      "period_max": 3,
+      "calendar_min": 3,
+      "calendar_max": 4
+    },
+    {
+      "tariff_code": 139,
+      "tariff_name": "Посылка склад-дверь",
+      "tariff_description": "Доставка со склада до двери получателя",
+      "delivery_mode": 3,
+      "delivery_sum": 1980.0,
+      "period_min": 2,
+      "period_max": 4,
+      "calendar_min": 3,
+      "calendar_max": 5
+    },
+    {
+      "tariff_code": 366,
+      "tariff_name": "Посылка склад-постамат",
+      "tariff_description": "Доставка со склада в постамат",
+      "delivery_mode": 7,
+      "delivery_sum": 1420.0,
+      "period_min": 2,
+      "period_max": 3,
+      "calendar_min": 3,
+      "calendar_max": 4
+    }
+  ]
+}

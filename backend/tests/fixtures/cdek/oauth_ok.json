@@ -1,0 +1,7 @@
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test-token",
+  "token_type": "bearer",
+  "expires_in": 3599,
+  "scope": "order:all payment:all",
+  "jti": "test-jti"
+}

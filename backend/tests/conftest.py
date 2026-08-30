@@ -125,7 +125,10 @@ def source_files() -> Iterator[list[Path]]:
 # Поэтому изоляция достигается очисткой таблиц, а не откатом.
 
 #: Бизнес-таблицы, которые чистятся между тестами API.
-CLEANED_TABLES = "tenants, users, counterparties, addresses, cities, carriers"
+CLEANED_TABLES = (
+    "tenants, users, counterparties, addresses, cities, carriers, "
+    "city_carrier_map, city_mapping_queue, rate_requests, rate_quotes"
+)
 
 TEST_PASSWORD = "test-password-12345"
 

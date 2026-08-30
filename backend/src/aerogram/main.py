@@ -17,10 +17,12 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+from aerogram.carriers import registry
 from aerogram.config import get_settings
 from aerogram.core.router import auth_router, counterparties_router, users_router
 from aerogram.db import get_engine
 from aerogram.directories.router import admin_directories_router, directories_router
+from aerogram.rating.router import rating_router
 from aerogram.shared.errors import AerogramError, Conflict
 from aerogram.shared.logging import configure_logging, get_logger, request_id_var
 
@@ -38,11 +40,6 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     configure_logging(level=settings.log_level, json_output=settings.log_json)
     log.info("app.start", environment=settings.environment, version=application.version)
 
-    # Регистрация адаптеров перевозчиков выполняется здесь: реестр должен быть
-    # заполнен до первого запроса, но импорт адаптеров не должен происходить
-    # в модулях домена (CLAUDE.md §4).
-    _register_carriers()
-
     yield
 
     await get_engine().dispose()
@@ -52,16 +49,28 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
 def _register_carriers() -> None:
     """Заполнить реестр адаптеров.
 
-    Пока в MVP-0 подключается только СДЭК; список расширяется по мере готовности
-    адаптеров (раздел 8.3 ТЗ: СДЭК → Major Express → ПЭК → Деловые Линии).
+    Это композиционный корень: единственное место, которому разрешено знать
+    о конкретных перевозчиках. Домен обращается к ним только через
+    ``carriers.registry`` — контракт ``no-direct-carrier`` в ``.importlinter``.
+
+    Порядок подключения задан разделом 8.3 ТЗ: СДЭК → Major Express → ПЭК →
+    Деловые Линии.
     """
-    # Адаптеры появятся здесь по мере реализации (неделя 4+ плана MVP-0).
-    return
+    from aerogram.carriers.cdek import CdekAdapter
+
+    if CdekAdapter.code not in registry.available_codes():
+        registry.register(CdekAdapter())
 
 
 def create_app() -> FastAPI:
     """Собрать приложение."""
     settings = get_settings()
+
+    # Реестр адаптеров заполняется при сборке приложения, а не в lifespan:
+    # это чистое состояние процесса без ввода-вывода, а зависящий от lifespan
+    # реестр оказывался бы пустым везде, где приложение собирают без запуска —
+    # в тестах и при выгрузке схемы OpenAPI.
+    _register_carriers()
 
     application = FastAPI(
         title=settings.app_name,
@@ -79,6 +88,7 @@ def create_app() -> FastAPI:
             {"name": "Пользователи", "description": "Пользователи компании и их роли"},
             {"name": "Адресная книга", "description": "Контрагенты и адреса тенанта"},
             {"name": "Справочники", "description": "Города ФИАС, адреса, терминалы"},
+            {"name": "Расчёт", "description": "Стоимость и срок по подключённым перевозчикам"},
             {
                 "name": "Администрирование платформы",
                 "description": "Очередь ручного сопоставления городов",
@@ -185,6 +195,7 @@ def create_app() -> FastAPI:
     application.include_router(counterparties_router, prefix=API_PREFIX)
     application.include_router(directories_router, prefix=API_PREFIX)
     application.include_router(admin_directories_router, prefix=API_PREFIX)
+    application.include_router(rating_router, prefix=API_PREFIX)
 
     return application
 
