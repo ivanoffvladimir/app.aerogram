@@ -181,6 +181,7 @@ export interface CarrierConnection {
   name: string
   logo_url: string | null
   capabilities: Record<string, unknown>
+  volumetric_divisor: number
   connected: boolean
   mode: 'own_contract' | 'aerogram' | null
   is_sandbox: boolean | null

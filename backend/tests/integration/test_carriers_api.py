@@ -77,6 +77,15 @@ class TestConnectedCarriers:
         assert mine["connected"] is True
         assert theirs["connected"] is False
 
+    async def test_the_volumetric_divisor_is_visible(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """Величина договорная, и расхождение с договором должен заметить
+        человек в кабинете, а не счёт от перевозчика через месяц."""
+        rows = (await client.get("/v1/carriers", headers=headers)).json()
+
+        assert by_code(rows, "fake")["volumetric_divisor"] == 5000
+
     async def test_authorisation_is_required(self, client: AsyncClient) -> None:
         response = await client.get("/v1/carriers")
 

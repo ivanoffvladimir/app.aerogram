@@ -305,6 +305,10 @@ class CarrierConnectionOut(BaseModel):
     logo_url: str | None = None
     #: Возможности адаптера: расчёт, создание, отмена, трекинг, этикетки.
     capabilities: dict[str, object] = Field(default_factory=dict)
+    #: Делитель объёмного веса (FR-1.2). Величина договорная, и её видно
+    #: в кабинете именно затем, чтобы расхождение с договором заметил человек,
+    #: а не счёт от перевозчика.
+    volumetric_divisor: int
     #: Есть ли действующая учётная запись тенанта у этого перевозчика.
     connected: bool = False
     #: Чей договор: ``own_contract`` — клиента, ``aerogram`` — платформы.

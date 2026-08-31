@@ -625,6 +625,7 @@ class CarrierDirectoryService:
                     name=carrier.name,
                     logo_url=carrier.logo_url,
                     capabilities=dict(carrier.capabilities or {}),
+                    volumetric_divisor=carrier.volumetric_divisor,
                     connected=account is not None,
                     mode=account.mode if account else None,
                     is_sandbox=account.is_sandbox if account else None,

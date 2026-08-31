@@ -65,6 +65,7 @@ export default function CarriersPage() {
               <th>Подключён</th>
               <th>Договор</th>
               <th>Доступы</th>
+              <th>Делитель объёма</th>
               <th>Что нужно для подключения</th>
             </tr>
           </thead>
@@ -82,6 +83,9 @@ export default function CarriersPage() {
                     ? ACCOUNT_STATUS_LABELS[carrier.status] ?? carrier.status
                     : '—'}
                 </td>
+                {/* Делитель договорной: расхождение с договором должен
+                    заметить человек, а не счёт от перевозчика. */}
+                <td>{carrier.volumetric_divisor}</td>
                 <td className={styles.components}>
                   {carrier.credential_fields.length === 0
                     ? 'состав доступов не определён'
