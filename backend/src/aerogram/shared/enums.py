@@ -7,6 +7,8 @@ from enum import StrEnum
 __all__ = [
     "FINAL_STATUSES",
     "PLATFORM_ROLES",
+    "PROBLEM_STATUSES",
+    "STALLED_INCIDENT",
     "CargoType",
     "CarrierAccountMode",
     "CostComponentType",
@@ -61,6 +63,24 @@ class ShipmentStatus(StrEnum):
     CANCELLED = "CANCELLED"
     EXCEPTION = "EXCEPTION"
 
+
+#: Состояния, которые сами по себе означают разбор: неудачное вручение,
+#: возврат, исключение перевозчика. Живут здесь, а не в трекинге, потому что
+#: набор нужен и уведомлениям тенанту, и экрану разбора, и сводке кабинета —
+#: а сводке запрещено видеть перевозчиков даже транзитом (CLAUDE.md §4).
+PROBLEM_STATUSES: frozenset[ShipmentStatus] = frozenset(
+    {
+        ShipmentStatus.EXCEPTION,
+        ShipmentStatus.DELIVERY_ATTEMPT_FAILED,
+        ShipmentStatus.RETURN_IN_PROGRESS,
+        ShipmentStatus.RETURNED,
+    }
+)
+
+#: Тип инцидента «перевозчик молчит дольше порога опроса». Строка, а не
+#: перечисление: колонка ``shipments.incident_type`` текстовая, и типов
+#: со временем станет больше.
+STALLED_INCIDENT = "stalled"
 
 #: Финальные статусы: переход в любой из них останавливает polling (раздел 9 ТЗ).
 FINAL_STATUSES: frozenset[ShipmentStatus] = frozenset(

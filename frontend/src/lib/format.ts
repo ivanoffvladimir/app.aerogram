@@ -57,6 +57,19 @@ export function formatPercent(value: number | null | undefined): string {
   return `${Math.round(value * 100)}%`
 }
 
+/**
+ * Доля, которая УЖЕ пришла в процентах (сводка кабинета), в отличие
+ * от `formatPercent`, который получает долю от нуля до единицы. Две функции,
+ * а не одна с флагом: перепутанный флаг даёт «5 %» вместо «500 %» молча.
+ *
+ * `null` — это «мерить было нечего», и он не превращается в ноль:
+ * по нулю начинают менять перевозчика.
+ */
+export function formatRate(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  return `${value.toLocaleString('ru-RU', { maximumFractionDigits: 1 })}%`
+}
+
 function plural(count: number, one: string, few: string, many: string): string {
   const mod100 = count % 100
   if (mod100 >= 11 && mod100 <= 14) return many

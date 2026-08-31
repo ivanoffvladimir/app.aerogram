@@ -31,12 +31,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from aerogram.directories.repository import CarrierRepository
 from aerogram.rating.repository import RateRepository
 from aerogram.shared.clock import utcnow
-from aerogram.shared.enums import ShipmentStatus
+from aerogram.shared.enums import PROBLEM_STATUSES, STALLED_INCIDENT, ShipmentStatus
 from aerogram.shipments.models import Shipment
 from aerogram.shipments.repository import ShipmentRepository
 from aerogram.shipments.schemas import contract_status
 from aerogram.tracking.schemas import ShipmentExceptionOut, ShipmentExceptionsPage
-from aerogram.tracking.service import PROBLEM_STATES, STALLED_INCIDENT
 
 __all__ = [
     "REASON_DEADLINE_PASSED",
@@ -125,7 +124,7 @@ def _reasons(shipment: Shipment, deadline: datetime | None, now: datetime) -> li
     if deadline is not None and deadline < now:
         # Доставленное сюда не попадает: список строится по едущим.
         reasons.append(REASON_DEADLINE_PASSED)
-    if ShipmentStatus(shipment.status) in PROBLEM_STATES:
+    if ShipmentStatus(shipment.status) in PROBLEM_STATUSES:
         reasons.append(REASON_PROBLEM_STATUS)
     if shipment.has_incident and shipment.incident_type == STALLED_INCIDENT:
         reasons.append(REASON_STALLED)

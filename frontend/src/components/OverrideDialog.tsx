@@ -3,19 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { RateOffer } from '@/api/client'
 import { formatMoney } from '@/lib/format'
+import { OVERRIDE_REASONS } from '@/lib/overrideReason'
 import styles from '@/app/rate-shopping/page.module.css'
-
-/** Причины из раздела 5 фронт-ТЗ. Список закрытый: свободный текст
- *  не сворачивается в метрику Override Rate, ради которой поле и нужно. */
-export const OVERRIDE_REASONS = [
-  { value: 'cheaper', label: 'Дешевле' },
-  { value: 'faster', label: 'Быстрее' },
-  { value: 'recipient_requirement', label: 'Требование получателя' },
-  { value: 'corporate_policy', label: 'Корпоративная политика или договор' },
-  { value: 'negative_experience', label: 'Негативный опыт с рекомендованным' },
-  { value: 'carrier_preference', label: 'Предпочтение перевозчика' },
-  { value: 'other', label: 'Другое' },
-] as const
 
 interface Props {
   offer: RateOffer
@@ -38,8 +27,8 @@ export function OverrideDialog({ offer, onCancel, onConfirm, submitting }: Props
     <dialog ref={ref} className={styles.dialog} onCancel={onCancel} aria-label="Причина выбора">
       <h2>Выбран не рекомендованный вариант</h2>
       <p className={styles.muted}>
-        {offer.carrier_name ?? 'Перевозчик'}, {formatMoney(offer.total_cost)}. Причина попадёт
-        в историю решений и в аналитику — укажите её честно.
+        {offer.carrier_name ?? 'Перевозчик'}, {formatMoney(offer.total_cost)}. Причина попадёт в
+        историю решений и в аналитику — укажите её честно.
       </p>
 
       <div className={styles.field}>

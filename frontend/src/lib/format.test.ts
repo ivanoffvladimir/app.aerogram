@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDuration, formatMoney, formatPercent } from './format'
+import { formatDuration, formatMoney, formatPercent, formatRate } from './format'
 
 describe('formatMoney', () => {
   it('делит минорные единицы один раз, в момент показа', () => {
@@ -47,6 +47,18 @@ describe('formatPercent', () => {
 
   it('отсутствие данных не превращается в ноль процентов', () => {
     expect(formatPercent(null)).toBe('—')
+  })
+})
+
+describe('formatRate', () => {
+  it('получает проценты, а не долю', () => {
+    // Перепутать с formatPercent значит показать «5 %» вместо «500 %».
+    expect(formatRate(97.4)).toBe('97,4%')
+    expect(formatRate(100)).toBe('100%')
+  })
+
+  it('«мерить было нечего» — это не ноль', () => {
+    expect(formatRate(null)).toBe('—')
   })
 })
 

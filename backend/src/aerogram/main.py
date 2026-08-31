@@ -24,6 +24,7 @@ from aerogram.db import get_engine
 from aerogram.directories.router import admin_directories_router, directories_router
 from aerogram.intelligence.router import analytics_router
 from aerogram.rating.router import rating_router
+from aerogram.reports.router import reports_router
 from aerogram.routing.router import routing_router
 from aerogram.shared.errors import AerogramError, Conflict
 from aerogram.shared.logging import configure_logging, get_logger, request_id_var
@@ -205,6 +206,7 @@ def create_app() -> FastAPI:
     application.include_router(shipments_router, prefix=API_PREFIX)
     application.include_router(tracking_router, prefix=API_PREFIX)
     application.include_router(exceptions_router, prefix=API_PREFIX)
+    application.include_router(reports_router, prefix=API_PREFIX)
     application.include_router(analytics_router, prefix=API_PREFIX)
     application.include_router(webhooks_router, prefix=API_PREFIX)
 

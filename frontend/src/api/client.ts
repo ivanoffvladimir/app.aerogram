@@ -68,6 +68,46 @@ export interface ShipmentPage {
   page_size: number
 }
 
+/**
+ * Сводка кабинета. Пути в контракте нет — экран /dashboard есть в ТЗ фронта,
+ * а `openapi.yaml` заморожен как P0-набор, — поэтому тип написан руками
+ * по `reports/schemas.py`.
+ *
+ * Доли приходят в процентах, а `null` означает «мерить было нечего»,
+ * а не ноль.
+ */
+export interface Summary {
+  days: number
+  since: string
+  delivery: {
+    delivered: number
+    with_deadline: number
+    on_time: number
+    late: number
+    on_time_rate: number | null
+    average_delay_hours: number | null
+    max_delay_hours: number | null
+    damaged: number
+    claims: number
+  }
+  costs: {
+    currency: string
+    shipments: number
+    quoted: Money
+    actual: Money
+    with_actual: number
+  }[]
+  overrides: {
+    decisions: number
+    overrides: number
+    auto: number
+    override_rate: number | null
+    by_reason: Record<string, number>
+  }
+  exceptions: Record<string, number>
+  exceptions_total: number
+}
+
 /** Причина, по которой отправление попало в разбор. */
 export type ExceptionReason = 'deadline_passed' | 'problem_status' | 'stalled'
 

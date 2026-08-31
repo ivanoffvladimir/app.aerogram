@@ -8,6 +8,7 @@ import styles from './AppShell.module.css'
 
 /** Пункты меню P0 и P1 по разделу 2 фронт-ТЗ. */
 const AVAILABLE = [
+  { href: '/dashboard', label: 'Сводка' },
   { href: '/rate-shopping', label: 'Расчёт и выбор' },
   { href: '/shipments', label: 'Отправления' },
   { href: '/tracking', label: 'Разбор' },

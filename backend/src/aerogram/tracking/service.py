@@ -27,7 +27,12 @@ from aerogram.carriers.status_map import load_status_map, normalize_status
 from aerogram.config import Settings
 from aerogram.rating.repository import RateRepository
 from aerogram.shared.clock import utcnow
-from aerogram.shared.enums import EventSource, ShipmentStatus
+from aerogram.shared.enums import (
+    PROBLEM_STATUSES,
+    STALLED_INCIDENT,
+    EventSource,
+    ShipmentStatus,
+)
 from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
 from aerogram.shipments.models import Shipment
@@ -39,9 +44,7 @@ from aerogram.tracking.webhooks import WebhookService
 
 __all__ = [
     "POLL_INTERVALS",
-    "PROBLEM_STATES",
     "STALE_AFTER",
-    "STALLED_INCIDENT",
     "TrackingService",
     "next_poll_after",
 ]
@@ -73,29 +76,12 @@ POLL_INTERVALS: dict[ShipmentStatus, timedelta | None] = {
     ShipmentStatus.CANCELLED: None,
 }
 
-#: Состояния, о которых получателя уведомляют как о проблеме (FR-3.6).
-#: Состояния, которые сами по себе означают разбор. Набор общий с разбором
-#: исключений (``tracking.exceptions``): разойдись он — экран оператора
-#: и уведомление тенанту говорили бы о разном.
-PROBLEM_STATES = frozenset(
-    {
-        ShipmentStatus.EXCEPTION,
-        ShipmentStatus.DELIVERY_ATTEMPT_FAILED,
-        ShipmentStatus.RETURN_IN_PROGRESS,
-        ShipmentStatus.RETURNED,
-    }
-)
-
 #: После скольких суток тишины отправление считается зависшим (FR-3.2).
 STALE_AFTER = timedelta(days=5)
 
 #: Как часто опрашивать зависшее: раз в сутки. Чаще бессмысленно — событий нет,
 #: и учащённый опрос лишь расходует лимит перевозчика.
 STALE_INTERVAL = timedelta(days=1)
-
-#: Тип инцидента для зависшего отправления. Отдельным типом, а не общим
-#: признаком: «зависло» требует звонка перевозчику, а не работы с грузом.
-STALLED_INCIDENT = "stalled"
 
 
 def next_poll_after(
@@ -289,7 +275,7 @@ class TrackingService:
         await self._webhooks.enqueue(shipment, "shipment.status_changed")
         if current is ShipmentStatus.DELIVERED:
             await self._webhooks.enqueue(shipment, "shipment.delivered")
-        if current in PROBLEM_STATES:
+        if current in PROBLEM_STATUSES:
             await self._webhooks.enqueue(shipment, "shipment.exception")
         # Опоздание — отдельное событие: доставленное с опозданием всё равно
         # доставлено, и по одному лишь статусу этого не увидеть.
