@@ -14,6 +14,8 @@ __all__ = [
     "ErrorBody",
     "ErrorResponse",
     "LoginRequest",
+    "MfaCodeRequest",
+    "MfaSetupOut",
     "RefreshRequest",
     "TenantOut",
     "TokenPair",
@@ -27,6 +29,23 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     #: Код TOTP. Обязателен для роли owner (12.5 ТЗ).
     mfa_code: str | None = Field(default=None, min_length=6, max_length=6)
+
+
+class MfaCodeRequest(BaseModel):
+    """Подтверждение владения секретом TOTP."""
+
+    code: str = Field(min_length=6, max_length=6)
+
+
+class MfaSetupOut(BaseModel):
+    """Ответ на подключение второго фактора.
+
+    Единственное место во всём API, где секрет виден. Повторно его не отдают:
+    сохранить его должен пользователь, в приложении-аутентификаторе.
+    """
+
+    secret: str
+    otpauth_url: str
 
 
 class TokenPair(BaseModel):

@@ -11,6 +11,7 @@ from aerogram.core.deps import (
     AuthServiceDep,
     CurrentPrincipal,
     SessionDep,
+    SettingsDep,
     client_ip,
     require_roles,
 )
@@ -20,14 +21,17 @@ from aerogram.core.schemas import (
     CounterpartyCreate,
     CounterpartyOut,
     LoginRequest,
+    MfaCodeRequest,
+    MfaSetupOut,
     Page,
     RefreshRequest,
     TokenPair,
     UserCreate,
     UserOut,
 )
-from aerogram.core.service import AddressBookService, AuditService, UserService
+from aerogram.core.service import AddressBookService, AuditService, MfaService, UserService
 from aerogram.shared.enums import UserRole
+from aerogram.shared.errors import PermissionDenied
 
 __all__ = ["auth_router", "counterparties_router", "users_router"]
 
@@ -70,6 +74,87 @@ async def me(principal: CurrentPrincipal, session: SessionDep) -> UserOut:
         )
     user = await UserService(session).get(principal.user_id)
     return UserOut.model_validate(user)
+
+
+@auth_router.post(
+    "/mfa/setup",
+    response_model=MfaSetupOut,
+    summary="Подключить второй фактор",
+)
+async def mfa_setup(
+    principal: CurrentPrincipal,
+    session: SessionDep,
+    settings: SettingsDep,
+    request: Request,
+) -> MfaSetupOut:
+    """Выдать секрет TOTP. Секрет виден только здесь и только один раз."""
+    user_id = _require_human(principal)
+    secret, uri = await MfaService(session, settings).setup(user_id)
+    AuditService(session).record(
+        tenant_id=principal.tenant_id,
+        actor_user_id=user_id,
+        action="user.mfa_setup",
+        entity_type="user",
+        entity_id=user_id,
+        ip=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    return MfaSetupOut(secret=secret, otpauth_url=uri)
+
+
+@auth_router.post("/mfa/enable", response_model=UserOut, summary="Включить второй фактор")
+async def mfa_enable(
+    payload: MfaCodeRequest,
+    principal: CurrentPrincipal,
+    session: SessionDep,
+    settings: SettingsDep,
+    request: Request,
+) -> UserOut:
+    user_id = _require_human(principal)
+    user = await MfaService(session, settings).enable(user_id, payload.code)
+    AuditService(session).record(
+        tenant_id=principal.tenant_id,
+        actor_user_id=user_id,
+        action="user.mfa_enable",
+        entity_type="user",
+        entity_id=user_id,
+        ip=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    return UserOut.model_validate(user)
+
+
+@auth_router.post("/mfa/disable", response_model=UserOut, summary="Отключить второй фактор")
+async def mfa_disable(
+    payload: MfaCodeRequest,
+    principal: CurrentPrincipal,
+    session: SessionDep,
+    settings: SettingsDep,
+    request: Request,
+) -> UserOut:
+    user_id = _require_human(principal)
+    user = await MfaService(session, settings).disable(user_id, payload.code)
+    AuditService(session).record(
+        tenant_id=principal.tenant_id,
+        actor_user_id=user_id,
+        action="user.mfa_disable",
+        entity_type="user",
+        entity_id=user_id,
+        ip=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    return UserOut.model_validate(user)
+
+
+def _require_human(principal: CurrentPrincipal) -> UUID:
+    """Второй фактор — свойство человека, а не машинного клиента.
+
+    У доступа по API-ключу нет пользователя, которому его подключать;
+    ключ отзывается, а не защищается кодом из телефона.
+    """
+    if principal.user_id is None:
+        raise PermissionDenied("Второй фактор недоступен для доступа по API-ключу")
+    return principal.user_id
 
 
 @users_router.get("", response_model=list[UserOut], summary="Пользователи компании")

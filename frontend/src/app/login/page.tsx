@@ -11,6 +11,12 @@ import styles from './page.module.css'
 const schema = z.object({
   email: z.string().min(1, 'Укажите адрес').email('Укажите корректный адрес'),
   password: z.string().min(1, 'Введите пароль'),
+  // Поле видно всем, а не только после отказа: ответ на неверный пароль
+  // и на отсутствующий код одинаков намеренно, и различить их здесь нечем.
+  mfaCode: z
+    .string()
+    .trim()
+    .regex(/^(\d{6})?$/, 'Код состоит из шести цифр'),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -22,14 +28,22 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) })
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: '', password: '', mfaCode: '' },
+  })
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
     try {
       const auth = await request<AuthResponse>('/auth/login', {
         method: 'POST',
-        body: values,
+        body: {
+          email: values.email,
+          password: values.password,
+          // Пустое поле — это «фактор не подключён», а не «код пустой».
+          ...(values.mfaCode ? { mfa_code: values.mfaCode } : {}),
+        },
       })
       tokens.save(auth)
       router.replace('/rate-shopping')
@@ -38,7 +52,7 @@ export default function LoginPage() {
       // почты и неверного пароля позволяет перебирать существующие адреса.
       setFormError(
         error instanceof ApiError && error.status === 401
-          ? 'Неверная почта или пароль'
+          ? 'Неверная почта, пароль или код второго фактора'
           : 'Не удалось войти. Попробуйте ещё раз',
       )
     }
@@ -70,6 +84,19 @@ export default function LoginPage() {
             {...register('password')}
           />
           {errors.password && <div className={styles.error}>{errors.password.message}</div>}
+        </div>
+        <div className={styles.field}>
+          <label htmlFor="mfaCode">Код второго фактора</label>
+          <input
+            id="mfaCode"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            placeholder="Если подключён"
+            {...register('mfaCode')}
+          />
+          {errors.mfaCode && <div className={styles.error}>{errors.mfaCode.message}</div>}
         </div>
         <button className={styles.submit} type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Входим…' : 'Войти'}

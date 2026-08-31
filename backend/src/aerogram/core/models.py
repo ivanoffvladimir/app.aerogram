@@ -14,6 +14,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
@@ -84,6 +85,10 @@ class User(Base, TenantMixin, TimestampMixin):
     #: Секрет TOTP. Для роли owner двухфакторная аутентификация обязательна (12.5 ТЗ).
     mfa_secret: Mapped[str | None] = mapped_column(String(255))
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Номер последнего принятого шага TOTP. Один шаг принимается один раз:
+    #: подсмотренный код годен до конца своих тридцати секунд (ADR-0018).
+    #: NULL — второй фактор ещё ни разу не предъявляли.
+    mfa_last_step: Mapped[int | None] = mapped_column(BigInteger)
 
     __table_args__ = (
         # Один и тот же человек может быть пользователем нескольких тенантов,

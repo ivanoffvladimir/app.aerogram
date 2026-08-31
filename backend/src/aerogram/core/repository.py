@@ -60,6 +60,28 @@ class UserRepository:
             update(User).where(User.id == user_id).values(last_login_at=utcnow())
         )
 
+    async def consume_mfa_step(self, user_id: UUID, step: int) -> bool:
+        """Отметить шаг TOTP использованным. ``False`` — шаг уже предъявляли.
+
+        Условие живёт в самом ``UPDATE``, а не в коде: два одновременных входа
+        с одним подсмотренным кодом попадают в одну строку, и выигрывает ровно
+        один из них — тот, чей ``UPDATE`` строку нашёл. Проверка «прочитали,
+        сравнили, записали» на уровне приложения пропустила бы оба.
+
+        ``<`` а не ``!=``: шаг только растёт, и перевод часов назад не должен
+        открывать окно на повтор уже сожжённых кодов.
+        """
+        stmt = (
+            update(User)
+            .where(
+                User.id == user_id,
+                or_(User.mfa_last_step.is_(None), User.mfa_last_step < step),
+            )
+            .values(mfa_last_step=step)
+            .returning(User.id)
+        )
+        return (await self._session.execute(stmt)).scalar_one_or_none() is not None
+
     def add(self, user: User) -> User:
         self._session.add(user)
         return user

@@ -38,6 +38,7 @@ from aerogram.core.security import (
     verify_password,
 )
 from aerogram.db import set_tenant
+from aerogram.shared import totp
 from aerogram.shared.addresses import assess_fitness
 from aerogram.shared.clock import utcnow
 from aerogram.shared.crypto import CredentialCipher
@@ -51,7 +52,14 @@ from aerogram.shared.errors import (
 )
 from aerogram.shared.logging import get_logger
 
-__all__ = ["AUTH_SCOPE_SETTING", "ApiKeyService", "AuthResult", "AuthService", "UserService"]
+__all__ = [
+    "AUTH_SCOPE_SETTING",
+    "ApiKeyService",
+    "AuthResult",
+    "AuthService",
+    "MfaService",
+    "UserService",
+]
 
 log = get_logger(__name__)
 
@@ -113,10 +121,16 @@ class AuthService:
         # Двухфакторная аутентификация обязательна для роли owner (12.5 ТЗ).
         if user.role == UserRole.OWNER and not user.mfa_enabled:
             log.warning("auth.owner_without_mfa", user_id=str(user.id))
-        if user.mfa_enabled:
-            _refuse_unverifiable_second_factor(user.id)
+        # Код сверяется ДО установки тенанта — на чтение секрета хватает окна
+        # входа. Списание шага требует записи и потому идёт ниже, под RLS.
+        step = verify_totp(user, mfa_code, self._settings) if user.mfa_enabled else None
 
         await set_tenant(self._session, user.tenant_id)
+        if step is not None and not await self._users.consume_mfa_step(user.id, step):
+            # Шаг уже предъявляли: код подсмотрен и повторён в пределах своих
+            # тридцати секунд. Ради этого случая второй фактор и существует.
+            log.warning("auth.mfa_replay", user_id=str(user.id))
+            raise AuthenticationError("Неверный код второго фактора")
         await self._users.touch_login(user.id)
 
         if needs_rehash(user.password_hash):
@@ -166,27 +180,125 @@ class AuthService:
             )
 
 
-def _refuse_unverifiable_second_factor(user_id: UUID) -> None:
-    """Отказать во входе, пока второй фактор нечем проверить.
+def verify_totp(user: User, code: str | None, settings: Settings) -> int:
+    """Сверить код второго фактора и вернуть номер сожжённого шага.
 
-    Верификатора TOTP в проекте нет: ``users.mfa_secret`` не читается ни одной
-    строкой кода, библиотеки TOTP в зависимостях нет. Прежняя проверка
-    принимала ЛЮБУЮ строку из шести символов как успешный второй фактор —
-    то есть не давала никакой защиты именно в том случае, ради которого
-    двухфакторная аутентификация и существует: когда пароль уже украден.
+    Возвращается именно шаг, а не «да/нет»: без него нечем отсечь повтор
+    подсмотренного кода (``shared.totp``, ADR-0018). Списывает шаг вызывающий —
+    здесь нет транзакции.
 
-    Поэтому падаем закрыто. Пользователь с включённой MFA войти не может,
-    и это осознанно: беззвучно пропускать его хуже, чем отказать.
-
-    СНЯТЬ ЭТУ ЗАГЛУШКУ вместе с появлением верификатора — выбор библиотеки TOTP
-    требует решения человека (CLAUDE.md §2), запись висит в docs/status.md,
-    раздел «Требует решения человека». Тогда здесь появится сверка кода
-    с ``mfa_secret`` и защита от повторного использования шага.
+    Секрет хранится зашифрованным с привязкой к идентификатору пользователя,
+    поэтому перенос шифротекста в чужую строку не расшифруется.
     """
-    log.error("auth.mfa_not_verifiable", user_id=str(user_id))
-    raise AuthenticationError(
-        "Вход по второму фактору временно недоступен: обратитесь к администратору"
-    )
+    if code is None:
+        raise AuthenticationError("Требуется код второго фактора")
+    if user.mfa_secret is None:
+        # Второй фактор включён, а секрета нет: чинить это входом нельзя.
+        log.error("auth.mfa_secret_missing", user_id=str(user.id))
+        raise AuthenticationError("Второй фактор настроен неверно: обратитесь к администратору")
+
+    secret = decrypt_mfa_secret(user, settings)
+    step = totp.verify(secret, code, at=utcnow())
+    if step is None:
+        log.info("auth.mfa_failed", user_id=str(user.id))
+        raise AuthenticationError("Неверный код второго фактора")
+    return step
+
+
+def encrypt_mfa_secret(user_id: UUID, secret: str, settings: Settings) -> str:
+    """Зашифровать секрет TOTP. AAD — идентификатор пользователя (ADR-0018)."""
+    cipher = CredentialCipher(settings.credential_key_map, settings.credential_active_key_id)
+    return cipher.encrypt(secret, aad=_mfa_aad(user_id))
+
+
+def decrypt_mfa_secret(user: User, settings: Settings) -> str:
+    """Расшифровать секрет TOTP владельца записи."""
+    if user.mfa_secret is None:
+        raise AuthenticationError("Второй фактор не подключён")
+    cipher = CredentialCipher(settings.credential_key_map, settings.credential_active_key_id)
+    return cipher.decrypt(user.mfa_secret, aad=_mfa_aad(user.id))
+
+
+def _mfa_aad(user_id: UUID) -> bytes:
+    """Метка назначения шифротекста.
+
+    Префикс отделяет секреты TOTP от учётных данных перевозчиков: у них общий
+    набор ключей, и без метки шифротекст одного вида в теории подставляется
+    в поле другого.
+    """
+    return f"mfa:{user_id}".encode()
+
+
+class MfaService:
+    """Подключение и отключение второго фактора (12.5 ТЗ).
+
+    Секрет отдаётся ровно один раз — в ответе на подключение. Повторно его
+    прочитать нельзя ни через какой эндпоинт: иначе украденная сессия
+    превращается в постоянный обход второго фактора.
+    """
+
+    def __init__(self, session: AsyncSession, settings: Settings) -> None:
+        self._session = session
+        self._settings = settings
+        self._users = UserRepository(session)
+
+    async def setup(self, user_id: UUID) -> tuple[str, str]:
+        """Выдать новый секрет. Возвращает пару «секрет, ссылка otpauth»."""
+        user = await self._require_user(user_id)
+        if user.mfa_enabled:
+            # Перевыпуск при включённом факторе — это его тихая замена.
+            # Сначала отключение с подтверждением кодом, потом новый секрет.
+            raise Conflict("Второй фактор уже подключён: сначала отключите его")
+
+        secret = totp.generate_secret()
+        user.mfa_secret = encrypt_mfa_secret(user.id, secret, self._settings)
+        user.mfa_last_step = None
+        log.info("auth.mfa_setup", user_id=str(user.id))
+        return secret, totp.provisioning_uri(
+            secret, account_name=user.email, issuer=self._settings.app_name
+        )
+
+    async def enable(self, user_id: UUID, code: str) -> User:
+        """Включить второй фактор, подтвердив владение секретом."""
+        user = await self._require_user(user_id)
+        if user.mfa_enabled:
+            raise Conflict("Второй фактор уже подключён")
+        if user.mfa_secret is None:
+            raise ValidationFailed("Секрет не выпущен: начните с подключения", field="code")
+
+        await self._burn(user, code)
+        user.mfa_enabled = True
+        log.info("auth.mfa_enabled", user_id=str(user.id))
+        return user
+
+    async def disable(self, user_id: UUID, code: str) -> User:
+        """Отключить второй фактор. Код обязателен: иначе это делает любая сессия."""
+        user = await self._require_user(user_id)
+        if not user.mfa_enabled:
+            raise Conflict("Второй фактор не подключён")
+
+        await self._burn(user, code)
+        user.mfa_enabled = False
+        user.mfa_secret = None
+        user.mfa_last_step = None
+        if user.role == UserRole.OWNER:
+            # 12.5 ТЗ требует второй фактор для владельца. Вход его отсутствие
+            # пока не запрещает — см. docs/status.md, решение за человеком.
+            log.warning("auth.owner_mfa_disabled", user_id=str(user.id))
+        log.info("auth.mfa_disabled", user_id=str(user.id))
+        return user
+
+    async def _burn(self, user: User, code: str) -> None:
+        step = verify_totp(user, code, self._settings)
+        if not await self._users.consume_mfa_step(user.id, step):
+            log.warning("auth.mfa_replay", user_id=str(user.id))
+            raise AuthenticationError("Неверный код второго фактора")
+
+    async def _require_user(self, user_id: UUID) -> User:
+        user = await self._users.get_by_id(user_id)
+        if user is None:
+            raise NotFound("Пользователь не найден")
+        return user
 
 
 class UserService:
