@@ -22,6 +22,7 @@ from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import CargoType, LabelFormat, PriceSource
 from aerogram.shared.errors import CarrierError, CarrierValidationError
 from aerogram.shared.money import Money
+from aerogram.shared.schemas import PackageSchema
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "cdek"
 
@@ -88,6 +89,17 @@ class TestWeightUnits:
     )
     def test_converts_kilograms_to_grams(self, kg: str, grams: int) -> None:
         assert grams_from_kg(Decimal(kg)) == grams
+
+    @pytest.mark.parametrize("grams", [1, 999, 10_100, 10_150, 12_345])
+    def test_the_round_trip_from_the_api_loses_nothing(self, grams: int) -> None:
+        """Граммы → килограммы → граммы обязаны сойтись ровно.
+
+        Вес приходит целыми граммами, домен работает в килограммах,
+        а перевозчику уходят снова граммы. Десятые доли килограмма —
+        обычное дело (10,1 кг), и потеря на этом круге дала бы цену
+        не за тот вес.
+        """
+        assert grams_from_kg(PackageSchema(weight_grams=grams).weight_kg) == grams
 
     def test_rounds_up_partial_grams(self) -> None:
         # Занизить вес значит недобрать с клиента: перевозчик посчитает
