@@ -87,14 +87,29 @@ class TestRefusal:
 
 
 class TestCredentialSchemas:
-    def test_declared_carriers_name_their_fields(self) -> None:
-        assert schema_for("major").names == ("login", "password")  # type: ignore[union-attr]
-        assert schema_for("cdek").names == ("client_id", "client_secret")  # type: ignore[union-attr]
+    def test_declared_carriers_name_their_required_fields(self) -> None:
+        """Обязательное — то, без чего перевозчик не работает вовсе.
+
+        Секрет подписи вебхуков сюда не входит намеренно: без него расчёт,
+        оформление и трекинг опросом работают, и требовать его значило бы
+        не дать подключиться тому, кому вебхуки не нужны.
+        """
+        assert schema_for("major").required_names == ("login", "password")  # type: ignore[union-attr]
+        assert schema_for("cdek").required_names == (  # type: ignore[union-attr]
+            "client_id",
+            "client_secret",
+        )
+
+    def test_every_carrier_also_asks_for_the_webhook_secret(self) -> None:
+        """Поля, которого нет в описании, кабинет не покажет и скрипт
+        не спросит — задать его будет негде."""
+        for code in ("major", "cdek"):
+            assert "webhook_secret" in schema_for(code).names  # type: ignore[union-attr]
 
     def test_identifiers_are_not_hidden_but_secrets_are(self) -> None:
         """Скрывать идентификатор клиента значит мешать оператору себя проверить."""
         fields = {f.name: f.secret for f in CREDENTIAL_SCHEMAS["cdek"].fields}
-        assert fields == {"client_id": False, "client_secret": True}
+        assert fields == {"client_id": False, "client_secret": True, "webhook_secret": True}
 
     def test_missing_fields_lists_what_to_fill(self) -> None:
         assert missing_fields("major", {"login": "l"}) == ["password"]

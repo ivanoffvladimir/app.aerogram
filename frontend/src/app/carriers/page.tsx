@@ -85,7 +85,11 @@ export default function CarriersPage() {
                 <td className={styles.components}>
                   {carrier.credential_fields.length === 0
                     ? 'состав доступов не определён'
-                    : carrier.credential_fields.map((f) => f.label).join(' · ')}
+                    : carrier.credential_fields
+                        // Необязательное помечается: без секрета подписи
+                        // перевозчик подключён и работает, просто на опросе.
+                        .map((f) => (f.required ? f.label : `${f.label} (не обязателен)`))
+                        .join(' · ')}
                 </td>
               </tr>
             ))}

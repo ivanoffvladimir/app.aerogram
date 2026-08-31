@@ -187,7 +187,7 @@ export interface CarrierConnection {
   status: string | null
   status_message: string | null
   contract_number: string | null
-  credential_fields: { name: string; label: string; secret: boolean }[]
+  credential_fields: { name: string; label: string; secret: boolean; required: boolean }[]
   where_to_get: string | null
 }
 

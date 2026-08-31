@@ -284,6 +284,9 @@ class CredentialFieldOut(BaseModel):
     name: str
     label: str
     secret: bool
+    #: Без обязательного поля перевозчик не работает вовсе; необязательное
+    #: включает отдельную возможность — например, приём вебхуков.
+    required: bool = True
 
 
 class CarrierConnectionOut(BaseModel):

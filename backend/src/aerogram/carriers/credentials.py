@@ -24,6 +24,7 @@ from dataclasses import dataclass
 __all__ = [
     "CREDENTIAL_SCHEMAS",
     "PENDING_CARRIERS",
+    "WEBHOOK_SECRET_FIELD",
     "CredentialField",
     "CredentialSchema",
     "missing_fields",
@@ -42,6 +43,10 @@ class CredentialField:
     #: не пишется в логи. Идентификатор клиента секретом не является —
     #: скрывать его значит мешать оператору проверить, что он ввёл.
     secret: bool = True
+    #: Без обязательного поля перевозчик не работает вовсе. Необязательное
+    #: включает отдельную возможность: без секрета подписи вебхуков просто
+    #: не будет, а расчёт и оформление продолжат работать на опросе.
+    required: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,12 +61,27 @@ class CredentialSchema:
     def names(self) -> tuple[str, ...]:
         return tuple(field.name for field in self.fields)
 
+    @property
+    def required_names(self) -> tuple[str, ...]:
+        return tuple(field.name for field in self.fields if field.required)
+
+
+#: Секрет подписи входящих вебхуков. Общий для всех перевозчиков и
+#: необязательный: без него приём вебхуков не работает, а расчёт, оформление
+#: и трекинг опросом работают. Проверять подпись «как получится» нельзя —
+#: непроверенное событие в ленте нечем оспорить (ADR-0015).
+WEBHOOK_SECRET_FIELD = CredentialField(
+    "webhook_secret",
+    "Секрет подписи вебхуков",
+    required=False,
+)
 
 CREDENTIAL_SCHEMAS: dict[str, CredentialSchema] = {
     "major": CredentialSchema(
         fields=(
             CredentialField("login", "Логин веб-сервиса", secret=False),
             CredentialField("password", "Пароль веб-сервиса"),
+            WEBHOOK_SECRET_FIELD,
         ),
         where_to_get="Выдаёт менеджер Major Express вместе с доступом к веб-сервису.",
     ),
@@ -69,6 +89,7 @@ CREDENTIAL_SCHEMAS: dict[str, CredentialSchema] = {
         fields=(
             CredentialField("client_id", "Идентификатор клиента", secret=False),
             CredentialField("client_secret", "Секрет клиента"),
+            WEBHOOK_SECRET_FIELD,
         ),
         where_to_get="Личный кабинет СДЭК, раздел интеграции: пара для OAuth.",
     ),
@@ -95,4 +116,6 @@ def missing_fields(carrier_code: str, credentials: dict[str, str]) -> list[str]:
     schema = schema_for(carrier_code)
     if schema is None:
         return []
-    return [name for name in schema.names if not credentials.get(name)]
+    # Необязательные не считаются недостающими: перевозчик без секрета
+    # подписи вебхуков подключён и работает, просто на опросе.
+    return [name for name in schema.required_names if not credentials.get(name)]

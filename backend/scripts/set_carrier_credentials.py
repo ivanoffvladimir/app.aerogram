@@ -62,7 +62,9 @@ def _check(carrier_code: str, fields: tuple[str, ...], values: dict[str, str]) -
     В сообщение попадают только ИМЕНА полей: значения не должны оказаться
     ни в выводе, ни в журнале сеанса.
     """
-    missing = [name for name in fields if not values.get(name)]
+    schema = schema_for(carrier_code)
+    optional = {f.name for f in schema.fields if not f.required} if schema else set()
+    missing = [name for name in fields if name not in optional and not values.get(name)]
     if missing:
         raise SystemExit("не заполнены поля: " + ", ".join(missing))
     if schema_for(carrier_code) is not None:
@@ -88,10 +90,17 @@ def _read_credentials(carrier_code: str, fields: tuple[str, ...]) -> dict[str, s
         print(schema.where_to_get)
     labels = {f.name: f.label for f in schema.fields} if schema else {}
 
+    optional = {f.name for f in schema.fields if not f.required} if schema else set()
+
     values = {}
     for field in fields:
-        value = getpass(f"{labels.get(field, field)}: ")
+        hint = " (можно пропустить)" if field in optional else ""
+        value = getpass(f"{labels.get(field, field)}{hint}: ")
         if not value:
+            if field in optional:
+                # Пустое необязательное не пишется вовсе: пустая строка
+                # в конверте выглядела бы как заданный секрет.
+                continue
             raise SystemExit(f"поле {field} не может быть пустым")
         values[field] = value
     return values

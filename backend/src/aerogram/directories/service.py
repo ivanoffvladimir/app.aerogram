@@ -635,7 +635,9 @@ class CarrierDirectoryService:
                     # учётные данные перевозчика не попадают в ответ, лог
                     # и снимок (CLAUDE.md §6).
                     credential_fields=[
-                        CredentialFieldOut(name=f.name, label=f.label, secret=f.secret)
+                        CredentialFieldOut(
+                            name=f.name, label=f.label, secret=f.secret, required=f.required
+                        )
                         for f in (schema.fields if schema else ())
                     ],
                     where_to_get=schema.where_to_get if schema else None,
