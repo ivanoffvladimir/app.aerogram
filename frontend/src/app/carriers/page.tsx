@@ -3,8 +3,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { request, tokens, type ApiError, type CarrierAnalytics } from '@/api/client'
+import {
+  request,
+  tokens,
+  type ApiError,
+  type CarrierAnalytics,
+  type CarrierConnection,
+} from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ACCOUNT_STATUS_LABELS, CARRIER_MODE_LABELS } from '@/lib/directory'
 import { CONFIDENCE_LABELS, formatPercent } from '@/lib/format'
 import styles from './page.module.css'
 
@@ -33,9 +40,60 @@ export default function CarriersPage() {
     queryFn: () => request<CarrierAnalytics[]>('/analytics/carriers'),
   })
 
+  const connections = useQuery({
+    queryKey: ['carrier-connections'],
+    queryFn: () => request<CarrierConnection[]>('/carriers'),
+  })
+
   return (
     <AppShell>
       <h1>Перевозчики</h1>
+
+      <h2 className={styles.section}>Подключение</h2>
+      <p className={styles.note}>
+        По договору клиента считается его цена, по тарифу Logistics OS — наша. Учётные данные
+        вводятся один раз и обратно не показываются: увидеть можно только то, какие поля нужны.
+      </p>
+
+      {connections.isError && <p role="alert">{(connections.error as ApiError).message}</p>}
+
+      <div className={styles.tableWrap} style={{ marginBottom: 32 }}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Перевозчик</th>
+              <th>Подключён</th>
+              <th>Договор</th>
+              <th>Доступы</th>
+              <th>Что нужно для подключения</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(connections.data ?? []).map((carrier) => (
+              <tr key={carrier.carrier_id}>
+                <td>{carrier.name}</td>
+                <td>{carrier.connected ? 'да' : <span className={styles.noData}>нет</span>}</td>
+                <td>
+                  {carrier.mode ? CARRIER_MODE_LABELS[carrier.mode] ?? carrier.mode : '—'}
+                  {carrier.is_sandbox && <span className={styles.confidence}>песочница</span>}
+                </td>
+                <td>
+                  {carrier.status
+                    ? ACCOUNT_STATUS_LABELS[carrier.status] ?? carrier.status
+                    : '—'}
+                </td>
+                <td className={styles.components}>
+                  {carrier.credential_fields.length === 0
+                    ? 'состав доступов не определён'
+                    : carrier.credential_fields.map((f) => f.label).join(' · ')}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 className={styles.section}>Качество доставки</h2>
       <p className={styles.note}>
         Скор считается по фактическим доставкам за последние 30 суток. Пока наблюдений меньше
         десяти, число не показывается вовсе: ноль читался бы как «худший перевозчик», а он

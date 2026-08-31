@@ -165,6 +165,32 @@ export interface User {
   last_login_at: string | null
 }
 
+/**
+ * Перевозчик и состояние подключения тенанта (`GET /v1/carriers`).
+ *
+ * Путь в контракте объявлен без схемы ответа — только
+ * `description: Carriers`, — поэтому тип написан руками по
+ * `directories/schemas.py`.
+ *
+ * Учётных данных здесь нет и быть не может: приходят только имена полей,
+ * которые нужно ввести для подключения.
+ */
+export interface CarrierConnection {
+  carrier_id: string
+  code: string
+  name: string
+  logo_url: string | null
+  capabilities: Record<string, unknown>
+  connected: boolean
+  mode: 'own_contract' | 'aerogram' | null
+  is_sandbox: boolean | null
+  status: string | null
+  status_message: string | null
+  contract_number: string | null
+  credential_fields: { name: string; label: string; secret: boolean }[]
+  where_to_get: string | null
+}
+
 /** Единый формат ошибки бэкенда. */
 export interface ApiErrorBody {
   error: {

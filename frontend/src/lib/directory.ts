@@ -52,3 +52,17 @@ export function formatAddress(address: {
     .filter((part): part is string => Boolean(part))
     .join(', ')
 }
+
+
+/** Режим договора с перевозчиком. */
+export const CARRIER_MODE_LABELS: Record<string, string> = {
+  own_contract: 'Договор клиента',
+  aerogram: 'Тариф Logistics OS',
+}
+
+/** Итог последней проверки доступов. */
+export const ACCOUNT_STATUS_LABELS: Record<string, string> = {
+  unchecked: 'не проверялись',
+  ok: 'в порядке',
+  error: 'ошибка',
+}

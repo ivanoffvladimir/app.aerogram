@@ -12,6 +12,7 @@ from aerogram.core.service import AuditService
 from aerogram.directories.deps import DadataDep
 from aerogram.directories.repository import CarrierRepository, TerminalRepository
 from aerogram.directories.schemas import (
+    CarrierConnectionOut,
     CityMappingConfirm,
     CityMappingQueueItem,
     CitySuggestResponse,
@@ -21,7 +22,12 @@ from aerogram.directories.schemas import (
     TerminalListResponse,
     TerminalOut,
 )
-from aerogram.directories.service import AddressService, CityMappingService, CityService
+from aerogram.directories.service import (
+    AddressService,
+    CarrierDirectoryService,
+    CityMappingService,
+    CityService,
+)
 from aerogram.shared.enums import UserRole
 from aerogram.shared.errors import NotFound, ValidationFailed
 
@@ -80,6 +86,26 @@ async def lookup_party(
 ) -> PartyDraft:
     """Черновик контрагента по ИНН для адресной книги (FR-8.4)."""
     return await AddressService(session, dadata).find_party(payload.inn, payload.kpp)
+
+
+@directories_router.get(
+    "/carriers",
+    response_model=list[CarrierConnectionOut],
+    summary="Подключённые перевозчики",
+)
+async def list_carriers(
+    principal: CurrentPrincipal,
+    session: SessionDep,
+) -> list[CarrierConnectionOut]:
+    """Перевозчики платформы и состояние подключения тенанта.
+
+    Неподключённые тоже в списке: экран подключения существует затем, чтобы
+    показать, кого ещё можно подключить, и что для этого потребуется ввести.
+
+    Учётные данные не возвращаются ни в каком виде — только имена полей,
+    которых требует перевозчик.
+    """
+    return await CarrierDirectoryService(session).connections()
 
 
 @directories_router.get(

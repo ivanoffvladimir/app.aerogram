@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ACCOUNT_STATUS_LABELS,
+  CARRIER_MODE_LABELS,
   COUNTERPARTY_TYPE_LABELS,
   formatAddress,
   ROLE_LABELS,
@@ -57,5 +59,19 @@ describe('адрес одной строкой', () => {
   it('называет квартиру, а не приписывает её к дому', () => {
     // «1, 5» читалось бы как два дома.
     expect(formatAddress({ ...ADDRESS, flat: '5' })).toContain('1, кв. 5')
+  })
+})
+
+
+describe('подключение перевозчика', () => {
+  it('называет оба режима договора', () => {
+    // Значения совпадают с проверкой carrier_account_mode в core/models.py.
+    expect(Object.keys(CARRIER_MODE_LABELS).sort()).toEqual(['aerogram', 'own_contract'])
+  })
+
+  it('называет все состояния проверки доступов', () => {
+    for (const status of ['unchecked', 'ok', 'error']) {
+      expect(ACCOUNT_STATUS_LABELS[status]).toBeTruthy()
+    }
   })
 })

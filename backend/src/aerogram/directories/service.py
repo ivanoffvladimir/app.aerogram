@@ -17,6 +17,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aerogram.carriers.base import CarrierCity, Party, RefCatalog
+from aerogram.carriers.credentials import schema_for
+from aerogram.core.repository import CarrierAccountRepository
 from aerogram.directories.dadata import DadataClient
 from aerogram.directories.models import City
 from aerogram.directories.normalization import (
@@ -33,8 +35,10 @@ from aerogram.directories.repository import (
     TerminalRepository,
 )
 from aerogram.directories.schemas import (
+    CarrierConnectionOut,
     CitySuggestion,
     CitySuggestResponse,
+    CredentialFieldOut,
     NormalizedAddress,
     PartyDraft,
     TerminalUpsert,
@@ -49,6 +53,7 @@ __all__ = [
     "AUTO_CONFIRM_THRESHOLD",
     "FUZZY_THRESHOLD",
     "AddressService",
+    "CarrierDirectoryService",
     "CarrierPartyResolver",
     "CityMappingService",
     "CityService",
@@ -587,3 +592,53 @@ class RefSyncService:
             is_complete=catalog.is_complete,
         )
         return report
+
+
+class CarrierDirectoryService:
+    """Перевозчики и состояние их подключения у тенанта.
+
+    Живёт в ``directories``, а не в ``core``: справочник перевозчиков —
+    здешняя таблица, а ``core`` прикладным модулям подчиняться не может
+    (контракт ``core-below-domain``).
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._carriers = CarrierRepository(session)
+        self._accounts = CarrierAccountRepository(session)
+
+    async def connections(self) -> list[CarrierConnectionOut]:
+        """Все перевозчики платформы с отметкой о подключении тенанта.
+
+        Неподключённые не пропускаются: экран подключения существует ровно
+        затем, чтобы показать, кого ещё можно подключить. Тенант при этом
+        видит только свои учётные записи — их отбирает RLS.
+        """
+        accounts = {a.carrier_id: a for a in await self._accounts.list_active()}
+        rows: list[CarrierConnectionOut] = []
+        for carrier in await self._carriers.list_active():
+            account = accounts.get(carrier.id)
+            schema = schema_for(carrier.code)
+            rows.append(
+                CarrierConnectionOut(
+                    carrier_id=carrier.id,
+                    code=carrier.code,
+                    name=carrier.name,
+                    logo_url=carrier.logo_url,
+                    capabilities=dict(carrier.capabilities or {}),
+                    connected=account is not None,
+                    mode=account.mode if account else None,
+                    is_sandbox=account.is_sandbox if account else None,
+                    status=account.status if account else None,
+                    status_message=account.status_message if account else None,
+                    contract_number=account.contract_number if account else None,
+                    # Только имена полей. Значения не возвращаются никогда:
+                    # учётные данные перевозчика не попадают в ответ, лог
+                    # и снимок (CLAUDE.md §6).
+                    credential_fields=[
+                        CredentialFieldOut(name=f.name, label=f.label, secret=f.secret)
+                        for f in (schema.fields if schema else ())
+                    ],
+                    where_to_get=schema.where_to_get if schema else None,
+                )
+            )
+        return rows

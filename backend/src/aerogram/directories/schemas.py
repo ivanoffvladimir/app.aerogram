@@ -13,11 +13,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 __all__ = [
     "AddressNormalizeRequest",
+    "CarrierConnectionOut",
     "CityMappingConfirm",
     "CityMappingQueueItem",
     "CityOut",
     "CitySuggestResponse",
     "CitySuggestion",
+    "CredentialFieldOut",
     "DadataAddressData",
     "DadataSuggestion",
     "NormalizedAddress",
@@ -267,3 +269,50 @@ class TerminalUpsert(BaseModel):
     has_cash: bool = False
     has_card: bool = False
     max_weight_kg: float | None = None
+
+
+class CredentialFieldOut(BaseModel):
+    """Поле доступа, которое перевозчик требует от клиента.
+
+    Здесь только ИМЯ и подпись поля. Значения не возвращаются ни в каком виде
+    и ни при каких условиях (CLAUDE.md §6): состав полей — не секрет, а вот
+    их содержимое клиент вводит один раз и обратно не получает.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    label: str
+    secret: bool
+
+
+class CarrierConnectionOut(BaseModel):
+    """Перевозчик и состояние его подключения у тенанта.
+
+    Отвечает на вопрос экрана подключения: кто вообще есть, с кем у нас
+    договор, по чьему тарифу считаем и что нужно ввести, чтобы подключить
+    остальных.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    carrier_id: UUID
+    code: str
+    name: str
+    logo_url: str | None = None
+    #: Возможности адаптера: расчёт, создание, отмена, трекинг, этикетки.
+    capabilities: dict[str, object] = Field(default_factory=dict)
+    #: Есть ли действующая учётная запись тенанта у этого перевозчика.
+    connected: bool = False
+    #: Чей договор: ``own_contract`` — клиента, ``aerogram`` — платформы.
+    mode: str | None = None
+    is_sandbox: bool | None = None
+    #: Итог последней проверки доступов: unchecked / ok / error.
+    status: str | None = None
+    status_message: str | None = None
+    contract_number: str | None = None
+    #: Что нужно ввести для подключения по собственному договору.
+    #: Пустой список означает, что состав доступов ещё не определён
+    #: (перевозчик не подключён к платформе).
+    credential_fields: list[CredentialFieldOut] = Field(default_factory=list)
+    where_to_get: str | None = None
