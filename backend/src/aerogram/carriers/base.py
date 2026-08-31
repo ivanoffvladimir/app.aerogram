@@ -39,6 +39,7 @@ __all__ = [
     "RefCatalog",
     "ShipmentRequest",
     "ShipmentResult",
+    "WebhookUpdate",
 ]
 
 
@@ -240,6 +241,23 @@ class RawEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class WebhookUpdate:
+    """Обновление по одному заказу, разобранное из вебхука перевозчика.
+
+    Отдельный тип, а не голый список событий, по одной причине: вебхук
+    приходит БЕЗ тенанта, и найти отправление можно только по идентификатору
+    заказа у перевозчика. Знает его формат один адаптер, поэтому он и обязан
+    его отдать — иначе принимающая сторона не поймёт, чьё это событие.
+
+    Список, потому что один вебхук может нести обновления по нескольким
+    заказам: у части перевозчиков события отправляются пачкой.
+    """
+
+    external_id: str
+    events: tuple[RawEvent, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class CarrierCity:
     """Город в справочнике перевозчика, с его собственным кодом.
 
@@ -349,7 +367,13 @@ class CarrierAdapter(Protocol):
         """
         ...
 
-    def parse_webhook(self, payload: dict[str, object]) -> list[RawEvent]: ...
+    def parse_webhook(self, payload: dict[str, object]) -> list[WebhookUpdate]:
+        """Разобрать вебхук: по какому заказу и что произошло.
+
+        Идентификатор заказа обязателен в ответе: вебхук приходит без тенанта,
+        и без него найти отправление невозможно (ADR-0015).
+        """
+        ...
 
     def verify_webhook(self, payload: bytes, headers: dict[str, str], secret: str) -> bool:
         """Проверить подпись или секрет вебхука (FR-3.1)."""

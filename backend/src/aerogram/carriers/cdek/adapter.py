@@ -28,6 +28,7 @@ from aerogram.carriers.base import (
     RefCatalog,
     ShipmentRequest,
     ShipmentResult,
+    WebhookUpdate,
 )
 from aerogram.carriers.cdek.client import CdekClient
 from aerogram.carriers.cdek.mapping import (
@@ -283,7 +284,7 @@ class CdekAdapter:
     async def track(self, ext_id: str, acc: CarrierAccount) -> list[RawEvent]:
         raise self._not_implemented("трекинг", "неделя 8")
 
-    def parse_webhook(self, payload: dict[str, object]) -> list[RawEvent]:
+    def parse_webhook(self, payload: dict[str, object]) -> list[WebhookUpdate]:
         raise self._not_implemented("приём вебхуков", "неделя 8")
 
     def verify_webhook(self, payload: bytes, headers: dict[str, str], secret: str) -> bool:

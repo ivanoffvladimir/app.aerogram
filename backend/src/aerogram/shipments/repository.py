@@ -4,12 +4,18 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import ShipmentStatus
 from aerogram.shipments.models import Shipment
+
+#: Настройка сессии, открывающая узкое окно на поиск отправления по вебхуку.
+#: Значение отличается от ``login`` и ``api_key`` намеренно: окно на
+#: ``shipments`` не должно открывать ``users`` или ``api_keys``.
+WEBHOOK_SCOPE_SETTING = "app.auth_scope"
+WEBHOOK_SCOPE_VALUE = "webhook"
 
 __all__ = ["ShipmentRepository"]
 
@@ -46,6 +52,32 @@ class ShipmentRepository:
 
     async def by_number(self, number: str) -> Shipment | None:
         stmt = select(Shipment).where(Shipment.number == number)
+        return (await self._session.execute(stmt)).scalar_one_or_none()
+
+    async def find_for_webhook(self, carrier_id: UUID, external_id: str) -> Shipment | None:
+        """Найти отправление по заказу перевозчика, когда тенант неизвестен.
+
+        **Единственное место, где открывается окно ``app.auth_scope = 'webhook'``**
+        (миграция 0010, решение — ADR-0015). Вебхук приходит без контекста
+        тенанта: перевозчик знает только свой идентификатор заказа, а RLS без
+        установленного ``app.tenant_id`` не отдаёт ни строки.
+
+        Окно транзакционное и только на ``SELECT``: записать через него нельзя,
+        события принимаются уже под тенантом найденного отправления. За тем,
+        что второго такого места не появилось, следит
+        ``tests/unit/test_auth_scope_guard.py``.
+
+        Отбор по перевозчику обязателен: идентификаторы заказов у разных ТК
+        независимы, и совпадение строк у двух перевозчиков — вопрос времени.
+        """
+        await self._session.execute(
+            text("SELECT set_config(:name, :value, true)"),
+            {"name": WEBHOOK_SCOPE_SETTING, "value": WEBHOOK_SCOPE_VALUE},
+        )
+        stmt = select(Shipment).where(
+            Shipment.carrier_id == carrier_id,
+            Shipment.external_id == external_id,
+        )
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
     async def unconfirmed(self, limit: int = 100) -> list[Shipment]:

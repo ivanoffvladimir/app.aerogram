@@ -24,6 +24,7 @@ from aerogram.carriers.base import (
     RefCatalog,
     ShipmentRequest,
     ShipmentResult,
+    WebhookUpdate,
 )
 from aerogram.carriers.major.client import CARRIER_CODE, MajorExpressClient
 from aerogram.shared.enums import LabelFormat
@@ -96,7 +97,7 @@ class MajorExpressAdapter:
     async def fetch_refs(self, acc: CarrierAccount) -> RefCatalog:
         raise self._refuse(acc, "выгрузки справочников")
 
-    def parse_webhook(self, payload: dict[str, object]) -> list[RawEvent]:
+    def parse_webhook(self, payload: dict[str, object]) -> list[WebhookUpdate]:
         """Разбор вебхука. Учётной записи здесь нет, поэтому причина общая."""
         raise CarrierNotConfigured(
             "Приём вебхуков Major Express не настроен", carrier_code=CARRIER_CODE
