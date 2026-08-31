@@ -139,6 +139,27 @@ class TestVolumetricWeight:
     def test_carrier_specific_divisor(self) -> None:
         assert volumetric_weight(40, 30, 25, divisor=6000) == Decimal("5.000")
 
+    def test_the_iata_divisor_matches_the_cubic_metre_rule(self) -> None:
+        """Две записи одного правила: делитель 6000 на см³ и 167 кг на м³.
+
+        Отрасль пользуется обеими, и расхождение между ними означало бы,
+        что мы считаем не то же, что перевозчик: кубометр — это миллион
+        кубических сантиметров, и при делителе 6000 он даёт 166,667 кг.
+        """
+        cubic_metre = volumetric_weight(100, 100, 100, divisor=6000)
+
+        assert cubic_metre == Decimal("166.667")
+        assert abs(cubic_metre - Decimal(167)) < Decimal("0.5")
+
+    def test_a_smaller_divisor_charges_more(self) -> None:
+        """Почему по умолчанию 5000, а не 6000: занижать дороже.
+
+        Счёт от перевозчика придёт по его коэффициенту, а не по нашему.
+        """
+        assert volumetric_weight(60, 50, 40, divisor=5000) > volumetric_weight(
+            60, 50, 40, divisor=6000
+        )
+
     @pytest.mark.parametrize(
         ("length", "width", "height"),
         [(0, 10, 10), (10, 0, 10), (10, 10, 0), (-1, 10, 10)],

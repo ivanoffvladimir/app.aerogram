@@ -8,7 +8,14 @@ from decimal import Decimal
 
 import pytest
 
-from aerogram.carriers.base import CarrierAccount, Party, Place, QuoteRequest, RawEvent
+from aerogram.carriers.base import (
+    Capabilities,
+    CarrierAccount,
+    Party,
+    Place,
+    QuoteRequest,
+    RawEvent,
+)
 from aerogram.shared.enums import CargoType, PriceSource
 
 
@@ -85,3 +92,23 @@ class TestRawEvent:
         first = RawEvent(occurred_at=moment, status_raw="DELIVERED", city="Москва")
         second = RawEvent(occurred_at=moment, status_raw="IN_TRANSIT", city="Москва")
         assert first.dedup_key() != second.dedup_key()
+
+
+class TestVolumetricDefault:
+    """Кто считает объёмный вес — решается умолчанием в безопасную сторону."""
+
+    def test_a_carrier_is_assumed_to_count_it_itself(self) -> None:
+        """Перевозчики считают объём по габаритам, которые мы им шлём:
+        так делают СДЭК, ПЭК, Деловые Линии и остальные пилотные.
+
+        Поэтому умолчание — «считает сам», и платформа вес не досчитывает.
+        Ошибись умолчание в другую сторону, новый адаптер молча получал бы
+        объём в счёте дважды: один раз от нас в подменённом весе, второй —
+        от перевозчика по тем же габаритам. Завышение цены заметить труднее,
+        чем занижение: клиент не жалуется на то, чего не видит.
+        """
+        assert Capabilities().computes_volumetric_weight is True
+
+    def test_not_counting_it_is_an_explicit_declaration(self) -> None:
+        snapshot = Capabilities(computes_volumetric_weight=False).as_dict()
+        assert snapshot["computes_volumetric_weight"] is False

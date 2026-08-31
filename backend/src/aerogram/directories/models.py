@@ -53,7 +53,9 @@ class Carrier(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     #: Снимок Capabilities адаптера — чтобы фронт и API не импортировали код адаптера.
     capabilities: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
-    #: Делитель объёмного веса перевозчика (FR-1.2), по умолчанию 5000.
+    #: Делитель объёмного веса ЭТОГО перевозчика (FR-1.2). Ориентир IATA — 6000,
+    #: часть перевозчиков применяет 5000; значение берётся из тарифа и ставится
+    #: скриптом ``scripts/set_volumetric_divisor.py``.
     volumetric_divisor: Mapped[int] = mapped_column(Integer, nullable=False, default=5000)
 
     __table_args__ = (UniqueConstraint("code", name="uq_carriers_code"),)
