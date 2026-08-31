@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+from decimal import Decimal
 from uuid import UUID
 
 import pytest
@@ -17,6 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from aerogram.carriers import registry
+from aerogram.carriers.base import Capabilities
 from aerogram.core.models import CarrierAccount as CarrierAccountModel
 from aerogram.directories.models import Carrier
 from aerogram.shared.crypto import CredentialCipher
@@ -717,3 +719,79 @@ class TestNoDeadlineMatch:
         assert body["offers"] == []
         assert body["failures"] != []
         assert body["no_deadline_match"] is False
+
+
+#: Лёгкая, но громоздкая коробка: 60 × 50 × 40 см при килограмме. Объёмный вес
+#: 120000 / 5000 = 24 кг — в двадцать четыре раза больше фактического, и именно
+#: по нему выставит счёт перевозчик.
+BULKY = {
+    **RATE_REQUEST,
+    "packages": [{"weight_grams": 1_000, "length_mm": 600, "width_mm": 500, "height_mm": 400}],
+}
+
+
+class TestChargeableWeight:
+    """FR-1.2: платят по большему из весов — фактическому и объёмному.
+
+    Объёмный считается как Д × Ш × В (см) / делитель перевозчика, по умолчанию
+    5000. Подменять вес нужно только тому перевозчику, который сам объёмный
+    вес не считает: иначе он посчитает его ещё раз, уже поверх подменённого,
+    и клиент заплатит дважды за один и тот же объём.
+    """
+
+    async def test_a_carrier_that_does_not_count_it_gets_the_volumetric_weight(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """Иначе мы считаем по килограмму, а счёт придёт за двадцать четыре."""
+        carrier = FakeCarrier("fake")
+        carrier.capabilities = Capabilities(supports_cancel=True, computes_volumetric_weight=False)
+        registry.register(carrier)
+
+        await client.post("/v1/rates", json=BULKY, headers=headers)
+
+        assert carrier.seen[0].places[0].weight_kg == Decimal("24.000")
+
+    async def test_a_carrier_that_counts_it_gets_the_actual_weight(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """Двойной учёт объёма дороже занижения: он завышает цену молча."""
+        carrier = FakeCarrier("fake")
+        assert carrier.capabilities.computes_volumetric_weight is True
+        registry.register(carrier)
+
+        await client.post("/v1/rates", json=BULKY, headers=headers)
+
+        assert carrier.seen[0].places[0].weight_kg == Decimal("1")
+
+    async def test_a_heavy_compact_parcel_keeps_its_actual_weight(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """Максимум, а не замена: плотный груз тарифицируется по факту."""
+        carrier = FakeCarrier("fake")
+        carrier.capabilities = Capabilities(supports_cancel=True, computes_volumetric_weight=False)
+        registry.register(carrier)
+        dense = {
+            **RATE_REQUEST,
+            "packages": [
+                {"weight_grams": 30_000, "length_mm": 200, "width_mm": 200, "height_mm": 200}
+            ],
+        }
+
+        await client.post("/v1/rates", json=dense, headers=headers)
+
+        # Объёмный: 20 × 20 × 20 / 5000 = 1.6 кг, фактический 30 кг.
+        assert carrier.seen[0].places[0].weight_kg == Decimal("30.000")
+
+    async def test_a_package_without_dimensions_is_not_made_heavier(
+        self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
+    ) -> None:
+        """Габариты в контракте необязательны, и их отсутствие не повод
+        завысить цену."""
+        carrier = FakeCarrier("fake")
+        carrier.capabilities = Capabilities(supports_cancel=True, computes_volumetric_weight=False)
+        registry.register(carrier)
+        no_dimensions = {**RATE_REQUEST, "packages": [{"weight_grams": 2_000}]}
+
+        await client.post("/v1/rates", json=no_dimensions, headers=headers)
+
+        assert carrier.seen[0].places[0].weight_kg == Decimal("2.000")

@@ -61,8 +61,8 @@ from aerogram.shared.enums import (
 from aerogram.shared.errors import AerogramError, CarrierError, CarrierTimeout
 from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
-from aerogram.shared.money import Money, mm_to_cm
-from aerogram.shared.schemas import AddressSchema, MoneySchema
+from aerogram.shared.money import Money, chargeable_weight, mm_to_cm
+from aerogram.shared.schemas import AddressSchema, MoneySchema, PackageSchema
 
 __all__ = ["RateShoppingService", "rank_quotes"]
 
@@ -399,6 +399,16 @@ class RateShoppingService:
             settings=dict(account.settings or {}),
         )
 
+        # Считает ли перевозчик объёмный вес сам. Незарегистрированный адаптер
+        # до сети всё равно не дойдёт (``_ask_one`` вернёт строку отказа),
+        # поэтому здесь достаточно не подменять вес.
+        try:
+            computes_volumetric = registry.get_adapter(
+                carrier.code
+            ).capabilities.computes_volumetric_weight
+        except LookupError:
+            computes_volumetric = True
+
         sender = await self._party(payload.origin, account.carrier_id)
         recipient = await self._party(payload.destination, account.carrier_id)
 
@@ -406,12 +416,7 @@ class RateShoppingService:
             sender=sender,
             recipient=recipient,
             places=tuple(
-                Place(
-                    weight_kg=package.weight_kg,
-                    length_cm=mm_to_cm(package.length_mm),
-                    width_cm=mm_to_cm(package.width_mm),
-                    height_cm=mm_to_cm(package.height_mm),
-                )
+                _place(package, carrier.volumetric_divisor, computes_volumetric)
                 for package in payload.packages
             ),
             declared_value=payload.cargo_value.to_money(),
@@ -607,6 +612,38 @@ def _shown_confidence(stored: str | None) -> ScoreConfidence | None:
     if stored is None or stored == ScoreConfidence.INSUFFICIENT:
         return None
     return ScoreConfidence(stored)
+
+
+def _place(package: PackageSchema, divisor: int, carrier_computes: bool) -> Place:
+    """Грузовое место в терминах адаптера, с весом, по которому платят.
+
+    Перевозчик тарифицирует по большему из двух весов: фактическому
+    и объёмному, Д × Ш × В (см) / делитель (FR-1.2). Делитель у каждого свой
+    и лежит в справочнике перевозчиков; по умолчанию 5000.
+
+    Подмена делается ТОЛЬКО для перевозчика, который объёмный вес не считает
+    сам. Иначе получился бы двойной учёт: он посчитал бы объёмный вес по нашим
+    габаритам ещё раз, уже поверх подменённого веса.
+
+    Габариты необязательны в контракте. Отсутствующий габарит ``mm_to_cm``
+    отдаёт как 1 см, поэтому объёмный вес такого места ничтожен и максимум
+    остаётся за фактическим — то есть отсутствие габаритов никогда
+    не завышает цену.
+    """
+    length_cm = mm_to_cm(package.length_mm)
+    width_cm = mm_to_cm(package.width_mm)
+    height_cm = mm_to_cm(package.height_mm)
+    weight_kg = (
+        package.weight_kg
+        if carrier_computes
+        else chargeable_weight(package.weight_kg, length_cm, width_cm, height_cm, divisor)
+    )
+    return Place(
+        weight_kg=weight_kg,
+        length_cm=length_cm,
+        width_cm=width_cm,
+        height_cm=height_cm,
+    )
 
 
 def _end_of_day(day: date | None, timezone_name: str | None) -> datetime | None:
