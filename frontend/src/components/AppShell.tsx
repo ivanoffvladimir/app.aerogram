@@ -10,6 +10,7 @@ import styles from './AppShell.module.css'
 const AVAILABLE = [
   { href: '/rate-shopping', label: 'Расчёт и выбор' },
   { href: '/shipments', label: 'Отправления' },
+  { href: '/tracking', label: 'Разбор' },
   { href: '/carriers', label: 'Перевозчики' },
   { href: '/counterparties', label: 'Адресная книга' },
   { href: '/users', label: 'Пользователи' },

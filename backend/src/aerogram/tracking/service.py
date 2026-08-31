@@ -39,7 +39,9 @@ from aerogram.tracking.webhooks import WebhookService
 
 __all__ = [
     "POLL_INTERVALS",
+    "PROBLEM_STATES",
     "STALE_AFTER",
+    "STALLED_INCIDENT",
     "TrackingService",
     "next_poll_after",
 ]
@@ -72,7 +74,10 @@ POLL_INTERVALS: dict[ShipmentStatus, timedelta | None] = {
 }
 
 #: Состояния, о которых получателя уведомляют как о проблеме (FR-3.6).
-_PROBLEM_STATES = frozenset(
+#: Состояния, которые сами по себе означают разбор. Набор общий с разбором
+#: исключений (``tracking.exceptions``): разойдись он — экран оператора
+#: и уведомление тенанту говорили бы о разном.
+PROBLEM_STATES = frozenset(
     {
         ShipmentStatus.EXCEPTION,
         ShipmentStatus.DELIVERY_ATTEMPT_FAILED,
@@ -284,7 +289,7 @@ class TrackingService:
         await self._webhooks.enqueue(shipment, "shipment.status_changed")
         if current is ShipmentStatus.DELIVERED:
             await self._webhooks.enqueue(shipment, "shipment.delivered")
-        if current in _PROBLEM_STATES:
+        if current in PROBLEM_STATES:
             await self._webhooks.enqueue(shipment, "shipment.exception")
         # Опоздание — отдельное событие: доставленное с опозданием всё равно
         # доставлено, и по одному лишь статусу этого не увидеть.

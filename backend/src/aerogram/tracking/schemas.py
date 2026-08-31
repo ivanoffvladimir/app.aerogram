@@ -8,6 +8,8 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 __all__ = [
+    "ShipmentExceptionOut",
+    "ShipmentExceptionsPage",
     "TrackingEventOut",
     "WebhookSubscriptionCreated",
     "WebhookSubscriptionIn",
@@ -28,6 +30,38 @@ class TrackingEventOut(BaseModel):
     carrier_status: str
     location: str | None = None
     description: str | None = None
+
+
+class ShipmentExceptionOut(BaseModel):
+    """Строка разбора исключений.
+
+    Причин может быть несколько сразу: сорванный срок и молчание перевозчика
+    — разные беды, и схлопывать их в одну значило бы потерять половину.
+    """
+
+    id: UUID
+    number: str
+    carrier_name: str | None
+    tracking_number: str | None
+    status: str
+    deadline: datetime | None
+    last_event_at: datetime | None
+    reasons: list[str]
+
+
+class ShipmentExceptionsPage(BaseModel):
+    """Разбор исключений целиком.
+
+    ``scanned`` и ``truncated`` показаны намеренно: список ограничен сверху,
+    и оператор обязан видеть, что дальше предела осталось непросмотренное,
+    а не считать пустоту за порядок.
+    """
+
+    items: list[ShipmentExceptionOut]
+    total: int
+    scanned: int
+    truncated: bool
+    by_reason: dict[str, int]
 
 
 class WebhookSubscriptionIn(BaseModel):

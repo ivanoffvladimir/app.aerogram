@@ -68,6 +68,41 @@ export interface ShipmentPage {
   page_size: number
 }
 
+/** Причина, по которой отправление попало в разбор. */
+export type ExceptionReason = 'deadline_passed' | 'problem_status' | 'stalled'
+
+/** Строка разбора исключений. Причин может быть несколько сразу. */
+export interface ShipmentException {
+  id: string
+  number: string
+  carrier_name: string | null
+  tracking_number: string | null
+  // Словарь контракта, а не наш внутренний: сервер прогоняет статус через
+  // `contract_status()`. Поэтому подписи экрана типизируются и незнакомое
+  // значение ломает сборку, а не показывается оператору по-английски.
+  status: Shipment['status']
+  deadline: string | null
+  last_event_at: string | null
+  reasons: ExceptionReason[]
+}
+
+/**
+ * Разбор исключений целиком. Пути в контракте нет — раздел 10 ТЗ требует вида
+ * «что горит» поперёк отправлений, а `openapi.yaml` описывает только ленту
+ * одного, — поэтому тип написан руками по `tracking/schemas.py`.
+ *
+ * `truncated` показывается пользователю: список ограничен сверху, и молчать
+ * о том, что за пределом осталось непросмотренное, значит выдавать усечённый
+ * список за полный.
+ */
+export interface ShipmentExceptionsPage {
+  items: ShipmentException[]
+  total: number
+  scanned: number
+  truncated: boolean
+  by_reason: Record<ExceptionReason, number>
+}
+
 /**
  * Строка аналитики перевозчика. У `GET /v1/analytics/carriers` в контракте
  * схемы ответа тоже нет.

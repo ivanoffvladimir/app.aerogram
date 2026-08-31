@@ -17,6 +17,15 @@ from aerogram.shipments.models import Shipment
 WEBHOOK_SCOPE_SETTING = "app.auth_scope"
 WEBHOOK_SCOPE_VALUE = "webhook"
 
+#: Состояния, из которых отправление уже не выйдет. Тот же набор, что
+#: в частичном индексе ``_ACTIVE`` моделей: разойдись они — запрос перестал бы
+#: попадать в индекс молча.
+_FINAL_STATUSES = (
+    ShipmentStatus.DELIVERED,
+    ShipmentStatus.RETURNED,
+    ShipmentStatus.CANCELLED,
+)
+
 __all__ = ["ShipmentRepository"]
 
 
@@ -110,6 +119,22 @@ class ShipmentRepository:
                 Shipment.next_poll_at <= utcnow(),
             )
             .order_by(Shipment.next_poll_at)
+            .limit(limit)
+        )
+        return list((await self._session.execute(stmt)).scalars())
+
+    async def active(self, limit: int) -> list[Shipment]:
+        """Отправления, которые ещё едут. Сначала те, о ком дольше молчат.
+
+        Порядок не косметический: список нужен разбору исключений, а чем
+        дольше тишина, тем выше шанс, что разбираться уже поздно. NULL
+        в ``last_event_at`` означает, что событий не было ни одного, —
+        такие идут первыми.
+        """
+        stmt = (
+            select(Shipment)
+            .where(Shipment.status.not_in(_FINAL_STATUSES))
+            .order_by(Shipment.last_event_at.asc().nullsfirst(), Shipment.created_at)
             .limit(limit)
         )
         return list((await self._session.execute(stmt)).scalars())

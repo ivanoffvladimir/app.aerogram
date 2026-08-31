@@ -13,8 +13,10 @@ from aerogram.core.deps import CurrentPrincipal, SessionDep, SettingsDep, requir
 from aerogram.shared.enums import UserRole
 from aerogram.shared.errors import NotFound, ValidationFailed
 from aerogram.shipments.repository import ShipmentRepository
+from aerogram.tracking.exceptions import ExceptionService
 from aerogram.tracking.inbound import InboundWebhookService
 from aerogram.tracking.schemas import (
+    ShipmentExceptionsPage,
     TrackingEventOut,
     WebhookSubscriptionCreated,
     WebhookSubscriptionIn,
@@ -23,7 +25,7 @@ from aerogram.tracking.schemas import (
 from aerogram.tracking.service import TrackingService
 from aerogram.tracking.webhooks import WebhookService
 
-__all__ = ["tracking_router", "webhooks_router"]
+__all__ = ["exceptions_router", "tracking_router", "webhooks_router"]
 
 tracking_router = APIRouter(prefix="/shipments", tags=["Трекинг"])
 
@@ -47,6 +49,24 @@ async def timeline(
     if await ShipmentRepository(session).get(shipment_id) is None:
         raise NotFound("Отправление не найдено")
     return await TrackingService(session).timeline(shipment_id)
+
+
+exceptions_router = APIRouter(prefix="/tracking", tags=["Трекинг"])
+
+
+@exceptions_router.get(
+    "/exceptions",
+    response_model=ShipmentExceptionsPage,
+    summary="Отправления, требующие разбора",
+)
+async def exceptions(principal: CurrentPrincipal, session: SessionDep) -> ShipmentExceptionsPage:
+    """Едущее, с которым что-то не так (раздел 10 ТЗ).
+
+    Только чтение уже записанных фактов: к перевозчику отсюда не ходят.
+    Экран разбора открывают как раз тогда, когда перевозчик недоступен,
+    и зависимость от него сломала бы инструмент в единственный нужный момент.
+    """
+    return await ExceptionService(session).list_open()
 
 
 webhooks_router = APIRouter(prefix="/webhooks", tags=["Вебхуки"])
