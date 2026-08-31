@@ -11,6 +11,9 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from aerogram.shared.enums import TenantRole, TenantStatus, UserRole
 
 __all__ = [
+    "ApiKeyCreate",
+    "ApiKeyCreated",
+    "ApiKeyOut",
     "ErrorBody",
     "ErrorResponse",
     "LoginRequest",
@@ -84,6 +87,43 @@ class UserCreate(BaseModel):
     full_name: str = Field(min_length=1, max_length=255)
     role: TenantRole
     password: str = Field(min_length=12, max_length=128)
+
+
+class ApiKeyCreate(BaseModel):
+    """Выпуск ключа машинного доступа (FR-10.2).
+
+    Область обязательна и непуста: ключ без областей ничего не может,
+    и молча выдать такой значило бы отдать клиенту нерабочий ключ.
+    """
+
+    name: str = Field(min_length=1, max_length=255)
+    scopes: list[str] = Field(min_length=1)
+
+
+class ApiKeyOut(BaseModel):
+    """Ключ в списке кабинета. Самого ключа здесь нет и быть не может.
+
+    В базе лежит только хеш, и восстановить значение нельзя ни нам,
+    ни тому, кто получит доступ к базе. Показывается префикс — его хватает,
+    чтобы узнать ключ в списке.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    prefix: str
+    scopes: list[str]
+    created_at: datetime
+    last_used_at: datetime | None = None
+    expires_at: datetime | None = None
+
+
+class ApiKeyCreated(BaseModel):
+    """Ответ на выпуск. ``key`` показывается ОДИН раз и больше не восстановим."""
+
+    key: ApiKeyOut
+    secret: str
 
 
 class TenantOut(BaseModel):

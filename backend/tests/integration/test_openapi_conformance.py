@@ -37,6 +37,9 @@ BEYOND_CONTRACT: frozenset[str] = frozenset(
         "/v1/auth/mfa/enable",
         "/v1/auth/mfa/disable",
         "/v1/users",
+        # Ключи машинного доступа: FR-10.2 их требует, путей в контракте нет.
+        "/v1/api-keys",
+        "/v1/api-keys/{key_id}",
         # Адресная книга: в ТЗ v3 среди сущностей её нет, решение сохранить —
         # см. docs/status.md, переход на ТЗ v3.
         "/v1/counterparties",

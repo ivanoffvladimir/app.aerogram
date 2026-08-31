@@ -108,6 +108,26 @@ export interface Summary {
   exceptions_total: number
 }
 
+/**
+ * Ключ машинного доступа. Значения ключа здесь нет и быть не может:
+ * в базе лежит только хеш, и восстановить его нельзя (FR-10.2).
+ */
+export interface ApiKey {
+  id: string
+  name: string
+  prefix: string
+  scopes: string[]
+  created_at: string
+  last_used_at: string | null
+  expires_at: string | null
+}
+
+/** Ответ на выпуск: `secret` показывается один раз и больше не возвращается. */
+export interface ApiKeyCreated {
+  key: ApiKey
+  secret: string
+}
+
 /** Причина, по которой отправление попало в разбор. */
 export type ExceptionReason = 'deadline_passed' | 'problem_status' | 'stalled'
 

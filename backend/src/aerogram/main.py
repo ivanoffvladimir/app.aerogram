@@ -19,7 +19,13 @@ from sqlalchemy.exc import IntegrityError
 
 from aerogram.carriers import registry
 from aerogram.config import get_settings
-from aerogram.core.router import auth_router, counterparties_router, users_router
+from aerogram.core.router import (
+    api_keys_router,
+    auth_router,
+    counterparties_router,
+    users_router,
+)
+from aerogram.core.scopes import API_PREFIX
 from aerogram.db import get_engine
 from aerogram.directories.router import admin_directories_router, directories_router
 from aerogram.intelligence.router import analytics_router
@@ -36,7 +42,6 @@ __all__ = ["app", "create_app"]
 log = get_logger(__name__)
 
 #: Префикс контракта (``docs/tz/v3/openapi.yaml``): пути начинаются с /v1.
-API_PREFIX = "/v1"
 
 
 @asynccontextmanager
@@ -198,6 +203,7 @@ def create_app() -> FastAPI:
 
     application.include_router(auth_router, prefix=API_PREFIX)
     application.include_router(users_router, prefix=API_PREFIX)
+    application.include_router(api_keys_router, prefix=API_PREFIX)
     application.include_router(counterparties_router, prefix=API_PREFIX)
     application.include_router(directories_router, prefix=API_PREFIX)
     application.include_router(admin_directories_router, prefix=API_PREFIX)

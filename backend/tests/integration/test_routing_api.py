@@ -96,7 +96,7 @@ async def _issue_api_key(database_url: str, tenant_id: UUID) -> tuple[str, str]:
                 name="Тестовый клиент",
                 prefix=prefix,
                 key_hash=key_hash,
-                scopes=["decisions:write"],
+                scopes=["decisions:write", "carriers:read"],
             )
         )
     await engine.dispose()
@@ -370,7 +370,9 @@ class TestMachineClient:
         before = await _last_used_at(database_url, tenant_a, prefix)
         assert before is None, "ключ ещё не использовался"
 
-        response = await client.get("/v1/counterparties", headers={"X-Api-Key": api_key})
+        # Путь выбран внутри области ключа: адресная книга машинному клиенту
+        # закрыта целиком (core.scopes), и отказ проверял бы не то.
+        response = await client.get("/v1/carriers", headers={"X-Api-Key": api_key})
         assert response.status_code == 200, response.text
 
         assert await _last_used_at(database_url, tenant_a, prefix) is not None

@@ -361,6 +361,10 @@ class ApiKeyService:
         await self._session.flush()
         return key, full
 
+    async def list(self) -> list[ApiKey]:
+        """Действующие ключи тенанта. Отозванные не показываются."""
+        return await self._keys.list_for_tenant()
+
     async def revoke(self, key_id: UUID) -> None:
         keys = await self._keys.list_for_tenant()
         target = next((k for k in keys if k.id == key_id), None)

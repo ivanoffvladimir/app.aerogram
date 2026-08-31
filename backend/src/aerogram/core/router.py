@@ -10,6 +10,7 @@ from fastapi import APIRouter, Query, Request, status
 from aerogram.core.deps import (
     AuthServiceDep,
     CurrentPrincipal,
+    Principal,
     SessionDep,
     SettingsDep,
     client_ip,
@@ -18,6 +19,9 @@ from aerogram.core.deps import (
 from aerogram.core.schemas import (
     AddressCreate,
     AddressOut,
+    ApiKeyCreate,
+    ApiKeyCreated,
+    ApiKeyOut,
     CounterpartyCreate,
     CounterpartyOut,
     LoginRequest,
@@ -29,11 +33,18 @@ from aerogram.core.schemas import (
     UserCreate,
     UserOut,
 )
-from aerogram.core.service import AddressBookService, AuditService, MfaService, UserService
+from aerogram.core.scopes import ALL_SCOPES
+from aerogram.core.service import (
+    AddressBookService,
+    ApiKeyService,
+    AuditService,
+    MfaService,
+    UserService,
+)
 from aerogram.shared.enums import UserRole
-from aerogram.shared.errors import PermissionDenied
+from aerogram.shared.errors import PermissionDenied, ValidationFailed
 
-__all__ = ["auth_router", "counterparties_router", "users_router"]
+__all__ = ["api_keys_router", "auth_router", "counterparties_router", "users_router"]
 
 auth_router = APIRouter(prefix="/auth", tags=["Аутентификация"])
 users_router = APIRouter(prefix="/users", tags=["Пользователи"])
@@ -63,10 +74,16 @@ async def refresh(payload: RefreshRequest, service: AuthServiceDep) -> TokenPair
 async def me(principal: CurrentPrincipal, session: SessionDep) -> UserOut:
     if principal.user_id is None:
         # Машинный клиент: профиля пользователя у него нет.
+        #
+        # Домен — example.com, зарезервированный IANA для документации.
+        # Раньше здесь стоял ``aerogram.local``, и путь падал с 500: `.local`
+        # — служебное имя, EmailStr его не принимает. Ветку никто не вызывал,
+        # пока у машинного клиента не появилось областей и повода спросить,
+        # от чьего имени он ходит.
         return UserOut(
             id=principal.tenant_id,
             tenant_id=principal.tenant_id,
-            email="api-client@aerogram.local",
+            email="api-client@example.com",
             full_name="Машинный клиент",
             role=UserRole.API_CLIENT,
             is_active=True,
@@ -196,6 +213,91 @@ async def create_user(
         user_agent=request.headers.get("user-agent"),
     )
     return UserOut.model_validate(user)
+
+
+api_keys_router = APIRouter(prefix="/api-keys", tags=["Интеграции"])
+
+
+@api_keys_router.get("", response_model=list[ApiKeyOut], summary="Ключи компании")
+async def list_api_keys(
+    session: SessionDep,
+    settings: SettingsDep,
+    principal: Annotated[Principal, require_roles(UserRole.OWNER)],
+) -> list[ApiKeyOut]:
+    """Действующие ключи. Значения ключей не возвращаются никогда.
+
+    Только владелец: ключ — это доступ ко всем отправлениям компании,
+    и список выданных доступов не то, что показывают всем сотрудникам.
+    """
+    return [ApiKeyOut.model_validate(key) for key in await ApiKeyService(session, settings).list()]
+
+
+@api_keys_router.post(
+    "",
+    response_model=ApiKeyCreated,
+    status_code=status.HTTP_201_CREATED,
+    summary="Выпустить ключ",
+)
+async def create_api_key(
+    payload: ApiKeyCreate,
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
+    principal: Annotated[Principal, require_roles(UserRole.OWNER)],
+) -> ApiKeyCreated:
+    """Выпустить ключ машинного доступа.
+
+    Значение возвращается ЕДИНСТВЕННЫЙ раз: в базе лежит только хеш,
+    и восстановить ключ нельзя (FR-10.2). Потерянный ключ отзывают
+    и выпускают новый.
+    """
+    unknown = sorted(set(payload.scopes) - set(ALL_SCOPES))
+    if unknown:
+        # Незнакомая область не давала бы никаких прав, но выглядела бы
+        # выданной: клиент считал бы, что доступ есть, и получал бы 403.
+        raise ValidationFailed(f"Неизвестные области: {', '.join(unknown)}", field="scopes")
+
+    key, secret = await ApiKeyService(session, settings).issue(
+        tenant_id=principal.tenant_id, name=payload.name, scopes=payload.scopes
+    )
+    AuditService(session).record(
+        tenant_id=principal.tenant_id,
+        actor_user_id=principal.user_id,
+        action="api_key.issue",
+        entity_type="api_key",
+        entity_id=key.id,
+        ip=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+        # Сам ключ в аудит не попадает: аудит читают люди, у которых доступа
+        # к ключу быть не должно. Области — попадают, они и есть суть события.
+        payload_diff={"scopes": list(payload.scopes)},
+    )
+    return ApiKeyCreated(key=ApiKeyOut.model_validate(key), secret=secret)
+
+
+@api_keys_router.delete(
+    "/{key_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Отозвать ключ",
+)
+async def revoke_api_key(
+    key_id: UUID,
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
+    principal: Annotated[Principal, require_roles(UserRole.OWNER)],
+) -> None:
+    """Отозвать ключ. Отзыв действует немедленно: следующий запрос уже 401."""
+    await ApiKeyService(session, settings).revoke(key_id)
+    AuditService(session).record(
+        tenant_id=principal.tenant_id,
+        actor_user_id=principal.user_id,
+        action="api_key.revoke",
+        entity_type="api_key",
+        entity_id=key_id,
+        ip=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
 
 
 counterparties_router = APIRouter(prefix="/counterparties", tags=["Адресная книга"])

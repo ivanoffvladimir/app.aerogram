@@ -15,6 +15,7 @@ const AVAILABLE = [
   { href: '/carriers', label: 'Перевозчики' },
   { href: '/counterparties', label: 'Адресная книга' },
   { href: '/users', label: 'Пользователи' },
+  { href: '/integrations', label: 'Интеграции' },
 ]
 
 /** Экраны, эндпоинтов для которых ещё нет. Показываются приглушёнными,
