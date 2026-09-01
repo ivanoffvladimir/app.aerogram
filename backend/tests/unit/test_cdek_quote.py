@@ -20,7 +20,11 @@ from aerogram.carriers.cdek.client import SANDBOX_BASE_URL, CdekClient
 from aerogram.carriers.cdek.mapping import grams_from_kg, modes_for_request
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import CargoType, LabelFormat, PriceSource
-from aerogram.shared.errors import CarrierError, CarrierValidationError
+from aerogram.shared.errors import (
+    CarrierError,
+    CarrierNotConfigured,
+    CarrierValidationError,
+)
 from aerogram.shared.money import Money
 from aerogram.shared.schemas import PackageSchema
 
@@ -357,12 +361,19 @@ class TestUnimplementedMethods:
         with pytest.raises(CarrierError, match="трекинг"):
             await CdekAdapter().track("ext-1", account)
 
-    def test_webhook_methods_are_declared(self) -> None:
-        adapter = CdekAdapter()
-        with pytest.raises(CarrierError, match="вебхук"):
-            adapter.parse_webhook({})
-        with pytest.raises(CarrierError, match="подпис"):
-            adapter.verify_webhook(b"", {}, "secret")
+    def test_parsing_a_webhook_no_longer_refuses(self) -> None:
+        """Разбор написан; его поведение проверяется в test_cdek_webhook.py.
+
+        Здесь остаётся ровно одно утверждение: чужое тело не даёт исключения.
+        Отказ на разборе означал бы, что перевозчик повторяет доставку
+        события бесконечно.
+        """
+        assert CdekAdapter().parse_webhook({}) == []
+
+    def test_verifying_a_webhook_refuses_as_not_configured(self) -> None:
+        """Способ подтверждения не выбран — СДЭК вебхуки не подписывает."""
+        with pytest.raises(CarrierNotConfigured, match="не подписывает"):
+            CdekAdapter().verify_webhook(b"", {}, "secret")
 
     async def test_refusal_is_a_carrier_error_not_a_crash(self, account: CarrierAccount) -> None:
         # 502, а не 500: отвечает плохо внешняя система, а не наша.

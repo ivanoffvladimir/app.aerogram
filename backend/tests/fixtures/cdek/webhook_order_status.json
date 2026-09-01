@@ -1,0 +1,17 @@
+{
+  "type": "ORDER_STATUS",
+  "date_time": "2026-09-03T14:21:07+0700",
+  "uuid": "72753031-2801-4186-a091-0be58cedfee7",
+  "attributes": {
+    "is_return": false,
+    "is_reverse": false,
+    "is_client_return": false,
+    "cdek_number": "1106321645",
+    "number": "AG-000123",
+    "status_code": "3",
+    "code": "RECEIVED_AT_SHIPMENT_WAREHOUSE",
+    "status_date_time": "2026-09-03T14:21:05+0700",
+    "city_name": "Новосибирск",
+    "city_code": "270"
+  }
+}

@@ -38,9 +38,14 @@ from aerogram.carriers.cdek.mapping import (
     grams_from_kg,
     modes_for_request,
 )
+from aerogram.carriers.cdek.webhook import parse_order_status
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import LabelFormat
-from aerogram.shared.errors import CarrierError, CarrierValidationError
+from aerogram.shared.errors import (
+    CarrierError,
+    CarrierNotConfigured,
+    CarrierValidationError,
+)
 from aerogram.shared.logging import get_logger
 from aerogram.shared.money import Money
 
@@ -285,10 +290,36 @@ class CdekAdapter:
         raise self._not_implemented("трекинг", "неделя 8")
 
     def parse_webhook(self, payload: dict[str, object]) -> list[WebhookUpdate]:
-        raise self._not_implemented("приём вебхуков", "неделя 8")
+        """Разбор события ``ORDER_STATUS`` (``cdek.webhook``).
+
+        Форма тела взята из типов стороннего клиента: официальный SDK
+        описывает только подписку. Сверка с боевым контуром — в списке
+        обязательных проверок ADR-0010.
+        """
+        return parse_order_status(payload)
 
     def verify_webhook(self, payload: bytes, headers: dict[str, str], secret: str) -> bool:
-        raise self._not_implemented("проверка подписи вебхука", "неделя 8")
+        """Подтверждение подлинности вебхука. Пока отказ, и это осознанно.
+
+        Признаков того, что СДЭК подписывает вебхуки, нет: ни официальный
+        SDK, ни сторонние клиенты проверки не реализуют, заголовка подписи
+        в теле события не описано. Обычный обходной путь — секрет в самом
+        URL подписки, но этот метод видит тело и заголовки, а строку запроса
+        не видит, и расширять ради этого контракт адаптера (CLAUDE.md §7,
+        пункт 3) без решения человека нельзя.
+
+        Поэтому падаем закрыто. Вернуть ``True`` значило бы принимать любое
+        тело от кого угодно как событие перевозчика — а по нему меняется
+        статус отправления и считается соблюдение срока.
+        """
+        # ``CarrierNotConfigured``, а не общая ошибка перевозчика: перевозчик
+        # ничего не возвращал, это наша интеграция не готова, и ждать
+        # бесполезно — нужен выбор способа подтверждения.
+        raise CarrierNotConfigured(
+            "СДЭК: подлинность вебхука подтвердить нечем — он его не подписывает, "
+            "а способ подтверждения не выбран",
+            carrier_code=CDEK_CODE,
+        )
 
     @staticmethod
     def _not_implemented(what: str, when: str) -> CarrierError:
