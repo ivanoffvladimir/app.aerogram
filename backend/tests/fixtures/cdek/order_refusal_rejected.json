@@ -1,0 +1,6 @@
+{
+  "requests": [
+    {"request_uuid": "1f9e8d7c-6b5a-4f3e-8d2c-1b0a9f8e7d6c", "type": "REFUSAL", "state": "INVALID", "date_time": "2026-09-08T12:00:00+0700",
+     "errors": [{"code": "v2_order_refusal_not_allowed", "message": "Заказ уже вручен, отказ невозможен"}]}
+  ]
+}

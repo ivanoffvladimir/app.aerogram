@@ -1,0 +1,20 @@
+{
+  "entity": {
+    "uuid": "72753031-2801-4186-a091-0be58cedfee7",
+    "type": 2,
+    "cdek_number": "1106321645",
+    "number": "AG-000123",
+    "tariff_code": 136,
+    "delivery_mode": "1",
+    "statuses": [
+      {"code": "ACCEPTED", "name": "Принят", "date_time": "2026-09-03T10:15:25+0700", "city": "Владивосток"},
+      {"code": "RECEIVED_AT_SHIPMENT_WAREHOUSE", "name": "Принят на склад отправителя", "date_time": "2026-09-03T14:21:05+0700", "city": "Владивосток"},
+      {"code": "SENT_TO_TRANSIT_CITY", "name": "Отправлен в транзитный город", "date_time": "2026-09-03T21:02:00+0700", "city": "Владивосток", "deleted": true},
+      {"code": "SENT_TO_RECIPIENT_CITY", "name": "Отправлен в город получателя", "date_time": "2026-09-04T03:40:11+0700", "city": "Хабаровск"}
+    ],
+    "delivery_detail": {"delivery_sum": 2450.5, "total_sum": 2450.5}
+  },
+  "requests": [
+    {"request_uuid": "6a7ff8b1-3b0f-4a51-9f57-6c8b2d4f3e10", "type": "CREATE", "state": "SUCCESSFUL", "date_time": "2026-09-03T10:15:22+0700"}
+  ]
+}

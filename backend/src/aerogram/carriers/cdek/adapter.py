@@ -1,9 +1,9 @@
 """Адаптер СДЭК.
 
-Неделя 5 плана: расчёт стоимости и срока (``quote``) и нормализация тарифов.
-Создание, отмена, печатные формы и трекинг — недели 6–7; их методы объявлены
-и честно сообщают, что ещё не реализованы, вместо того чтобы молча возвращать
-пустой результат.
+Недели 5–6 плана: расчёт (``quote``), создание, отмена, сверка «призраков»
+и трекинг заказов. Печатные формы — неделя 7; метод объявлен и честно
+сообщает, что ещё не реализован, вместо того чтобы молча возвращать пустоту.
+Подтверждение подлинности вебхука ждёт решения человека (ADR-0015).
 
 К базе данных адаптер не обращается (ADR-0005) и справочники не записывает,
 а отдаёт (ADR-0009). Коды городов СДЭК приходят в DTO уже разрешёнными:
@@ -38,6 +38,14 @@ from aerogram.carriers.cdek.mapping import (
     grams_from_kg,
     modes_for_request,
 )
+from aerogram.carriers.cdek.orders import (
+    NOT_FOUND_CODES,
+    cancel_result,
+    order_payload,
+    parse_order,
+    parse_statuses,
+    request_error,
+)
 from aerogram.carriers.cdek.webhook import parse_order_status
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import LabelFormat
@@ -57,6 +65,7 @@ CDEK_CODE = "cdek"
 
 _TARIFF_LIST_PATH = "/calculator/tarifflist"
 _CITIES_PATH = "/location/cities"
+_ORDERS_PATH = "/orders"
 
 
 class CdekAdapter:
@@ -274,20 +283,96 @@ class CdekAdapter:
 
     # --- Ещё не реализовано (недели 6-7) ----------------------------------
 
-    async def create(self, req: ShipmentRequest, acc: CarrierAccount) -> ShipmentResult:
-        raise self._not_implemented("создание отправления", "неделя 6")
+    # --- Заказы (неделя 6) ------------------------------------------------
 
-    async def cancel(self, ext_id: str, acc: CarrierAccount) -> CancelResult:
-        raise self._not_implemented("отмена отправления", "неделя 6")
+    async def create(self, req: ShipmentRequest, acc: CarrierAccount) -> ShipmentResult:
+        """``POST orders``. Ответ несёт только ``uuid``: накладная — позже.
+
+        Отказ СДЭК приходит телом (``requests[0].state == INVALID``), а не
+        кодом HTTP, и превращается в ``CarrierValidationError`` с текстом
+        перевозчика: домен показывает его оператору, а не «500».
+        """
+        body = await self._call(
+            "POST", _ORDERS_PATH, operation="create", payload=order_payload(req), account=acc
+        )
+        self._raise_if_rejected(body, "create")
+        result = parse_order(body)
+        if result is None:
+            # Тело без идентификатора — это не «заказа нет», а ответ, которому
+            # нельзя верить: заказ мог создаться, и второй запрос создаст дубль.
+            raise CarrierError("СДЭК не вернул идентификатор заказа", carrier_code=CDEK_CODE)
+        return result
 
     async def find_by_number(self, number: str, acc: CarrierAccount) -> ShipmentResult | None:
-        raise self._not_implemented("сверка «призраков»", "неделя 6")
+        """``GET orders?im_number=`` — сверка «призраков» по нашему номеру (FR-2.5).
+
+        ``None`` только на явном «сущность не найдена». Любая другая ошибка
+        остаётся ошибкой: ложное «не найден» здесь означает второй заказ
+        у перевозчика — с оплатой и вторым грузом.
+        """
+        body = await self._call(
+            "GET",
+            _ORDERS_PATH,
+            operation="find",
+            params={"im_number": number},
+            account=acc,
+            raise_for_status=False,
+        )
+        error = request_error(body)
+        if error is not None:
+            if error[0] in NOT_FOUND_CODES:
+                return None
+            self._raise_if_rejected(body, "find")
+        return parse_order(body)
+
+    async def cancel(self, ext_id: str, acc: CarrierAccount) -> CancelResult:
+        """``POST orders/{uuid}/refusal``. Отказ принимается до вручения."""
+        body = await self._call(
+            "POST", f"{_ORDERS_PATH}/{ext_id}/refusal", operation="cancel", account=acc
+        )
+        return cancel_result(body)
+
+    async def track(self, ext_id: str, acc: CarrierAccount) -> list[RawEvent]:
+        """``GET orders/{uuid}`` → ``statuses[]``. Тот же словарь, что в вебхуке."""
+        body = await self._call("GET", f"{_ORDERS_PATH}/{ext_id}", operation="track", account=acc)
+        self._raise_if_rejected(body, "track")
+        return parse_statuses(body)
+
+    async def _call(
+        self,
+        method: str,
+        path: str,
+        *,
+        operation: str,
+        account: CarrierAccount,
+        payload: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+        raise_for_status: bool = True,
+    ) -> dict[str, Any]:
+        client = self._client_factory(account)
+        try:
+            return await client.call(
+                method,
+                path,
+                operation=operation,
+                payload=payload,
+                params=params,
+                raise_for_status=raise_for_status,
+            )
+        finally:
+            await client.aclose()
+
+    @staticmethod
+    def _raise_if_rejected(body: dict[str, Any], operation: str) -> None:
+        error = request_error(body)
+        if error is None:
+            return
+        code, message = error
+        log.info("cdek.request_rejected", operation=operation, cdek_code=code)
+        raise CarrierValidationError(message or "СДЭК отклонил запрос", carrier_code=CDEK_CODE)
 
     async def label(self, ext_id: str, fmt: LabelFormat, acc: CarrierAccount) -> LabelResult:
         raise self._not_implemented("печатная форма", "неделя 7")
-
-    async def track(self, ext_id: str, acc: CarrierAccount) -> list[RawEvent]:
-        raise self._not_implemented("трекинг", "неделя 8")
 
     def parse_webhook(self, payload: dict[str, object]) -> list[WebhookUpdate]:
         """Разбор события ``ORDER_STATUS`` (``cdek.webhook``).

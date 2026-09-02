@@ -141,6 +141,22 @@ class CdekClient:
         operation: str,
         on_raw_call: Any = None,
     ) -> dict[str, Any]:
+        """``POST`` с телом JSON. См. ``call``."""
+        return await self.call(
+            "POST", path, operation=operation, payload=payload, on_raw_call=on_raw_call
+        )
+
+    async def call(
+        self,
+        method: str,
+        path: str,
+        *,
+        operation: str,
+        payload: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+        on_raw_call: Any = None,
+        raise_for_status: bool = True,
+    ) -> dict[str, Any]:
         """Вызов с авторизацией и однократной переавторизацией на 401.
 
         Токен мог быть отозван в личном кабинете или устареть из-за
@@ -151,12 +167,14 @@ class CdekClient:
             token = await self.token()
             try:
                 response = await self._http.request(
-                    "POST",
+                    method,
                     path,
                     operation=operation,
                     json=payload,
+                    params=params,
                     headers={"Authorization": f"Bearer {token}"},
                     on_raw_call=on_raw_call,
+                    raise_for_status=raise_for_status,
                 )
             except CarrierAuthError:
                 self.invalidate_token()

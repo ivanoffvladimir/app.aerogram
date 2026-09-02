@@ -1,0 +1,13 @@
+{
+  "requests": [
+    {
+      "request_uuid": "9c4e2d1a-5b6f-4e7a-8c9d-0a1b2c3d4e5f",
+      "type": "GET",
+      "state": "INVALID",
+      "date_time": "2026-09-03T10:20:00+0700",
+      "errors": [
+        {"code": "v2_entity_not_found_im_number", "message": "Сущность с указанным идентификатором не существует либо удалена"}
+      ]
+    }
+  ]
+}

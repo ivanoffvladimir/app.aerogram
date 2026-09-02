@@ -142,8 +142,18 @@ class CarrierHttpClient:
         headers: Mapping[str, str] | None = None,
         retry: bool = True,
         on_raw_call: Callable[[RawCall], Awaitable[None]] | None = None,
+        raise_for_status: bool = True,
     ) -> httpx.Response:
-        """Выполнить запрос с ретраями и разбором ошибок."""
+        """Выполнить запрос с ретраями и разбором ошибок.
+
+        ``raise_for_status=False`` отдаёт ответ с кодом 4xx вызывающему вместо
+        исключения — для поиска, где «не найдено» приходит телом и статусом
+        сразу, и различить его с настоящим отказом можно только по телу.
+        Авторизация и лимит запросов остаются исключениями: их тело
+        не интересно никому. Такой ответ не считается сбоем перевозчика
+        и предохранитель не трогает — иначе сверка сотни черновиков открыла
+        бы его сама.
+        """
         if self._breaker.is_open:
             raise CircuitOpen(carrier_code=self._carrier_code)
 
@@ -199,6 +209,13 @@ class CarrierHttpClient:
                 )
 
             if error is None and response is not None:
+                self._breaker.record_success()
+                return response
+            if (
+                not raise_for_status
+                and response is not None
+                and type(error) is CarrierValidationError
+            ):
                 self._breaker.record_success()
                 return response
 

@@ -1,0 +1,6 @@
+{
+  "entity": {"uuid": "72753031-2801-4186-a091-0be58cedfee7"},
+  "requests": [
+    {"request_uuid": "0e8f7a6b-5c4d-4e3f-9a2b-1c0d9e8f7a6b", "type": "REFUSAL", "state": "ACCEPTED", "date_time": "2026-09-05T09:00:00+0700"}
+  ]
+}

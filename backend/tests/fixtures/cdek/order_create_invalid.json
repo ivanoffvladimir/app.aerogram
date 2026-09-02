@@ -1,0 +1,13 @@
+{
+  "requests": [
+    {
+      "request_uuid": "4d1c0c7e-27f0-4a2c-9d3a-0f3a1b5e2c11",
+      "type": "CREATE",
+      "state": "INVALID",
+      "date_time": "2026-09-03T10:15:22+0700",
+      "errors": [
+        {"code": "v2_field_is_empty", "message": "Не заполнено обязательное поле recipient.phones"}
+      ]
+    }
+  ]
+}

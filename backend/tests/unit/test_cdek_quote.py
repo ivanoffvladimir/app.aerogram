@@ -332,34 +332,18 @@ class TestErrors:
 
 
 class TestUnimplementedMethods:
-    """Методы недель 6-8 отказывают явно, а не возвращают пустоту.
+    """Ненаписанное отказывает явно, а не возвращает пустоту.
+
+    Заказы (неделя 6) написаны — см. test_cdek_orders.py.
 
     Пустой список или None здесь выглядели бы как «перевозчик ничего не вернул»
     и разошлись бы по домену как данные: отправление без трек-номера,
     отчёт без событий.
     """
 
-    async def test_create_is_declared_but_refuses(self, account: CarrierAccount) -> None:
-        with pytest.raises(CarrierError, match="создание отправления"):
-            await CdekAdapter().create(None, account)  # type: ignore[arg-type]
-
-    async def test_cancel_is_declared_but_refuses(self, account: CarrierAccount) -> None:
-        with pytest.raises(CarrierError, match="отмена"):
-            await CdekAdapter().cancel("ext-1", account)
-
-    async def test_ghost_reconciliation_is_declared_but_refuses(
-        self, account: CarrierAccount
-    ) -> None:
-        with pytest.raises(CarrierError, match="призрак"):
-            await CdekAdapter().find_by_number("AG-1", account)
-
     async def test_label_is_declared_but_refuses(self, account: CarrierAccount) -> None:
         with pytest.raises(CarrierError, match="печатная форма"):
             await CdekAdapter().label("ext-1", LabelFormat.PDF_A6, account)
-
-    async def test_track_is_declared_but_refuses(self, account: CarrierAccount) -> None:
-        with pytest.raises(CarrierError, match="трекинг"):
-            await CdekAdapter().track("ext-1", account)
 
     def test_parsing_a_webhook_no_longer_refuses(self) -> None:
         """Разбор написан; его поведение проверяется в test_cdek_webhook.py.
@@ -378,7 +362,7 @@ class TestUnimplementedMethods:
     async def test_refusal_is_a_carrier_error_not_a_crash(self, account: CarrierAccount) -> None:
         # 502, а не 500: отвечает плохо внешняя система, а не наша.
         with pytest.raises(CarrierError) as info:
-            await CdekAdapter().track("ext-1", account)
+            await CdekAdapter().label("ext-1", LabelFormat.PDF_A6, account)
         assert info.value.http_status == 502
 
 
