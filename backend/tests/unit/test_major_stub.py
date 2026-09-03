@@ -123,7 +123,7 @@ class TestCredentialSchemas:
         """
         assert schema_for("pecom") is None
         assert missing_fields("pecom", {}) == []
-        assert set(PENDING_CARRIERS) == {"dellin", "pecom", "yandex"}
+        assert set(PENDING_CARRIERS) == {"dellin", "pecom", "pochta", "yandex"}
 
     def test_declared_and_pending_sets_do_not_overlap(self) -> None:
         assert not set(CREDENTIAL_SCHEMAS) & PENDING_CARRIERS

@@ -64,8 +64,8 @@ def _register_carriers() -> None:
     о конкретных перевозчиках. Домен обращается к ним только через
     ``carriers.registry`` — контракт ``no-direct-carrier`` в ``.importlinter``.
 
-    Порядок подключения задан разделом 8.3 ТЗ: СДЭК → Major Express → ПЭК →
-    Деловые Линии.
+    Порядок подключения задан разделом 8.3 ТЗ и уточнён ADR-0020:
+    СДЭК → Major Express → ПЭК → Деловые Линии → Почта России → Яндекс.
     """
     from aerogram.carriers.cdek import CdekAdapter
 
