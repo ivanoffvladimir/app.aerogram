@@ -128,6 +128,63 @@ export interface ApiKeyCreated {
   secret: string
 }
 
+/** Состояние массового расчёта. */
+export type BulkRunStatus =
+  | 'draft'
+  | 'quoting'
+  | 'quoted'
+  | 'creating'
+  | 'completed'
+  | 'failed'
+
+/** Состояние одной строки массового расчёта. */
+export type BulkRowStatus = 'new' | 'quoted' | 'selected' | 'created' | 'failed'
+
+/**
+ * Строка массового расчёта: один получатель.
+ *
+ * Своих цифр строка не хранит — только ссылки на расчёт, рекомендацию,
+ * решение и отправление (ADR-0022). Поэтому цену и срок экран берёт
+ * по `rate_quote_id`, а не из самой строки.
+ */
+export interface BulkRow {
+  id: string
+  position: number
+  status: BulkRowStatus
+  error_message: string | null
+  rate_quote_id: string | null
+  recommendation_id: string | null
+  decision_id: string | null
+  shipment_id: string | null
+  recipient_snapshot: Record<string, unknown>
+  cargo_snapshot: Record<string, unknown>
+}
+
+/**
+ * Массовый расчёт целиком. Пути в контракте ТЗ v3 нет — массовых отправлений
+ * там не описано вовсе, решение принято отдельно (ADR-0021, ADR-0022),
+ * поэтому тип написан руками по `bulk/schemas.py`.
+ *
+ * `counts` считается запросом на сервере: прогон бывает на тысячу строк,
+ * и пересчитывать их на фронте ради счётчика незачем.
+ */
+export interface BulkRun {
+  id: string
+  name: string
+  status: BulkRunStatus
+  strategy: string | null
+  sender_snapshot: Record<string, unknown>
+  created_at: string
+  updated_at: string
+  rows: BulkRow[]
+  counts: Record<string, number>
+}
+
+export interface BulkRunPage {
+  items: BulkRun[]
+  total: number
+}
+
 /** Причина, по которой отправление попало в разбор. */
 export type ExceptionReason = 'deadline_passed' | 'problem_status' | 'stalled'
 

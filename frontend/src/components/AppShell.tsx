@@ -11,6 +11,7 @@ const AVAILABLE = [
   { href: '/dashboard', label: 'Сводка' },
   { href: '/rate-shopping', label: 'Расчёт и выбор' },
   { href: '/shipments', label: 'Отправления' },
+  { href: '/bulk', label: 'Массовые отправления' },
   { href: '/tracking', label: 'Разбор' },
   { href: '/carriers', label: 'Перевозчики' },
   { href: '/counterparties', label: 'Адресная книга' },
