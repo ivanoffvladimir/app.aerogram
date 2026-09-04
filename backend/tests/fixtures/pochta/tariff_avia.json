@@ -1,6 +1,6 @@
 {
-  "avia-rate": { "rate": 54000, "vat": 10800 },
+  "avia-rate": { "rate": 54000, "vat": 11880 },
   "delivery-time": { "max-days": 3 },
   "total-rate": 54000,
-  "total-vat": 10800
+  "total-vat": 11880
 }

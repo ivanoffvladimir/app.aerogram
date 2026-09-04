@@ -24,10 +24,12 @@ from aerogram.carriers.pochta.client import SANDBOX_BASE_URL, PochtaClient, poch
 from aerogram.carriers.pochta.mapping import (
     DEFAULT_PRODUCTS,
     PRODUCTS,
+    VAT_RATE_PERCENT,
     dimension_block,
     mass_grams,
     money_from_rate,
     total_price,
+    vat_reading,
 )
 from aerogram.carriers.pochta.quotes import (
     TARIFF_PATH,
@@ -107,13 +109,13 @@ class TestMoney:
 
     def test_response_is_already_minor_units(self) -> None:
         # «Возвращаемые значения указываются в копейках» — делить нельзя.
-        assert total_price(load("tariff_ok")) == Money(32800 + 6560, "RUB")
+        assert total_price(load("tariff_ok")) == Money(32_800 + 7_216, "RUB")
 
     def test_component_carries_its_own_vat(self) -> None:
-        assert money_from_rate({"rate": 28900, "vat": 5780}) == Money(34680, "RUB")
+        assert money_from_rate({"rate": 28_900, "vat": 6_358}) == Money(35_258, "RUB")
 
     def test_missing_vat_reads_as_zero(self) -> None:
-        assert money_from_rate({"rate": 28900}) == Money(28900, "RUB")
+        assert money_from_rate({"rate": 28_900}) == Money(28_900, "RUB")
 
     def test_missing_component_is_none_not_zero(self) -> None:
         # Ноль означал бы «услуга бесплатна»; её просто не считали.
@@ -127,6 +129,54 @@ class TestMoney:
 
     def test_answer_without_total_rate_is_not_an_offer(self) -> None:
         assert total_price(load("tariff_without_price")) is None
+
+
+class TestVatReading:
+    """Сверка ответа со ставкой: догадка про НДС проверяется арифметикой.
+
+    Страница расчёта не говорит, включает ли «Плата всего» налог. Мы читаем
+    её как сумму без НДС, а ``vat_reading`` проверяет это по самому ответу:
+    доля налога в сумме, которая его уже содержит, не может превысить
+    22/122. Превышение доказывает, что налог начислен сверх.
+    """
+
+    def test_full_rate_at_the_current_rate_proves_vat_is_added_on_top(self) -> None:
+        # 10 000 копеек платы и 2 200 налога — это 22 % сверх, а не внутри.
+        assert vat_reading(10_000, 2_200) == "excluded"
+
+    def test_the_fixture_answer_proves_it_too(self) -> None:
+        body = load("tariff_ok")
+        assert vat_reading(int(body["total-rate"]), int(body["total-vat"])) == "excluded"
+
+    def test_vat_inside_the_amount_proves_nothing(self) -> None:
+        # 22/122 от 12 200 — ровно та доля, которую дал бы налог внутри суммы.
+        # Отличить этот случай от частичного освобождения нечем.
+        assert vat_reading(12_200, 2_200) == "inconclusive"
+
+    def test_partial_exemption_stays_inconclusive(self) -> None:
+        # Пересылка письменной корреспонденции от НДС освобождена, и доля
+        # падает ниже порога при любой трактовке.
+        assert vat_reading(10_000, 500) == "inconclusive"
+
+    def test_absent_vat_decides_nothing(self) -> None:
+        assert vat_reading(10_000, 0) == "inconclusive"
+        assert vat_reading(0, 0) == "inconclusive"
+
+    def test_included_is_never_claimed(self) -> None:
+        # Доказательства «включает» не существует: молча заявить его значило
+        # бы выдать вычисление за факт.
+        assert vat_reading(12_200, 2_200) != "included"
+
+    def test_the_rate_is_a_single_constant(self) -> None:
+        # Справочник самой Почты ставки не знает: он держит исторические коды
+        # и дописывает актуальную в скобках. Значит она наша, и она одна.
+        assert int(VAT_RATE_PERCENT) == 22
+
+    def test_price_does_not_depend_on_the_reading(self) -> None:
+        # Менять сумму по ответу хуже допущения: два одинаковых отправления
+        # получили бы разные цены по разным правилам.
+        assert total_price({"total-rate": 12_200, "total-vat": 2_200}) == Money(14_400, "RUB")
+        assert total_price({"total-rate": 10_000, "total-vat": 2_200}) == Money(12_200, "RUB")
 
 
 class TestPayload:
@@ -226,11 +276,11 @@ class TestParse:
             price_source=PriceSource.OWN_CONTRACT,
         )
         assert quote is not None
-        assert quote.price == Money(39_360, "RUB")
+        assert quote.price == Money(40_016, "RUB")
         assert (quote.transit_days_min, quote.transit_days_max) == (4, 9)
         assert quote.service_name == "Посылка нестандартная, наземная"
-        assert quote.price_breakdown["Пересылка"] == Money(34_680, "RUB")
-        assert quote.price_breakdown["Объявленная ценность"] == Money(1_800, "RUB")
+        assert quote.price_breakdown["Пересылка"] == Money(35_258, "RUB")
+        assert quote.price_breakdown["Объявленная ценность"] == Money(1_830, "RUB")
 
     def test_answer_without_delivery_time_still_has_a_price(self) -> None:
         # Блок срока помечен опциональным целиком.
