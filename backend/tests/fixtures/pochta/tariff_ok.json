@@ -1,0 +1,10 @@
+{
+  "ground-rate": { "rate": 28900, "vat": 5780 },
+  "insurance-rate": { "rate": 1500, "vat": 300 },
+  "inventory-rate": { "rate": 0, "vat": 0 },
+  "notice-rate": { "rate": 2400, "vat": 480 },
+  "delivery-time": { "min-days": 4, "max-days": 9 },
+  "payment-method": "CASHLESS",
+  "total-rate": 32800,
+  "total-vat": 6560
+}

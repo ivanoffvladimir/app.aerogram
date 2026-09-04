@@ -21,6 +21,7 @@ from aerogram.carriers.credentials import (
 from aerogram.carriers.dellin import DellinAdapter
 from aerogram.carriers.major.adapter import MajorExpressAdapter
 from aerogram.carriers.pecom import PecomAdapter
+from aerogram.carriers.pochta import PochtaAdapter
 from aerogram.tracking.inbound import CREDENTIAL_FIELD
 
 #: Кто из объявленных перевозчиков шлёт вебхуки. Берётся из самих адаптеров,
@@ -28,7 +29,13 @@ from aerogram.tracking.inbound import CREDENTIAL_FIELD
 #: когда у перевозчика появятся или исчезнут вебхуки.
 _SUPPORTS_WEBHOOKS = {
     adapter.code: adapter.capabilities.supports_webhooks
-    for adapter in (CdekAdapter, DellinAdapter, PecomAdapter, MajorExpressAdapter)
+    for adapter in (
+        CdekAdapter,
+        DellinAdapter,
+        PecomAdapter,
+        PochtaAdapter,
+        MajorExpressAdapter,
+    )
 }
 
 
@@ -89,4 +96,18 @@ class TestMissingFields:
     def test_an_unknown_carrier_reports_nothing(self) -> None:
         """Пустой список у неизвестного — «нечем проверить», а не «всё в порядке»:
         требовать поля, состава которых мы не знаем, вредно."""
-        assert missing_fields("pochta", {}) == []
+        assert missing_fields("yandex", {}) == []
+
+    def test_pochta_accepts_either_the_ready_key_or_the_pair(self) -> None:
+        """У Почты ключ авторизации пользователя равносилен паре логин-пароль.
+
+        Список обязательных полей этого не выражает: с одним токеном учётная
+        запись прошла бы проверку состава и упала бы на первом же расчёте —
+        то есть ошибка нашлась бы у клиента, а не в кабинете.
+        """
+        assert missing_fields("pochta", {"token": "t", "user_key": "k"}) == []
+        assert missing_fields("pochta", {"token": "t", "login": "l", "password": "p"}) == []
+        # Половина пары — это не способ: без пароля ключ не собрать.
+        assert missing_fields("pochta", {"token": "t", "login": "l"}) == ["user_key"]
+        assert missing_fields("pochta", {"token": "t"}) == ["user_key"]
+        assert missing_fields("pochta", {}) == ["token", "user_key"]

@@ -25,6 +25,7 @@ __all__ = [
     "CREDENTIAL_SCHEMAS",
     "PENDING_CARRIERS",
     "WEBHOOK_SECRET_FIELD",
+    "CredentialAlternative",
     "CredentialField",
     "CredentialSchema",
     "missing_fields",
@@ -50,12 +51,39 @@ class CredentialField:
 
 
 @dataclass(frozen=True, slots=True)
+class CredentialAlternative:
+    """Взаимозаменяемые наборы полей: нужен хотя бы один целиком.
+
+    Вариант — это кортеж имён, потому что заменять друг друга могут не только
+    одиночные поля: ключ авторизации Почты равносилен **паре** логин-пароль,
+    а не одному из них.
+    """
+
+    options: tuple[tuple[str, ...], ...]
+
+    @property
+    def primary(self) -> tuple[str, ...]:
+        """Вариант, который называется, когда не заполнен ни один.
+
+        Первый: он основной, а перечислять сразу все способы в списке
+        недостающих полей значит требовать заполнить их разом.
+        """
+        return self.options[0]
+
+
+@dataclass(frozen=True, slots=True)
 class CredentialSchema:
     """Что нужно, чтобы работать по договору клиента с этим перевозчиком."""
 
     fields: tuple[CredentialField, ...]
     #: Где клиенту взять эти значения. Показывается рядом с формой.
     where_to_get: str
+    #: Взаимозаменяемые наборы полей. Одного списка обязательных хватает
+    #: не всем: Почта принимает либо готовый ключ авторизации пользователя,
+    #: либо пару «логин-пароль», из которой он собирается. Без этого учётная
+    #: запись с одним токеном прошла бы проверку состава и упала бы на первом
+    #: же расчёте — то есть ошибка нашлась бы у клиента, а не в кабинете.
+    any_of: tuple[CredentialAlternative, ...] = ()
 
     @property
     def names(self) -> tuple[str, ...]:
@@ -128,14 +156,45 @@ CREDENTIAL_SCHEMAS: dict[str, CredentialSchema] = {
             "по вашему договору."
         ),
     ),
+    # Состав сверен по официальной документации Почты (ADR-0020, ADR-0023):
+    # «Для интеграции с API Онлайн-сервиса «Отправка» необходимо располагать
+    # токеном авторизации приложения; ключом авторизации пользователя».
+    # Второй перевозчик просит вычислить самостоятельно: «Ключ авторизации
+    # пользователя генерируется с помощью алгоритма base64. Перед кодированием
+    # имя и пароль, выданные сервисом passport.pochta.ru, разделяются
+    # двоеточием». Поэтому принимаются оба вида: готовый ключ или пара,
+    # из которой он собирается.
+    #
+    # Секрета подписи вебхуков здесь нет намеренно: вебхуков Почта
+    # не присылает — ни приёма события, ни подписки нет ни на одной
+    # из 117 страниц её справки.
+    "pochta": CredentialSchema(
+        fields=(
+            CredentialField("token", "Токен авторизации приложения"),
+            CredentialField("user_key", "Ключ авторизации пользователя", required=False),
+            CredentialField("login", "Логин passport.pochta.ru", secret=False, required=False),
+            CredentialField("password", "Пароль passport.pochta.ru", required=False),
+        ),
+        where_to_get=(
+            "Токен приходит письмом после активации доступа к API и виден в личном "
+            "кабинете otpravka.pochta.ru, раздел настроек API. Ключ авторизации "
+            "пользователя — это base64 от пары «логин:пароль» из passport.pochta.ru: "
+            "введите либо готовый ключ, либо саму пару, и мы соберём его сами."
+        ),
+        any_of=(CredentialAlternative((("user_key",), ("login", "password"))),),
+    ),
 }
 
-#: Перевозчики из пилота, чей адаптер ещё не написан (Почта России добавлена
-#: шестым перевозчиком решением ADR-0020). Состав доступов появится вместе
-#: с адаптером, в том же коммите: пара «логин-пароль» подходит не всем —
-#: у Почты трекинг и оформление авторизуются порознь, — и объявить поле
-#: раньше, чем прочитан способ авторизации, значит попросить у клиента не то.
-PENDING_CARRIERS: frozenset[str] = frozenset({"pochta", "yandex"})
+#: Перевозчики из пилота, чей адаптер ещё не написан. Состав доступов
+#: появляется вместе с адаптером, в том же коммите: пара «логин-пароль»
+#: подходит не всем, и объявить поле раньше, чем прочитан способ
+#: авторизации, значит попросить у клиента не то.
+#:
+#: У Почты объявлены доступы только к API «Отправка» — расчёт и оформление.
+#: Трекинг у неё живёт в отдельном SOAP-сервисе со своими учётными данными,
+#: и как они выдаются, в машинном контракте не сказано ни слова: поля для них
+#: появятся вместе с трекингом, когда это станет известно.
+PENDING_CARRIERS: frozenset[str] = frozenset({"yandex"})
 
 
 def schema_for(carrier_code: str) -> CredentialSchema | None:
@@ -154,4 +213,9 @@ def missing_fields(carrier_code: str, credentials: dict[str, str]) -> list[str]:
         return []
     # Необязательные не считаются недостающими: перевозчик без секрета
     # подписи вебхуков подключён и работает, просто на опросе.
-    return [name for name in schema.required_names if not credentials.get(name)]
+    missing = [name for name in schema.required_names if not credentials.get(name)]
+    for alternative in schema.any_of:
+        if any(all(credentials.get(name) for name in option) for option in alternative.options):
+            continue
+        missing.extend(name for name in alternative.primary if name not in missing)
+    return missing

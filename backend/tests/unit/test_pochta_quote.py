@@ -1,0 +1,394 @@
+"""Расчёт Почты России: единицы, деньги, сроки, индексы и продукты.
+
+Фикстуры синтетические — у Почты нет ни машинной спецификации на расчёт,
+ни примеров ответа в справке, только структура полей. Что именно это
+доказывает, а что нет, написано в `tests/fixtures/pochta/README.md`.
+
+Сеть не используется: транспорт подменяется целиком. Боевого адреса API
+у Почты в документации нет вовсе, поэтому ходить всё равно некуда.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Callable
+from decimal import Decimal
+from pathlib import Path
+
+import httpx
+import pytest
+
+from aerogram.carriers.base import CarrierAccount, Party, Place, QuoteRequest
+from aerogram.carriers.pochta.adapter import PochtaAdapter
+from aerogram.carriers.pochta.client import SANDBOX_BASE_URL, PochtaClient, pochta_error, user_key
+from aerogram.carriers.pochta.mapping import (
+    DEFAULT_PRODUCTS,
+    PRODUCTS,
+    dimension_block,
+    mass_grams,
+    money_from_rate,
+    total_price,
+)
+from aerogram.carriers.pochta.quotes import (
+    TARIFF_PATH,
+    build_tariff_payload,
+    parse_tariff,
+    products_for,
+)
+from aerogram.shared.enums import CargoType, PriceSource
+from aerogram.shared.errors import CarrierError, CarrierValidationError
+from aerogram.shared.money import Money
+
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "pochta"
+
+
+def load(name: str) -> dict[str, object]:
+    return json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))
+
+
+def _account(mode: str = "own_contract", **overrides: object) -> CarrierAccount:
+    defaults: dict[str, object] = {
+        "account_id": "acc-1",
+        "carrier_code": "pochta",
+        "mode": mode,
+        "credentials": {"token": "app-token", "user_key": "bG9naW46cGFzc3dvcmQ="},
+    }
+    defaults.update(overrides)
+    return CarrierAccount(**defaults)  # type: ignore[arg-type]
+
+
+def _request(**overrides: object) -> QuoteRequest:
+    defaults: dict[str, object] = {
+        "sender": Party(city_fias_id=None, city_name="Москва", postal_code="101000"),
+        "recipient": Party(city_fias_id=None, city_name="Владивосток", postal_code="690000"),
+        "places": (Place(weight_kg=Decimal("1.234"), length_cm=30, width_cm=20, height_cm=15),),
+        "declared_value": Money.from_major("15000", "RUB"),
+        "cargo_type": CargoType.PARCEL,
+        "pickup": False,
+        "delivery_to_door": True,
+    }
+    defaults.update(overrides)
+    return QuoteRequest(**defaults)  # type: ignore[arg-type]
+
+
+def _adapter(handler: Callable[[httpx.Request], httpx.Response]) -> PochtaAdapter:
+    def factory(acc: CarrierAccount) -> PochtaClient:
+        inner = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url=SANDBOX_BASE_URL)
+        return PochtaClient(
+            token=acc.credentials["token"],
+            user_auth_key=acc.credentials.get("user_key", "key"),
+            http_client=inner,
+        )
+
+    return PochtaAdapter(client_factory=factory)
+
+
+class TestUnits:
+    """Единицы Почты: граммы и сантиметры, целыми числами."""
+
+    def test_mass_is_whole_grams_rounded_up(self) -> None:
+        # Вниз округлять нельзя: счёт придёт по весу перевозчика, и разницу
+        # заплатит клиент.
+        assert mass_grams(Decimal("1.234")) == 1234
+        assert mass_grams(Decimal("1.2341")) == 1235
+        assert mass_grams(Decimal("0.0001")) == 1
+
+    def test_mass_never_zero(self) -> None:
+        # Ноль граммов — не отправление, а отказ расчёта на стороне Почты.
+        assert mass_grams(Decimal("0")) == 1
+
+    def test_dimension_is_centimetres_as_is(self) -> None:
+        place = Place(weight_kg=Decimal("1"), length_cm=30, width_cm=20, height_cm=15)
+        assert dimension_block(place) == {"length": 30, "width": 20, "height": 15}
+
+
+class TestMoney:
+    """Деньги: копейки как есть, НДС складывается ровно в одном месте."""
+
+    def test_response_is_already_minor_units(self) -> None:
+        # «Возвращаемые значения указываются в копейках» — делить нельзя.
+        assert total_price(load("tariff_ok")) == Money(32800 + 6560, "RUB")
+
+    def test_component_carries_its_own_vat(self) -> None:
+        assert money_from_rate({"rate": 28900, "vat": 5780}) == Money(34680, "RUB")
+
+    def test_missing_vat_reads_as_zero(self) -> None:
+        assert money_from_rate({"rate": 28900}) == Money(28900, "RUB")
+
+    def test_missing_component_is_none_not_zero(self) -> None:
+        # Ноль означал бы «услуга бесплатна»; её просто не считали.
+        assert money_from_rate(None) is None
+        assert money_from_rate({"vat": 100}) is None
+
+    def test_true_is_not_one_kopeck(self) -> None:
+        # bool в Python — подкласс int, и True молча стал бы копейкой.
+        assert money_from_rate({"rate": True}) is None
+        assert total_price({"total-rate": True}) is None
+
+    def test_answer_without_total_rate_is_not_an_offer(self) -> None:
+        assert total_price(load("tariff_without_price")) is None
+
+
+class TestPayload:
+    """Тело запроса: обязательные поля, индексы и одно место."""
+
+    def test_required_fields_are_always_present(self) -> None:
+        payload = build_tariff_payload(_request(), PRODUCTS["POSTAL_PARCEL:SURFACE"])
+        for field in (
+            "mail-type",
+            "mail-category",
+            "mass",
+            "inventory",
+            "with-order-of-notice",
+            "with-simple-notice",
+        ):
+            assert field in payload, field
+        # Платных услуг мы не заказываем — явное «нет», а не отсутствие поля.
+        assert payload["inventory"] is False
+        assert payload["with-order-of-notice"] is False
+        assert payload["with-simple-notice"] is False
+
+    def test_indexes_go_as_strings_both_ways(self) -> None:
+        # Ведущий ноль значим, поэтому индекс — строка, а не число.
+        payload = build_tariff_payload(_request(), PRODUCTS["POSTAL_PARCEL:SURFACE"])
+        assert payload["index-from"] == "101000"
+        assert payload["index-to"] == "690000"
+
+    def test_sender_index_is_never_left_to_the_carrier_profile(self) -> None:
+        # Без index-from Почта берёт индекс из профиля клиента в её кабинете:
+        # при мультиарендности это тихая зависимость цены от чужой настройки.
+        request = _request(sender=Party(city_fias_id=None, city_name="Москва", postal_code=None))
+        with pytest.raises(CarrierValidationError):
+            build_tariff_payload(request, PRODUCTS["POSTAL_PARCEL:SURFACE"])
+
+    def test_without_recipient_index_there_is_no_quote(self) -> None:
+        request = _request(
+            recipient=Party(city_fias_id=None, city_name="Владивосток", postal_code=None)
+        )
+        with pytest.raises(CarrierValidationError):
+            build_tariff_payload(request, PRODUCTS["POSTAL_PARCEL:SURFACE"])
+
+    def test_several_places_are_refused_before_the_call(self) -> None:
+        # Одно РПО — одно место: в теле расчёта одна mass и один dimension.
+        place = Place(weight_kg=Decimal("1"), length_cm=10, width_cm=10, height_cm=10)
+        with pytest.raises(CarrierValidationError):
+            build_tariff_payload(_request(places=(place, place)), PRODUCTS["EMS:EXPRESS"])
+
+    def test_insurance_switches_category_and_adds_declared_value(self) -> None:
+        # У Почты объявленная ценность — это категория РПО, отдельного флага
+        # страхования в теле расчёта нет.
+        payload = build_tariff_payload(_request(insurance=True), PRODUCTS["POSTAL_PARCEL:SURFACE"])
+        assert payload["mail-category"] == "WITH_DECLARED_VALUE"
+        assert payload["declared-value"] == 1_500_000
+
+    def test_without_insurance_declared_value_is_not_sent(self) -> None:
+        payload = build_tariff_payload(_request(), PRODUCTS["POSTAL_PARCEL:SURFACE"])
+        assert payload["mail-category"] == "ORDINARY"
+        assert "declared-value" not in payload
+
+    def test_entries_type_is_sent_only_when_asked(self) -> None:
+        # Поле обязательно по таблице, но описано как «для международных
+        # отправлений». Подставлять категорию вложения внутренней посылке
+        # было бы выдумкой — см. quotes.
+        assert "entries-type" not in build_tariff_payload(
+            _request(), PRODUCTS["POSTAL_PARCEL:SURFACE"]
+        )
+        payload = build_tariff_payload(
+            _request(extras={"entries_type": "GIFT"}), PRODUCTS["POSTAL_PARCEL:SURFACE"]
+        )
+        assert payload["entries-type"] == "GIFT"
+
+
+class TestProducts:
+    """Набор продуктов: один запрос — одна цена, значит набор виден явно."""
+
+    def test_default_set_is_used_when_nothing_asked(self) -> None:
+        codes = [p.code for p in products_for(_request())]
+        assert codes == list(DEFAULT_PRODUCTS)
+
+    def test_caller_may_narrow_the_set(self) -> None:
+        products = products_for(_request(extras={"products": ["EMS:EXPRESS"]}))
+        assert [p.code for p in products] == ["EMS:EXPRESS"]
+
+    def test_unknown_product_falls_back_instead_of_guessing(self) -> None:
+        # Молча посчитать не то, что просили, выглядит как «Почта подешевела».
+        products = products_for(_request(extras={"products": ["ПОСЫЛОЧКА"]}))
+        assert [p.code for p in products] == list(DEFAULT_PRODUCTS)
+
+
+class TestParse:
+    """Разбор ответа: цена, срок и расшифровка."""
+
+    def test_full_answer_becomes_one_offer(self) -> None:
+        quote = parse_tariff(
+            load("tariff_ok"),
+            PRODUCTS["POSTAL_PARCEL:SURFACE"],
+            price_source=PriceSource.OWN_CONTRACT,
+        )
+        assert quote is not None
+        assert quote.price == Money(39_360, "RUB")
+        assert (quote.transit_days_min, quote.transit_days_max) == (4, 9)
+        assert quote.service_name == "Посылка нестандартная, наземная"
+        assert quote.price_breakdown["Пересылка"] == Money(34_680, "RUB")
+        assert quote.price_breakdown["Объявленная ценность"] == Money(1_800, "RUB")
+
+    def test_answer_without_delivery_time_still_has_a_price(self) -> None:
+        # Блок срока помечен опциональным целиком.
+        quote = parse_tariff(
+            load("tariff_no_delivery_time"),
+            PRODUCTS["POSTAL_PARCEL:SURFACE"],
+            price_source=PriceSource.AEROGRAM,
+        )
+        assert quote is not None
+        assert (quote.transit_days_min, quote.transit_days_max) == (0, 0)
+        assert quote.promised_delivery_date is None
+
+    def test_only_max_days_makes_a_point_not_a_range(self) -> None:
+        # Вилка «от нуля» обещала бы доставку сегодня и выиграла бы
+        # любое сравнение по скорости.
+        quote = parse_tariff(
+            load("tariff_avia"), PRODUCTS["EMS:EXPRESS"], price_source=PriceSource.AEROGRAM
+        )
+        assert quote is not None
+        assert (quote.transit_days_min, quote.transit_days_max) == (3, 3)
+        assert quote.promised_delivery_date is not None
+
+    def test_answer_without_price_is_not_an_offer(self) -> None:
+        assert (
+            parse_tariff(
+                load("tariff_without_price"),
+                PRODUCTS["EMS:EXPRESS"],
+                price_source=PriceSource.AEROGRAM,
+            )
+            is None
+        )
+
+
+class TestErrors:
+    """Ошибка перевозчика: разбирается, но никогда не даёт 500."""
+
+    def test_both_error_envelopes_are_recognised(self) -> None:
+        assert pochta_error(load("error_tariff")) == "ILLEGAL_INDEX_TO Почтовый индекс некорректен"
+        assert "EMPTY_MAIL_TYPE" in (pochta_error(load("error_batch_style")) or "")
+
+    def test_bare_string_code_is_an_error_too(self) -> None:
+        # Часть методов отвечает голой строкой кода.
+        assert pochta_error('"SESSION_IN_PROGRESS"') == "SESSION_IN_PROGRESS"
+
+    def test_undefined_placeholder_is_not_an_error(self) -> None:
+        # `UNDEFINED` — значение-заглушка из схем документации, оно приходит
+        # и в успешных ответах.
+        assert pochta_error({"error-code": "UNDEFINED", "f103-sent": True}) is None
+
+    def test_successful_answer_has_no_error(self) -> None:
+        assert pochta_error(load("tariff_ok")) is None
+
+    @pytest.mark.anyio
+    async def test_carrier_error_does_not_become_500(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=load("error_tariff"))
+
+        adapter = _adapter(handler)
+        with pytest.raises(CarrierError):
+            await adapter.quote(_request(), _account())
+
+
+class TestClient:
+    """Заголовки авторизации и адрес API."""
+
+    @pytest.mark.anyio
+    async def test_two_headers_with_their_own_prefixes(self) -> None:
+        seen: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.update(request.headers)
+            return httpx.Response(200, json=load("tariff_ok"))
+
+        client = PochtaClient(
+            token="app-token",
+            user_auth_key="bG9naW46cGFzc3dvcmQ=",
+            http_client=httpx.AsyncClient(
+                transport=httpx.MockTransport(handler), base_url=SANDBOX_BASE_URL
+            ),
+        )
+        await client.post(TARIFF_PATH, {}, operation="quote")
+        assert seen["authorization"] == "AccessToken app-token"
+        assert seen["x-user-authorization"] == "Basic bG9naW46cGFzc3dvcmQ="
+        # Кодировка объявлена перевозчиком явно и на каждой странице справки.
+        assert seen["content-type"] == "application/json;charset=UTF-8"
+
+    def test_user_key_is_computed_from_the_pair(self) -> None:
+        # «base64(login:password) = bG9naW46cGFzc3dvcmQ=» — пример самой Почты.
+        assert user_key(login="login", password="password", key=None) == "bG9naW46cGFzc3dvcmQ="
+
+    def test_ready_key_wins_over_the_pair(self) -> None:
+        # У тенанта может не быть исходного пароля под рукой.
+        assert user_key(login="l", password="p", key="ready") == "ready"
+
+    def test_without_key_and_pair_there_is_no_client(self) -> None:
+        with pytest.raises(CarrierValidationError):
+            user_key(login=None, password=None, key=None)
+
+    def test_missing_token_is_refused_at_construction(self) -> None:
+        with pytest.raises(CarrierValidationError):
+            PochtaClient(token="", user_auth_key="key")
+
+    def test_sandbox_uses_the_only_address_the_carrier_published(self) -> None:
+        client = PochtaClient(token="t", user_auth_key="k", is_sandbox=True)
+        assert client.base_url == SANDBOX_BASE_URL
+
+    def test_production_without_an_address_is_refused(self) -> None:
+        # Боевого адреса Почта в документации не публикует, и подставлять
+        # выдуманный запрещает планка ADR-0020.
+        with pytest.raises(CarrierValidationError):
+            PochtaClient(token="t", user_auth_key="k", is_sandbox=False)
+
+    def test_configured_address_wins(self) -> None:
+        client = PochtaClient(
+            token="t",
+            user_auth_key="k",
+            base_url="https://otpravka-api.example/",
+            is_sandbox=False,
+        )
+        assert client.base_url == "https://otpravka-api.example"
+
+
+class TestAdapter:
+    """Путь целиком: один запрос на продукт."""
+
+    @pytest.mark.anyio
+    async def test_quote_asks_once_per_product(self) -> None:
+        asked: list[dict[str, object]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == TARIFF_PATH
+            asked.append(json.loads(request.content))
+            return httpx.Response(200, json=load("tariff_ok"))
+
+        quotes = await _adapter(handler).quote(_request(), _account())
+        assert len(asked) == len(DEFAULT_PRODUCTS)
+        assert {q.service_code for q in quotes} == set(DEFAULT_PRODUCTS)
+        assert {p["mail-type"] for p in asked} == {"POSTAL_PARCEL", "EMS"}
+
+    @pytest.mark.anyio
+    async def test_price_source_follows_the_contract_mode(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=load("tariff_ok"))
+
+        quotes = await _adapter(handler).quote(
+            _request(extras={"products": ["EMS:EXPRESS"]}), _account(mode="aerogram")
+        )
+        assert quotes[0].price_source is PriceSource.AEROGRAM
+
+    @pytest.mark.anyio
+    async def test_product_without_price_does_not_kill_the_others(self) -> None:
+        # Сочетаемость видов РПО с категориями нигде не документирована,
+        # поэтому отказ по одному продукту — ожидаемый исход, а не сбой.
+        def handler(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            if body["mail-type"] == "EMS":
+                return httpx.Response(200, json=load("tariff_without_price"))
+            return httpx.Response(200, json=load("tariff_ok"))
+
+        quotes = await _adapter(handler).quote(_request(), _account())
+        assert [q.service_code for q in quotes] == ["POSTAL_PARCEL:SURFACE"]

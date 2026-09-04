@@ -75,6 +75,7 @@ forbidden_modules =
     aerogram.carriers.major
     aerogram.carriers.dellin
     aerogram.carriers.pecom
+    aerogram.carriers.pochta
     aerogram.carriers.yandex
 
 [importlinter:contract:readonly-analytics]

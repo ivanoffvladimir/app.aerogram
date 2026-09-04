@@ -121,9 +121,9 @@ class TestCredentialSchemas:
         Поэтому такой перевозчик обязан числиться в ``PENDING_CARRIERS``:
         иначе состав его доступов забудут объявить вместе с адаптером.
         """
-        assert schema_for("pochta") is None
-        assert missing_fields("pochta", {}) == []
-        assert set(PENDING_CARRIERS) == {"pochta", "yandex"}
+        assert schema_for("yandex") is None
+        assert missing_fields("yandex", {}) == []
+        assert set(PENDING_CARRIERS) == {"yandex"}
 
     def test_dellin_is_declared_now_that_its_adapter_exists(self) -> None:
         """Состав доступов объявляется вместе с адаптером, в том же коммите.
@@ -149,6 +149,21 @@ class TestCredentialSchemas:
         assert schema.required_names == ("login", "api_key")
         assert missing_fields("pecom", {"login": "user"}) == ["api_key"]
         assert [f.secret for f in schema.fields] == [False, True]
+
+    def test_pochta_asks_for_an_application_token_and_a_user_key(self) -> None:
+        """Авторизация «Отправки» двухсоставная и без единого сетевого вызова.
+
+        Токен приложения обязателен: без него не работает ничего. Ключ
+        пользователя обязателен по смыслу, но не по списку — его можно
+        не вводить, а дать пару логин-пароль, из которой он собирается,
+        и это выражено через ``any_of``.
+        """
+        schema = schema_for("pochta")
+        assert schema is not None
+        assert "pochta" not in PENDING_CARRIERS
+        assert schema.required_names == ("token",)
+        # Вебхуков Почта не присылает — секрета подписи у неё нет.
+        assert "webhook_secret" not in schema.names
 
     def test_declared_and_pending_sets_do_not_overlap(self) -> None:
         assert not set(CREDENTIAL_SCHEMAS) & PENDING_CARRIERS

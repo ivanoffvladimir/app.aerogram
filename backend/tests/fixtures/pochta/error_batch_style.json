@@ -1,0 +1,5 @@
+{
+  "errors": [
+    { "error-code": "EMPTY_MAIL_TYPE", "error-details": "Тип почтового отправления не указан", "position": 0 }
+  ]
+}
