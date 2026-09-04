@@ -185,6 +185,47 @@ export interface BulkRunPage {
   total: number
 }
 
+/**
+ * Итог разбора одной строки импортированного списка (ADR-0022, стадия 2).
+ *
+ * `parsed` — адрес взят из самой строки; `resolved` — найден в адресной книге;
+ * `ambiguous` — найдено несколько, выбирать оператору; `not_found` — искали,
+ * не нашли. Типизировано, чтобы новое состояние на сервере ломало сборку,
+ * а не показывалось оператору по-английски.
+ */
+export type BulkImportStatus = 'parsed' | 'resolved' | 'ambiguous' | 'not_found'
+
+export interface BulkImportOption {
+  address_id: string
+  address: Address
+}
+
+export interface BulkImportMatch {
+  counterparty_id: string
+  counterparty_name: string
+  address_id: string | null
+  options: BulkImportOption[]
+}
+
+export interface BulkImportRow {
+  line: number
+  status: BulkImportStatus
+  message: string | null
+  lookup: string | null
+  match: BulkImportMatch | null
+  destination: Address | null
+  weight_grams: number | null
+  cargo_value: Money | null
+}
+
+/** Предпросмотр импорта: прогон ещё не создан. */
+export interface BulkImport {
+  rows: BulkImportRow[]
+  errors: string[]
+  counts: Record<BulkImportStatus, number>
+  tabular: boolean
+}
+
 /** Причина, по которой отправление попало в разбор. */
 export type ExceptionReason = 'deadline_passed' | 'problem_status' | 'stalled'
 

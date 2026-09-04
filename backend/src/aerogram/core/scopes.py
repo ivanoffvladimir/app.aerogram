@@ -96,6 +96,10 @@ CABINET_ONLY: frozenset[tuple[str, str]] = frozenset(
         ("GET", "/v1/api-keys"),
         ("POST", "/v1/api-keys"),
         ("DELETE", "/v1/api-keys/{key_id}"),
+        # Импорт списка с подбором по адресной книге раскрывает саму адресную
+        # книгу — по ИНН можно перебрать, кто в ней есть. Закрыт по той же
+        # причине, что и она.
+        ("POST", "/v1/bulk-runs/import"),
         ("GET", "/v1/counterparties"),
         ("POST", "/v1/counterparties"),
         ("GET", "/v1/counterparties/{counterparty_id}"),

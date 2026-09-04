@@ -230,6 +230,28 @@ class CounterpartyRepository:
         )
         return (await self._session.execute(stmt)).scalars().first()
 
+    async def find_by_inn(self, inn: str) -> list[Counterparty]:
+        """Все живые контрагенты с таким ИНН — головная организация и филиалы.
+
+        Список, а не один: ИНН общий у филиалов, различаются они КПП, и выбор
+        между ними — не дело репозитория.
+        """
+        stmt = self._alive().where(Counterparty.inn == inn).order_by(Counterparty.kpp)
+        return list((await self._session.execute(stmt)).scalars())
+
+    async def find_by_name(self, name: str) -> list[Counterparty]:
+        """Контрагенты с точно таким названием, без учёта регистра.
+
+        Точное совпадение, а не подстрока: импортированный список называет
+        получателя целиком, и «Роспломба» не должна подбирать «Роспломба-Юг».
+        """
+        stmt = (
+            self._alive()
+            .where(func.lower(Counterparty.name) == name.strip().lower())
+            .order_by(Counterparty.name, Counterparty.id)
+        )
+        return list((await self._session.execute(stmt)).scalars())
+
     async def search(
         self, query: str | None, *, limit: int = 50, offset: int = 0
     ) -> tuple[list[Counterparty], int]:

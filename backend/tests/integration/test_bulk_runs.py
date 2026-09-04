@@ -14,7 +14,7 @@ import pytest
 from httpx import AsyncClient
 
 from aerogram.carriers import registry
-from tests.integration.conftest import RATE_REQUEST, FakeCarrier
+from tests.integration.conftest import RATE_REQUEST, FakeCarrier, login
 from tests.integration.test_shipments_api import ShippingCarrier
 
 pytestmark = pytest.mark.asyncio
@@ -90,8 +90,6 @@ class TestDraft:
     ) -> None:
         """Чужой объект по прямому идентификатору — 404, а не 403."""
         run = await _create(client, headers)
-        from tests.integration.conftest import login
-
         other = await login(client, "b@example.com")
         response = await client.get(f"/v1/bulk-runs/{run['id']}", headers=other)
         assert response.status_code == 404
@@ -200,3 +198,157 @@ class TestListing:
         # Список не тащит строки: прогон может быть на тысячу получателей.
         assert page["items"][0]["rows"] == []
         assert page["items"][0]["counts"] == {"new": 2}
+
+
+ROSPLOMBA = {
+    "type": "legal",
+    "name": 'ООО "Роспломба"',
+    "inn": "7701234567",
+    "kpp": "770101001",
+    "addresses": [
+        {"city": "Москва", "street": "ул Тверская", "house": "1"},
+    ],
+}
+
+
+async def _counterparty(
+    client: AsyncClient, headers: dict[str, str], **overrides: Any
+) -> dict[str, Any]:
+    response = await client.post(
+        "/v1/counterparties", json={**ROSPLOMBA, **overrides}, headers=headers
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+async def _import(client: AsyncClient, headers: dict[str, str], text: str) -> dict[str, Any]:
+    response = await client.post("/v1/bulk-runs/import", json={"text": text}, headers=headers)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+class TestImport:
+    """Стадия 2 (ADR-0022): импорт списка и подбор по адресной книге."""
+
+    async def test_a_plain_list_is_parsed_without_the_address_book(
+        self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        result = await _import(client, headers, "Москва; ул. Ленина, 1\nТверь; пр. Мира, 3")
+        assert result["counts"] == {"parsed": 2, "resolved": 0, "ambiguous": 0, "not_found": 0}
+        assert result["rows"][0]["destination"] == {
+            "country": "RU",
+            "region": None,
+            "city": "Москва",
+            "postal_code": None,
+            "address_line": "ул. Ленина, 1",
+        }
+        assert result["errors"] == []
+
+    async def test_a_search_file_finds_the_counterparty_by_inn(
+        self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        # «Файл поиска», как у catapulto: строка с ИНН подбирается по
+        # собственной адресной книге тенанта.
+        created = await _counterparty(client, headers)
+        result = await _import(client, headers, "ИНН;Вес\n7701234567;1,5")
+        row = result["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["lookup"] == "ИНН 7701234567"
+        assert row["match"]["counterparty_id"] == created["id"]
+        assert row["match"]["address_id"] == created["addresses"][0]["id"]
+        assert row["destination"]["city"] == "Москва"
+        assert row["destination"]["address_line"] == "ул Тверская, 1"
+        # Килограммы из файла — в целые граммы, вверх.
+        assert row["weight_grams"] == 1500
+
+    async def test_the_name_is_matched_exactly_and_case_insensitively(
+        self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        await _counterparty(client, headers)
+        result = await _import(client, headers, 'Контрагент\nооо "роспломба"')
+        assert result["rows"][0]["status"] == "resolved"
+
+    async def test_a_substring_is_not_a_match(
+        self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        # «Роспломба» не должна подбирать «Роспломба-Юг»: список называет
+        # получателя целиком.
+        await _counterparty(client, headers)
+        result = await _import(client, headers, "Контрагент\nРоспломба")
+        assert result["rows"][0]["status"] == "not_found"
+
+    async def test_two_addresses_make_the_row_ambiguous(
+        self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        await _counterparty(
+            client,
+            headers,
+            addresses=[
+                {"city": "Москва", "street": "ул Тверская", "house": "1"},
+                {"city": "Тверь", "street": "пр Мира", "house": "3"},
+            ],
+        )
+        result = await _import(client, headers, "ИНН\n7701234567")
+        row = result["rows"][0]
+        assert row["status"] == "ambiguous"
+        assert len(row["match"]["options"]) == 2
+        assert row["destination"] is None
+
+    async def test_the_city_in_the_row_narrows_the_choice(
+        self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        await _counterparty(
+            client,
+            headers,
+            addresses=[
+                {"city": "Москва", "street": "ул Тверская", "house": "1"},
+                {"city": "Тверь", "street": "пр Мира", "house": "3"},
+            ],
+        )
+        result = await _import(client, headers, "ИНН;Город\n7701234567;тверь")
+        row = result["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["destination"]["city"] == "Тверь"
+
+    async def test_branches_sharing_an_inn_are_ambiguous(
+        self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        await _counterparty(client, headers)
+        await _counterparty(client, headers, kpp="770102002", name='ООО "Роспломба", филиал')
+        result = await _import(client, headers, "ИНН\n7701234567")
+        row = result["rows"][0]
+        assert row["status"] == "ambiguous"
+        assert "2 контрагента" in row["message"]
+
+    async def test_an_address_without_a_house_is_not_usable(
+        self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        # До двери без дома не доехать, а расчёт требует строку адреса.
+        await _counterparty(client, headers, addresses=[{"city": "Москва"}])
+        result = await _import(client, headers, "ИНН\n7701234567")
+        row = result["rows"][0]
+        assert row["status"] == "not_found"
+        assert "улица и дом" in row["message"]
+
+    async def test_the_address_book_of_another_tenant_is_invisible(
+        self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        await _counterparty(client, headers)
+        other = await login(client, "b@example.com")
+        result = await _import(client, other, "ИНН\n7701234567")
+        assert result["rows"][0]["status"] == "not_found"
+
+    async def test_unreadable_lines_are_named_not_dropped(
+        self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        result = await _import(client, headers, "Москва; ул. Ленина, 1\nВладивосток")
+        assert result["errors"] == ["Строка 2: нужны город и адрес через «;»"]
+        assert result["counts"]["parsed"] == 1
+
+    async def test_import_is_a_preview_and_creates_nothing(
+        self, client: AsyncClient, headers: dict[str, str], seeded_tenants: tuple[UUID, UUID]
+    ) -> None:
+        before = (await client.get("/v1/bulk-runs", headers=headers)).json()["total"]
+        await _import(client, headers, "Москва; ул. Ленина, 1")
+        after = (await client.get("/v1/bulk-runs", headers=headers)).json()["total"]
+        assert after == before

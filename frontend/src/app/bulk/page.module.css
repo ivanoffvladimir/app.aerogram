@@ -137,3 +137,39 @@
   color: var(--danger, #c0392b);
   margin: 8px 0;
 }
+
+.fileRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.preview {
+  margin-top: 16px;
+}
+
+.previewHead {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.select {
+  min-width: 260px;
+}
+
+.lineNo {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.errorList {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--danger, #c0392b);
+  font-size: 13px;
+}

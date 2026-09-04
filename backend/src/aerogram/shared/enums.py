@@ -264,6 +264,20 @@ class BulkRowStatus(StrEnum):
     FAILED = "failed"
 
 
+class BulkImportStatus(StrEnum):
+    """Итог разбора одной строки импортированного списка.
+
+    ``PARSED`` — адрес взят из самой строки; ``RESOLVED`` — найден в адресной
+    книге; ``AMBIGUOUS`` — найдено несколько, выбирать оператору;
+    ``NOT_FOUND`` — искали, не нашли.
+    """
+
+    PARSED = "parsed"
+    RESOLVED = "resolved"
+    AMBIGUOUS = "ambiguous"
+    NOT_FOUND = "not_found"
+
+
 class CargoType(StrEnum):
     DOCUMENTS = "documents"
     PARCEL = "parcel"

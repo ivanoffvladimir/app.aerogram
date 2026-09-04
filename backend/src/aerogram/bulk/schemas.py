@@ -15,10 +15,21 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from aerogram.shared.enums import BulkRowStatus, BulkRunStatus, CargoType, RoutingStrategy
+from aerogram.shared.enums import (
+    BulkImportStatus,
+    BulkRowStatus,
+    BulkRunStatus,
+    CargoType,
+    RoutingStrategy,
+)
 from aerogram.shared.schemas import AddressSchema, MoneySchema, PackageSchema
 
 __all__ = [
+    "BulkImportIn",
+    "BulkImportMatchOut",
+    "BulkImportOptionOut",
+    "BulkImportOut",
+    "BulkImportRowOut",
     "BulkRowIn",
     "BulkRowOut",
     "BulkRunCreateIn",
@@ -47,6 +58,61 @@ class BulkRunCreateIn(BaseModel):
     origin: AddressSchema
     strategy: RoutingStrategy = RoutingStrategy.OPTIMAL
     rows: list[BulkRowIn] = Field(min_length=1, max_length=1000)
+
+
+class BulkImportIn(BaseModel):
+    """Список получателей текстом: вставка или содержимое файла.
+
+    Верхняя граница — по объёму, а не по числу строк: разбор ещё не знает,
+    сколько там строк, а миллион символов покрывает тысячу получателей
+    с самым многословным адресом.
+    """
+
+    text: str = Field(min_length=1, max_length=1_000_000)
+
+
+class BulkImportOptionOut(BaseModel):
+    """Один из адресов контрагента, когда выбрать надо оператору."""
+
+    address_id: UUID
+    address: AddressSchema
+
+
+class BulkImportMatchOut(BaseModel):
+    """Что нашлось в адресной книге по ключу строки."""
+
+    counterparty_id: UUID
+    counterparty_name: str
+    #: Выбранный адрес. Пусто — выбор не сделан: адресов несколько или нет.
+    address_id: UUID | None = None
+    options: list[BulkImportOptionOut] = Field(default_factory=list)
+
+
+class BulkImportRowOut(BaseModel):
+    """Строка списка после разбора и подбора."""
+
+    line: int
+    status: BulkImportStatus
+    #: Почему строка не готова, по-русски: показывается оператору как есть.
+    message: str | None = None
+    #: Что искали в адресной книге, для показа: «ИНН 7701234567».
+    lookup: str | None = None
+    match: BulkImportMatchOut | None = None
+    #: Готовый адрес получателя — у строк ``parsed`` и ``resolved``.
+    destination: AddressSchema | None = None
+    #: Груз этой строки, если файл его назвал. Пусто — общий груз прогона.
+    weight_grams: int | None = None
+    cargo_value: MoneySchema | None = None
+
+
+class BulkImportOut(BaseModel):
+    """Итог импорта: строки с результатом и то, что прочитать не удалось."""
+
+    rows: list[BulkImportRowOut]
+    errors: list[str]
+    #: Сводка по статусам, чтобы кабинет не пересчитывал строки.
+    counts: dict[str, int]
+    tabular: bool
 
 
 class BulkRunRenameIn(BaseModel):

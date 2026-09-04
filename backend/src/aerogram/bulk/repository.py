@@ -24,6 +24,11 @@ class BulkRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    @property
+    def session(self) -> AsyncSession:
+        """Сессия — для репозиториев смежных модулей в той же транзакции."""
+        return self._session
+
     def add_run(self, run: BulkRun) -> None:
         self._session.add(run)
 

@@ -23,24 +23,40 @@
 
 from __future__ import annotations
 
+from decimal import ROUND_CEILING
 from uuid import UUID
 
+from aerogram.bulk.importing import ImportedRow, parse_recipients
 from aerogram.bulk.models import BulkRow, BulkRun
 from aerogram.bulk.repository import BulkRepository
 from aerogram.bulk.schemas import (
+    BulkImportIn,
+    BulkImportMatchOut,
+    BulkImportOptionOut,
+    BulkImportOut,
+    BulkImportRowOut,
     BulkRowOut,
     BulkRunCreateIn,
     BulkRunOut,
     BulkRunPage,
 )
+from aerogram.core.models import Address, Counterparty
+from aerogram.core.repository import CounterpartyRepository
 from aerogram.rating.schemas import RateRequestIn
 from aerogram.rating.service import RateShoppingService
 from aerogram.routing.schemas import DecisionRequestIn, RoutingRequestIn
 from aerogram.routing.service import DecisionService, RecommendationService
 from aerogram.shared.clock import utcnow
-from aerogram.shared.enums import BulkRowStatus, BulkRunStatus, RoutingStrategy
+from aerogram.shared.enums import (
+    BulkImportStatus,
+    BulkRowStatus,
+    BulkRunStatus,
+    RoutingStrategy,
+)
 from aerogram.shared.errors import AerogramError, NotFound
 from aerogram.shared.logging import get_logger
+from aerogram.shared.money import Money
+from aerogram.shared.schemas import AddressSchema, MoneySchema
 from aerogram.shipments.schemas import CreateShipmentRequest
 from aerogram.shipments.service import ShipmentService
 
@@ -83,6 +99,9 @@ class BulkService:
         self._recommendations = recommendations
         self._decisions = decisions
         self._shipments = shipments
+        # Адресная книга нужна только импорту, и только на чтение: подбор
+        # ищет контрагента по ИНН или названию и берёт его адрес.
+        self._counterparties = CounterpartyRepository(repository.session)
 
     # --- Создание ---------------------------------------------------------
 
@@ -124,6 +143,177 @@ class BulkService:
     def _default_name() -> str:
         """Имя по умолчанию — дата, как в кабинете. Правится вручную."""
         return f"Массовый расчёт от {utcnow():%d.%m.%Y}"
+
+    # --- Импорт списка ----------------------------------------------------
+
+    async def import_rows(self, payload: BulkImportIn, *, tenant_id: UUID) -> BulkImportOut:
+        """Разобрать список и подобрать получателей по адресной книге.
+
+        Прогон **не создаётся**: оператор видит, что распозналось, что нашлось
+        и что нашлось неоднозначно, и только потом создаёт расчёт обычным
+        путём — из тех строк, которые готовы. Создавать прогон прямо здесь
+        значило бы молча решать за оператора, какой из двух адресов
+        контрагента брать.
+
+        «Файл поиска», как у catapulto: строка с ИНН или названием
+        подбирается по собственной адресной книге тенанта. Город, если он
+        назван в строке, сужает выбор среди адресов найденного контрагента.
+        """
+        parsed = parse_recipients(payload.text)
+        rows: list[BulkImportRowOut] = []
+        for row in parsed.rows:
+            rows.append(await self._import_one(row))
+
+        counts: dict[str, int] = {status.value: 0 for status in BulkImportStatus}
+        for out in rows:
+            counts[out.status.value] += 1
+        # В логе только счётчики: адреса и названия — персональные данные
+        # получателей (CLAUDE.md §6).
+        log.info(
+            "bulk.imported",
+            tenant_id=str(tenant_id),
+            rows=len(rows),
+            errors=len(parsed.errors),
+            tabular=parsed.tabular,
+            **counts,
+        )
+        return BulkImportOut(
+            rows=rows, errors=list(parsed.errors), counts=counts, tabular=parsed.tabular
+        )
+
+    async def _import_one(self, row: ImportedRow) -> BulkImportRowOut:
+        cargo = self._row_cargo(row)
+        if not row.has_lookup_key:
+            # Адрес назван в самой строке — искать нечего.
+            return BulkImportRowOut(
+                line=row.line,
+                status=BulkImportStatus.PARSED,
+                destination=self._destination_from_row(row),
+                **cargo,
+            )
+
+        if row.inn:
+            lookup = f"ИНН {row.inn}"
+            found = await self._counterparties.find_by_inn(row.inn)
+        else:
+            lookup = str(row.name)
+            found = await self._counterparties.find_by_name(str(row.name))
+
+        if not found:
+            return BulkImportRowOut(
+                line=row.line,
+                status=BulkImportStatus.NOT_FOUND,
+                lookup=lookup,
+                message="В адресной книге такого контрагента нет",
+                **cargo,
+            )
+        if len(found) > 1:
+            # ИНН общий у головной организации и филиалов; одноимённые
+            # контрагенты тоже бывают. Выбирать между ними — оператору.
+            return BulkImportRowOut(
+                line=row.line,
+                status=BulkImportStatus.AMBIGUOUS,
+                lookup=lookup,
+                message=f"В адресной книге {len(found)} контрагента с таким ключом: "
+                + ", ".join(self._describe(c) for c in found[:5]),
+                **cargo,
+            )
+
+        counterparty = found[0]
+        addresses = [a for a in counterparty.addresses if a.deleted_at is None]
+        if row.city:
+            city = row.city.strip().lower()
+            in_city = [a for a in addresses if a.city.strip().lower() == city]
+            # Город из строки сужает выбор, но только если он что-то оставил:
+            # адрес в другом городе — это не «адресов нет», это вопрос.
+            if in_city:
+                addresses = in_city
+
+        match = BulkImportMatchOut(
+            counterparty_id=counterparty.id,
+            counterparty_name=counterparty.name,
+            options=[
+                BulkImportOptionOut(address_id=a.id, address=self._destination_from_address(a))
+                for a in addresses
+                if self._address_line(a)
+            ],
+        )
+        usable = [a for a in addresses if self._address_line(a)]
+        if not usable:
+            return BulkImportRowOut(
+                line=row.line,
+                status=BulkImportStatus.NOT_FOUND,
+                lookup=lookup,
+                match=match,
+                message="Контрагент найден, но пригодного адреса у него нет: нужны улица и дом",
+                **cargo,
+            )
+        if len(usable) > 1:
+            return BulkImportRowOut(
+                line=row.line,
+                status=BulkImportStatus.AMBIGUOUS,
+                lookup=lookup,
+                match=match,
+                message=f"У контрагента {len(usable)} адреса — выберите нужный",
+                **cargo,
+            )
+        address = usable[0]
+        return BulkImportRowOut(
+            line=row.line,
+            status=BulkImportStatus.RESOLVED,
+            lookup=lookup,
+            match=match.model_copy(update={"address_id": address.id}),
+            destination=self._destination_from_address(address),
+            **cargo,
+        )
+
+    @staticmethod
+    def _describe(counterparty: Counterparty) -> str:
+        return f"{counterparty.name} (КПП {counterparty.kpp or '—'})"
+
+    @staticmethod
+    def _address_line(address: Address) -> str | None:
+        """Строка адреса из полей адресной книги. Пусто — адрес непригоден."""
+        parts = [address.street, address.house]
+        if address.flat:
+            parts.append(f"кв. {address.flat}")
+        line = ", ".join(part for part in parts if part)
+        return line or None
+
+    def _destination_from_address(self, address: Address) -> AddressSchema:
+        return AddressSchema(
+            country=address.country_code,
+            region=address.region,
+            city=address.city,
+            postal_code=address.postal_code,
+            address_line=self._address_line(address) or "",
+        )
+
+    @staticmethod
+    def _destination_from_row(row: ImportedRow) -> AddressSchema:
+        return AddressSchema(
+            country="RU",
+            region=row.region,
+            city=str(row.city),
+            postal_code=row.postal_code,
+            address_line=str(row.address_line),
+        )
+
+    @staticmethod
+    def _row_cargo(row: ImportedRow) -> dict[str, object]:
+        """Груз строки в единицах контракта: граммы и копейки.
+
+        Файл называет килограммы и рубли — так пишут люди. Вес округляется
+        **вверх** до грамма: вниз занижало бы тариф, а счёт придёт по весу
+        перевозчика. Деньги — через ``Money.from_major``, без ``float``.
+        """
+        cargo: dict[str, object] = {}
+        if row.weight_kg is not None:
+            grams = (row.weight_kg * 1000).to_integral_value(rounding=ROUND_CEILING)
+            cargo["weight_grams"] = max(int(grams), 1)
+        if row.value_rub is not None:
+            cargo["cargo_value"] = MoneySchema.of(Money.from_major(row.value_rub, "RUB"))
+        return cargo
 
     # --- Чтение -----------------------------------------------------------
 

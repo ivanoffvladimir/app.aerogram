@@ -14,7 +14,14 @@ from uuid import UUID
 from fastapi import APIRouter, Query, status
 
 from aerogram.bulk.repository import BulkRepository
-from aerogram.bulk.schemas import BulkRunCreateIn, BulkRunOut, BulkRunPage, BulkRunRenameIn
+from aerogram.bulk.schemas import (
+    BulkImportIn,
+    BulkImportOut,
+    BulkRunCreateIn,
+    BulkRunOut,
+    BulkRunPage,
+    BulkRunRenameIn,
+)
 from aerogram.bulk.service import BulkService
 from aerogram.core.deps import CurrentPrincipal, SessionDep, SettingsDep, require_roles
 from aerogram.directories.deps import DadataDep
@@ -58,6 +65,30 @@ async def create_run(
     """Создать черновик: один отправитель, много получателей."""
     return await _service(session, settings, dadata).create(
         payload, tenant_id=principal.tenant_id, user_id=principal.user_id
+    )
+
+
+@bulk_router.post(
+    "/import",
+    response_model=BulkImportOut,
+    summary="Разобрать список получателей и подобрать по адресной книге",
+)
+async def import_rows(
+    payload: BulkImportIn,
+    principal: CurrentPrincipal,
+    session: SessionDep,
+    settings: SettingsDep,
+    dadata: DadataDep,
+) -> BulkImportOut:
+    """Предпросмотр списка: что распозналось и что нашлось в адресной книге.
+
+    Прогон не создаётся — оператор сначала видит результат подбора и сам
+    решает, что делать со строками, по которым найдено несколько адресов.
+    Объявлен раньше путей с идентификатором, чтобы «import» не читался
+    как номер прогона.
+    """
+    return await _service(session, settings, dadata).import_rows(
+        payload, tenant_id=principal.tenant_id
     )
 
 
