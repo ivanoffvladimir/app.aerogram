@@ -146,3 +146,25 @@ class PecomClient:
         if message:
             raise CarrierError(message, carrier_code=PECOM_CODE)
         return body
+
+    async def post_raw(self, path: str, payload: dict[str, Any], *, operation: str) -> object:
+        """``POST``, возвращающий разобранный JSON как есть.
+
+        Нужен ровно одному методу — ``/order/print/``, формат ответа которого
+        в документации записан неоднозначно (``{ "JVBERi0xLjQKJe..." }``,
+        что корректным JSON не является). Оборачивать такой ответ в словарь
+        значило бы потерять то единственное, что в нём есть.
+        """
+        response = await self._http.request(
+            "POST",
+            path,
+            operation=operation,
+            json=payload,
+            headers={"Authorization": self._auth_header},
+        )
+        body = response.json()
+        if isinstance(body, dict):
+            message = pecom_error(body)
+            if message:
+                raise CarrierError(message, carrier_code=PECOM_CODE)
+        return body

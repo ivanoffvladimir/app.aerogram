@@ -1,0 +1,20 @@
+{
+  "documentId": 136,
+  "sender": {
+    "warehouseID": "36cf9b56-a415-11dc-a911-000a5e19ccb4",
+    "addressNormal": "357528, Ставропольский край, г. Пятигорск, ул. Егоршина, д.6 с.1"
+  },
+  "cargos": [
+    {
+      "cargoCode": "999940950644",
+      "barсode": "999940950644",
+      "orderNumber": "AG-2026-000123",
+      "customerCorrelation": "AG-2026-000123",
+      "positions": [
+        {
+          "barcode": "9999409506440001"
+        }
+      ]
+    }
+  ]
+}

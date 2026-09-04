@@ -1,0 +1,28 @@
+[
+  {
+    "cargoCode": "999940950644",
+    "statuses": [
+      {
+        "id": 4000,
+        "date": "2022-09-26T17:42:37",
+        "name": "Забор груза заказан",
+        "isCancel": false,
+        "isFinal": false
+      },
+      {
+        "id": 4100,
+        "date": "2022-09-26T19:36:14",
+        "name": "Забор груза запланирован",
+        "isCancel": true,
+        "isFinal": false
+      },
+      {
+        "id": 8,
+        "date": "2022-09-30T12:54:41",
+        "name": "Выдан на складе",
+        "isCancel": false,
+        "isFinal": true
+      }
+    ]
+  }
+]

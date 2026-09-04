@@ -1,0 +1,18 @@
+{
+  "сargos": [
+    {
+      "сode": "111100000001",
+      "orderNumber": "AG-2026-000999",
+      "cargoStatus": 3,
+      "description": "Посуда",
+      "orderDate": "2026-09-01T17:12:39.237"
+    },
+    {
+      "сode": "999940950644",
+      "orderNumber": "AG-2026-000123",
+      "cargoStatus": 3,
+      "description": "Мебель",
+      "orderDate": "2026-09-02T10:00:00.000"
+    }
+  ]
+}

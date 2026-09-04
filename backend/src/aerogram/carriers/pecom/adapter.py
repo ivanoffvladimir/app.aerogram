@@ -1,7 +1,7 @@
 """Адаптер ПЭК.
 
-Стадия 1: авторизация и расчёт. Остальные методы объявлены и честно
-сообщают, что ещё не реализованы, вместо того чтобы молча возвращать пустоту.
+Стадии 1–2: авторизация, расчёт, оформление, поиск, трекинг и печатные
+формы. Отмена не реализована намеренно — см. ниже.
 
 Написан по **официальной документации перевозчика** — планка ADR-0020.
 Машинной спецификации у ПЭК нет: справка `kabinet.pecom.ru/api/v1` —
@@ -46,6 +46,20 @@ from aerogram.carriers.base import (
     WebhookUpdate,
 )
 from aerogram.carriers.pecom.client import PecomClient
+from aerogram.carriers.pecom.orders import (
+    LIST_ORDERS_PATH,
+    PRINT_PATH,
+    STATUS_HISTORY_PATH,
+    SUBMIT_PATH,
+    create_payload,
+    list_orders_payload,
+    parse_created,
+    parse_found,
+    parse_printable,
+    parse_statuses,
+    print_payload,
+    status_history_payload,
+)
 from aerogram.carriers.pecom.quotes import (
     CALCULATE_PATH,
     build_quote_payload,
@@ -126,18 +140,88 @@ class PecomAdapter:
             # Неизвестная валюта — не повод отдать сумму без валюты.
             raise CarrierError(str(exc), carrier_code=PECOM_CODE) from exc
 
-    # --- Ещё не реализовано ----------------------------------------------
+    # --- Оформление -------------------------------------------------------
 
     async def create(self, req: ShipmentRequest, acc: CarrierAccount) -> ShipmentResult:
-        raise CarrierNotConfigured(
-            "Оформление заказа у ПЭК ещё не реализовано", carrier_code=PECOM_CODE
-        )
+        """Оформить предварительную заявку.
 
-    async def label(self, ext_id: str, fmt: LabelFormat, acc: CarrierAccount) -> LabelResult:
-        raise CarrierNotConfigured("Печатные формы ПЭК ещё не реализованы", carrier_code=PECOM_CODE)
+        В отличие от Деловых Линий результат **не** ``is_pending``: ПЭК
+        возвращает код груза сразу, и именно он служит идентификатором
+        во всех остальных методах.
+        """
+        description = req.extras.get("cargo_description")
+        if not isinstance(description, str) or not description.strip():
+            # Поле объявлено обязательным, а его значения перевозчик ведёт
+            # в собственном справочнике «Характер груза». Подставить своё
+            # значит оформить не тот груз.
+            raise CarrierValidationError(
+                "Для оформления у ПЭК нужно наименование груза (cargo_description) "
+                "из справочника перевозчика «Характер груза»",
+                field="cargo_description",
+                carrier_code=PECOM_CODE,
+            )
+
+        client = self._client_factory(acc)
+        try:
+            body = await client.post(
+                SUBMIT_PATH,
+                create_payload(req, description=description.strip()),
+                operation="create",
+            )
+        finally:
+            await client.aclose()
+        try:
+            return parse_created(body, number=req.number)
+        except ValueError as exc:
+            raise CarrierError(str(exc), carrier_code=PECOM_CODE) from exc
+
+    async def find_by_number(self, number: str, acc: CarrierAccount) -> ShipmentResult | None:
+        """Найти заказ по нашему номеру для сверки «призраков».
+
+        Метода «найти по номеру клиента» у ПЭК нет, поэтому берётся журнал
+        за узкое окно по дате подачи заявки и в нём ищется наш
+        ``orderNumber`` (FR-2.5).
+        """
+        client = self._client_factory(acc)
+        try:
+            body = await client.post(LIST_ORDERS_PATH, list_orders_payload(), operation="find")
+        finally:
+            await client.aclose()
+        return parse_found(body, number=number)
 
     async def track(self, ext_id: str, acc: CarrierAccount) -> list[RawEvent]:
-        raise CarrierNotConfigured("Трекинг ПЭК ещё не реализован", carrier_code=PECOM_CODE)
+        """История статусов груза."""
+        client = self._client_factory(acc)
+        try:
+            body = await client.post(
+                STATUS_HISTORY_PATH, status_history_payload((ext_id,)), operation="track"
+            )
+        finally:
+            await client.aclose()
+        return parse_statuses(body)
+
+    async def label(self, ext_id: str, fmt: LabelFormat, acc: CarrierAccount) -> LabelResult:
+        """Этикетка груза в PDF."""
+        if fmt is not LabelFormat.PDF_A4:
+            raise CarrierValidationError(
+                f"ПЭК отдаёт печатные формы только в PDF, запрошен {fmt.value}",
+                field="format",
+                carrier_code=PECOM_CODE,
+            )
+        client = self._client_factory(acc)
+        try:
+            body = await client.post_raw(PRINT_PATH, print_payload(ext_id), operation="label")
+        finally:
+            await client.aclose()
+
+        content = parse_printable(body)
+        if content is None:
+            # Форма ещё не готова либо ответ не разобран. Пустой PDF выдавать
+            # нельзя, а падать не за что: контракт предусматривает ожидание.
+            return LabelResult(format=LabelFormat.PDF_A4, content=None, is_pending=True)
+        return LabelResult(format=LabelFormat.PDF_A4, content=content, is_pending=False)
+
+    # --- Ещё не реализовано ----------------------------------------------
 
     async def cancel(self, ext_id: str, acc: CarrierAccount) -> CancelResult:
         raise CarrierNotConfigured(
@@ -146,11 +230,6 @@ class PecomAdapter:
             "возврат отправителю. Расширение контракта — отдельное решение "
             "(ADR-0020, решение 4)",
             carrier_code=PECOM_CODE,
-        )
-
-    async def find_by_number(self, number: str, acc: CarrierAccount) -> ShipmentResult | None:
-        raise CarrierNotConfigured(
-            "Поиск заказа ПЭК по номеру ещё не реализован", carrier_code=PECOM_CODE
         )
 
     async def fetch_refs(self, acc: CarrierAccount) -> RefCatalog:
