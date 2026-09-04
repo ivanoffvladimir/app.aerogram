@@ -121,9 +121,9 @@ class TestCredentialSchemas:
         Поэтому такой перевозчик обязан числиться в ``PENDING_CARRIERS``:
         иначе состав его доступов забудут объявить вместе с адаптером.
         """
-        assert schema_for("pecom") is None
-        assert missing_fields("pecom", {}) == []
-        assert set(PENDING_CARRIERS) == {"pecom", "pochta", "yandex"}
+        assert schema_for("pochta") is None
+        assert missing_fields("pochta", {}) == []
+        assert set(PENDING_CARRIERS) == {"pochta", "yandex"}
 
     def test_dellin_is_declared_now_that_its_adapter_exists(self) -> None:
         """Состав доступов объявляется вместе с адаптером, в том же коммите.
@@ -137,6 +137,18 @@ class TestCredentialSchemas:
         assert "dellin" not in PENDING_CARRIERS
         assert missing_fields("dellin", {}) == ["appkey"]
         assert missing_fields("dellin", {"appkey": "k"}) == []
+
+    def test_pecom_asks_for_the_cabinet_login_and_an_api_key(self) -> None:
+        """Basic-аутентификация: логин личного кабинета и ключ API.
+
+        Логин не секрет — скрывать его значит мешать оператору проверить,
+        что он ввёл. Ключ секрет: он и есть пароль доступа к API.
+        """
+        schema = schema_for("pecom")
+        assert schema is not None
+        assert schema.required_names == ("login", "api_key")
+        assert missing_fields("pecom", {"login": "user"}) == ["api_key"]
+        assert [f.secret for f in schema.fields] == [False, True]
 
     def test_declared_and_pending_sets_do_not_overlap(self) -> None:
         assert not set(CREDENTIAL_SCHEMAS) & PENDING_CARRIERS

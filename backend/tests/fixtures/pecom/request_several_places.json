@@ -1,0 +1,28 @@
+{
+    "senderWarehouseId": "a678333f-2a2a-11e9-80ce-00155d713b38",
+    "receiverWarehouseId": "36cf9b60-a415-11dc-a911-000a5e19ccb4",
+    "plannedDateTime": "2024-03-04T10:00:00",
+    "isInsurance": true,
+    "isInsurancePrice": 15000,
+    "types": [3],
+    "cargos": [
+	    {
+            "length": 0.25,
+            "width": 0.25,
+            "height": 0.25,
+            "weight": 5.2
+        },
+		{
+            "length": 0.54,
+            "width": 0.42,
+            "height": 0.16,
+            "weight": 46.32
+        },
+		{
+            "length": 0.32,
+            "width": 0.12,
+            "height": 0.26,
+            "weight": 6.5
+        }
+    ]
+}

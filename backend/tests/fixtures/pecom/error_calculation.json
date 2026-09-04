@@ -1,0 +1,6 @@
+{
+  "hasError": true,
+  "errorMessage": "Не удалось определить филиал по адресу отправления",
+  "currencyCode": "643",
+  "transfers": []
+}

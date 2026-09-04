@@ -11,13 +11,25 @@ from __future__ import annotations
 
 import pytest
 
+from aerogram.carriers.cdek import CdekAdapter
 from aerogram.carriers.credentials import (
     CREDENTIAL_SCHEMAS,
     WEBHOOK_SECRET_FIELD,
     missing_fields,
     schema_for,
 )
+from aerogram.carriers.dellin import DellinAdapter
+from aerogram.carriers.major.adapter import MajorExpressAdapter
+from aerogram.carriers.pecom import PecomAdapter
 from aerogram.tracking.inbound import CREDENTIAL_FIELD
+
+#: Кто из объявленных перевозчиков шлёт вебхуки. Берётся из самих адаптеров,
+#: а не выписывается руками: иначе таблица разойдётся с кодом ровно тогда,
+#: когда у перевозчика появятся или исчезнут вебхуки.
+_SUPPORTS_WEBHOOKS = {
+    adapter.code: adapter.capabilities.supports_webhooks
+    for adapter in (CdekAdapter, DellinAdapter, PecomAdapter, MajorExpressAdapter)
+}
 
 
 class TestTheWebhookSecretIsSettable:
@@ -30,12 +42,33 @@ class TestTheWebhookSecretIsSettable:
         assert WEBHOOK_SECRET_FIELD.name == CREDENTIAL_FIELD
 
     @pytest.mark.parametrize("code", sorted(CREDENTIAL_SCHEMAS))
-    def test_every_known_carrier_asks_for_it(self, code: str) -> None:
-        """Поле, которого нет в описании, кабинет не покажет и скрипт
-        не спросит — задать его будет негде."""
+    def test_a_carrier_with_webhooks_has_somewhere_to_put_the_secret(self, code: str) -> None:
+        """Поля, которого нет в описании, кабинет не покажет и скрипт
+        не спросит — задать секрет будет негде.
+
+        Проверка односторонняя намеренно. Отсутствие поля у перевозчика
+        с вебхуками — настоящая ошибка: события молча перестанут приниматься,
+        и выглядеть это будет как «перевозчик их не шлёт». Обратное же
+        (поле есть, вебхуков нет) ошибкой считать нельзя, пока возможности
+        перевозчика не прочитаны по источнику: у Major Express они объявлены
+        по матрице ТЗ, а не по WSDL, которого у нас ещё нет.
+        """
         schema = schema_for(code)
         assert schema is not None
-        assert CREDENTIAL_FIELD in schema.names
+        if _SUPPORTS_WEBHOOKS[code]:
+            assert CREDENTIAL_FIELD in schema.names
+
+    def test_pecom_is_not_asked_for_a_secret_it_cannot_use(self) -> None:
+        """У ПЭК вебхуков нет ни в одном из 18 разделов документации.
+
+        Спрашивать у оператора секрет подписи там, где подписывать нечего,
+        значит просить данные, которым неоткуда взяться, — и создавать
+        впечатление, что вебхуки просто не настроены.
+        """
+        schema = schema_for("pecom")
+        assert schema is not None
+        assert CREDENTIAL_FIELD not in schema.names
+        assert PecomAdapter.capabilities.supports_webhooks is False
 
     def test_it_is_a_secret(self) -> None:
         assert WEBHOOK_SECRET_FIELD.secret is True
@@ -56,4 +89,4 @@ class TestMissingFields:
     def test_an_unknown_carrier_reports_nothing(self) -> None:
         """Пустой список у неизвестного — «нечем проверить», а не «всё в порядке»:
         требовать поля, состава которых мы не знаем, вредно."""
-        assert missing_fields("pecom", {}) == []
+        assert missing_fields("pochta", {}) == []

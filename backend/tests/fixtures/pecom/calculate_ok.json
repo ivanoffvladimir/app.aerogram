@@ -1,0 +1,66 @@
+{
+  "hasError": false,
+  "errorMessage": null,
+  "currencyCode": "643",
+  "branchSenderUID": "b473ce9f-dd68-44ea-a4b2-4cb63b6e970d",
+  "branchSender": "Москва Восток",
+  "branchReceiverUID": "64adbe2c-a185-11dc-a911-000a5e19ccb4",
+  "branchReceiver": "Санкт-Петербург",
+  "transfers": [
+    {
+      "type": 3,
+      "hasError": false,
+      "errorMessage": null,
+      "costTotal": 5319,
+      "estDeliveryTime": 3,
+      "services": [
+        {
+          "serviceType": "Перевозка",
+          "senderCity": "Москва",
+          "cost": 5269,
+          "info": "Перевозка:",
+          "services": null
+        },
+        {
+          "serviceType": "Перевозка",
+          "senderCity": "Москва",
+          "cost": 50,
+          "info": "Страхование:",
+          "insuranceTerm": false,
+          "services": null
+        },
+        {
+          "serviceType": "Перевозка",
+          "senderCity": "Москва",
+          "cost": 446.6,
+          "info": "Доставка груза",
+          "services": [
+            {
+              "serviceType": "Перевозка",
+              "senderCity": "Москва",
+              "cost": 200.0,
+              "info": "Перенос груза по улице и внутри зданий более 30 метров",
+              "services": null
+            },
+            {
+              "serviceType": "Перевозка",
+              "senderCity": "Москва",
+              "cost": 250.0,
+              "info": "Погрузо-разгрузочные работы",
+              "services": null
+            }
+          ]
+        }
+      ],
+      "transportingTypes": 1
+    },
+    {
+      "type": 1,
+      "hasError": true,
+      "errorMessage": "Длина груза превышает допустимую для АВИА. Допустимая длина 2 м.",
+      "costTotal": null,
+      "estDeliveryTime": null,
+      "services": null
+    }
+  ]
+}

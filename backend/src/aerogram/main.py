@@ -69,8 +69,9 @@ def _register_carriers() -> None:
     """
     from aerogram.carriers.cdek import CdekAdapter
     from aerogram.carriers.dellin import DellinAdapter
+    from aerogram.carriers.pecom import PecomAdapter
 
-    for adapter_cls in (CdekAdapter, DellinAdapter):
+    for adapter_cls in (CdekAdapter, DellinAdapter, PecomAdapter):
         if adapter_cls.code not in registry.available_codes():
             registry.register(adapter_cls())
 
