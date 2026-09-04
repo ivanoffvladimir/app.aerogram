@@ -24,7 +24,9 @@ from aerogram.carriers.pochta.client import SANDBOX_BASE_URL, PochtaClient, poch
 from aerogram.carriers.pochta.mapping import (
     DEFAULT_PRODUCTS,
     PRODUCTS,
+    RATE_FIELDS,
     VAT_RATE_PERCENT,
+    components_sum,
     dimension_block,
     mass_grams,
     money_from_rate,
@@ -38,7 +40,7 @@ from aerogram.carriers.pochta.quotes import (
     products_for,
 )
 from aerogram.shared.enums import CargoType, PriceSource
-from aerogram.shared.errors import CarrierError, CarrierValidationError
+from aerogram.shared.errors import CarrierAuthError, CarrierError, CarrierValidationError
 from aerogram.shared.money import Money
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "pochta"
@@ -132,51 +134,101 @@ class TestMoney:
 
 
 class TestVatReading:
-    """Сверка ответа со ставкой: догадка про НДС проверяется арифметикой.
+    """Судьба НДС: ответ объясняет себя сам, а не выбирается догадкой.
 
-    Страница расчёта не говорит, включает ли «Плата всего» налог. Мы читаем
-    её как сумму без НДС, а ``vat_reading`` проверяет это по самому ответу:
-    доля налога в сумме, которая его уже содержит, не может превысить
-    22/122. Превышение доказывает, что налог начислен сверх.
+    Страница расчёта не говорит, включает ли «Плата всего» налог, и оба
+    чтения опираются на источник: внутри ответа `rate` это «Тариф без НДС»,
+    а во всей остальной справке сумма без налога помечена суффиксом —
+    «total-rate-wo-vat — Плата всего без НДС». Спор решается арифметикой:
+    в ответе есть и составляющие, и итог.
     """
 
-    def test_full_rate_at_the_current_rate_proves_vat_is_added_on_top(self) -> None:
-        # 10 000 копеек платы и 2 200 налога — это 22 % сверх, а не внутри.
-        assert vat_reading(10_000, 2_200) == "excluded"
+    def test_total_equal_to_components_proves_vat_is_added_on_top(self) -> None:
+        body = {
+            "ground-rate": {"rate": 10_000, "vat": 2_200},
+            "total-rate": 10_000,
+            "total-vat": 2_200,
+        }
+        assert vat_reading(body) == "excluded"
+        assert total_price(body) == Money(12_200, "RUB")
 
-    def test_the_fixture_answer_proves_it_too(self) -> None:
-        body = load("tariff_ok")
-        assert vat_reading(int(body["total-rate"]), int(body["total-vat"])) == "excluded"
+    def test_total_equal_to_components_with_vat_proves_it_is_inside(self) -> None:
+        # То же самое, но итог уже содержит налог: складывать нельзя,
+        # иначе цена Почты завышена на 22 %.
+        body = {
+            "ground-rate": {"rate": 10_000, "vat": 2_200},
+            "total-rate": 12_200,
+            "total-vat": 2_200,
+        }
+        assert vat_reading(body) == "included"
+        assert total_price(body) == Money(12_200, "RUB")
 
-    def test_vat_inside_the_amount_proves_nothing(self) -> None:
-        # 22/122 от 12 200 — ровно та доля, которую дал бы налог внутри суммы.
-        # Отличить этот случай от частичного освобождения нечем.
-        assert vat_reading(12_200, 2_200) == "inconclusive"
+    def test_the_fixture_answer_proves_vat_is_on_top(self) -> None:
+        assert vat_reading(load("tariff_ok")) == "excluded"
+
+    def test_components_without_vat_prove_nothing(self) -> None:
+        # При нулевом налоге в составляющих обе проверки совпали бы,
+        # и любой ответ «доказывал» бы что угодно.
+        body = {"ground-rate": {"rate": 10_000}, "total-rate": 10_000, "total-vat": 0}
+        assert vat_reading(body) == "inconclusive"
+
+    def test_approximate_match_is_not_a_match(self) -> None:
+        # Приблизительное совпадение значит, что мы чего-то не понимаем
+        # в ответе; округлить до удобного вывода хуже, чем сказать «не знаю».
+        # Составляющие тут не решают ничего — дальше слово за ставкой,
+        # и в этом ответе она тоже молчит.
+        body = {
+            "ground-rate": {"rate": 10_000, "vat": 1_500},
+            "total-rate": 10_001,
+            "total-vat": 1_500,
+        }
+        assert vat_reading(body) == "inconclusive"
+
+    def test_when_components_disagree_the_rate_still_speaks(self) -> None:
+        # Порядок именно такой: сперва точная арифметика, потом ставка.
+        # Иначе несошедшийся на копейку ответ терял бы и второй способ.
+        body = {
+            "ground-rate": {"rate": 10_000, "vat": 2_200},
+            "total-rate": 10_001,
+            "total-vat": 2_200,
+        }
+        assert vat_reading(body) == "excluded"
+
+    def test_the_rate_decides_when_components_are_absent(self) -> None:
+        # 22 % сверху — доля больше, чем 22/122, значит налог начислен сверх.
+        assert vat_reading({"total-rate": 10_000, "total-vat": 2_200}) == "excluded"
+
+    def test_the_rate_cannot_prove_the_opposite(self) -> None:
+        # Доля ровно как у налога внутри суммы; но так же выглядит и ответ,
+        # где часть услуг от НДС освобождена. Доказательства нет.
+        assert vat_reading({"total-rate": 12_200, "total-vat": 2_200}) == "inconclusive"
+
+    def test_inconclusive_falls_back_to_adding(self) -> None:
+        # Осторожная сторона: при ошибке в неё Почта проигрывает сравнение,
+        # которое должна была выиграть, а при ошибке в другую Decision Engine
+        # порекомендовал бы её ошибочно.
+        assert total_price({"total-rate": 12_200, "total-vat": 2_200}) == Money(14_400, "RUB")
 
     def test_partial_exemption_stays_inconclusive(self) -> None:
-        # Пересылка письменной корреспонденции от НДС освобождена, и доля
-        # падает ниже порога при любой трактовке.
-        assert vat_reading(10_000, 500) == "inconclusive"
+        assert vat_reading({"total-rate": 10_000, "total-vat": 500}) == "inconclusive"
 
     def test_absent_vat_decides_nothing(self) -> None:
-        assert vat_reading(10_000, 0) == "inconclusive"
-        assert vat_reading(0, 0) == "inconclusive"
-
-    def test_included_is_never_claimed(self) -> None:
-        # Доказательства «включает» не существует: молча заявить его значило
-        # бы выдать вычисление за факт.
-        assert vat_reading(12_200, 2_200) != "included"
+        assert vat_reading({"total-rate": 10_000, "total-vat": 0}) == "inconclusive"
+        assert vat_reading({}) == "inconclusive"
 
     def test_the_rate_is_a_single_constant(self) -> None:
         # Справочник самой Почты ставки не знает: он держит исторические коды
         # и дописывает актуальную в скобках. Значит она наша, и она одна.
         assert int(VAT_RATE_PERCENT) == 22
 
-    def test_price_does_not_depend_on_the_reading(self) -> None:
-        # Менять сумму по ответу хуже допущения: два одинаковых отправления
-        # получили бы разные цены по разным правилам.
-        assert total_price({"total-rate": 12_200, "total-vat": 2_200}) == Money(14_400, "RUB")
-        assert total_price({"total-rate": 10_000, "total-vat": 2_200}) == Money(12_200, "RUB")
+    def test_components_are_summed_over_every_documented_field(self) -> None:
+        # Пропущенное поле сделало бы сверку слепой: итог перестал бы
+        # сходиться с составляющими, и трактовка молча ушла бы в умолчание.
+        body: dict[str, object] = {field: {"rate": 100, "vat": 22} for field in RATE_FIELDS}
+        assert components_sum(body) == (100 * len(RATE_FIELDS), 22 * len(RATE_FIELDS))
+
+    def test_a_component_without_rate_is_not_counted(self) -> None:
+        assert components_sum({"ground-rate": {"vat": 22}, "avia-rate": None}) == (0, 0)
 
 
 class TestPayload:
@@ -429,6 +481,56 @@ class TestAdapter:
             _request(extras={"products": ["EMS:EXPRESS"]}), _account(mode="aerogram")
         )
         assert quotes[0].price_source is PriceSource.AEROGRAM
+
+    @pytest.mark.anyio
+    async def test_a_refused_product_does_not_kill_the_others(self) -> None:
+        # Сочетаемость видов РПО с категориями нигде не документирована,
+        # поэтому отказ по одному сочетанию — ожидаемый исход. Раньше он
+        # уносил всю выдачу по Почте: исключение летело из цикла наружу.
+        def handler(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            if body["mail-type"] == "EMS":
+                return httpx.Response(200, json=load("error_tariff"))
+            return httpx.Response(200, json=load("tariff_ok"))
+
+        quotes = await _adapter(handler).quote(_request(), _account())
+        assert [q.service_code for q in quotes] == ["POSTAL_PARCEL:SURFACE"]
+
+    @pytest.mark.anyio
+    async def test_when_every_product_is_refused_the_reason_survives(self) -> None:
+        # Пустой список сказал бы «Почта не возит по этому направлению»
+        # там, где она сказала почему.
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=load("error_tariff"))
+
+        with pytest.raises(CarrierError) as exc:
+            await _adapter(handler).quote(_request(), _account())
+        assert "ILLEGAL_INDEX_TO" in str(exc.value)
+
+    @pytest.mark.anyio
+    async def test_an_account_wide_failure_is_raised_at_once(self) -> None:
+        # Неверный токен одинаков для всех продуктов: повторять запрос
+        # по каждому значит тратить суточную квоту на тот же ответ.
+        calls: list[int] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(1)
+            return httpx.Response(401, json={"error-code": "AUTH"})
+
+        with pytest.raises(CarrierAuthError):
+            await _adapter(handler).quote(_request(), _account())
+        assert len(calls) == 1
+
+    @pytest.mark.anyio
+    async def test_declared_value_in_another_currency_is_refused(self) -> None:
+        # Почта прочтёт сумму как рубли, а страховой сбор считается
+        # процентом от неё: ошибка попадёт и в цену, и в фактический счёт.
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=load("tariff_ok"))
+
+        request = _request(insurance=True, declared_value=Money.from_major("150", "USD"))
+        with pytest.raises(CarrierValidationError):
+            await _adapter(handler).quote(request, _account())
 
     @pytest.mark.anyio
     async def test_product_without_price_does_not_kill_the_others(self) -> None:

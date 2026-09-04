@@ -34,6 +34,8 @@ from typing import Any, Final
 from aerogram.carriers.base import Place, Quote, QuoteRequest
 from aerogram.carriers.pochta.mapping import (
     DEFAULT_PRODUCTS,
+    POCHTA_CURRENCY,
+    RATE_FIELDS,
     PochtaProduct,
     dimension_block,
     mass_grams,
@@ -68,6 +70,9 @@ LIMIT_PATH: Final = "/1.0/settings/limit"
 
 #: Русские названия составляющих цены. Ключ — поле ответа, значение —
 #: подпись в расшифровке строки выдачи (интерфейс русский, CLAUDE.md §6).
+#: Состав ключей совпадает с ``RATE_FIELDS`` и проверяется тестом: по тем же
+#: полям сверяется итог, и разойдись эти два списка — расшифровка показала бы
+#: не то, что вошло в цену.
 _RATE_NAMES: Final[dict[str, str]] = {
     "ground-rate": "Пересылка",
     "avia-rate": "Авиа-пересылка",
@@ -161,8 +166,19 @@ def build_tariff_payload(req: QuoteRequest, product: PochtaProduct) -> dict[str,
         "with-simple-notice": False,
     }
     if req.insurance and product.insured_category:
-        # Объявленная ценность передаётся в минорных единицах — см. строку
-        # документации ``mapping``: единица у входного поля не названа.
+        # Объявленная ценность передаётся в копейках — так её называет
+        # остальной контракт Почты («insr-value — Объявленная ценность
+        # (копейки)»), и это же минорные единицы нашего Money.
+        #
+        # Валюта проверяется, а не подразумевается: сумму в долларах Почта
+        # прочтёт как рубли, а страховой сбор считается процентом от неё —
+        # ошибка попадёт и в цену, и в фактический счёт.
+        if req.declared_value.currency != POCHTA_CURRENCY:
+            raise CarrierValidationError(
+                "Почта России принимает объявленную ценность только в рублях, "
+                f"а в запросе она в {req.declared_value.currency}",
+                carrier_code=POCHTA_CODE,
+            )
         payload["declared-value"] = req.declared_value.amount_minor
     entries_type = req.extras.get("entries_type")
     if isinstance(entries_type, str) and entries_type.strip():
@@ -173,10 +189,10 @@ def build_tariff_payload(req: QuoteRequest, product: PochtaProduct) -> dict[str,
 def _breakdown(body: dict[str, Any]) -> dict[str, Any]:
     """Расшифровка цены по составляющим, каждая с НДС."""
     result: dict[str, Any] = {}
-    for field, label in _RATE_NAMES.items():
+    for field in RATE_FIELDS:
         amount = money_from_rate(body.get(field))
         if amount is not None:
-            result[label] = amount
+            result[_RATE_NAMES.get(field, field)] = amount
     return result
 
 

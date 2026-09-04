@@ -54,7 +54,15 @@ from aerogram.carriers.pochta.mapping import PochtaProduct
 from aerogram.carriers.pochta.quotes import TARIFF_PATH, build_tariff_payload, parse_tariff
 from aerogram.carriers.pochta.quotes import products_for as _products_for
 from aerogram.shared.enums import LabelFormat
-from aerogram.shared.errors import CarrierNotConfigured, CarrierValidationError
+from aerogram.shared.errors import (
+    CarrierAuthError,
+    CarrierError,
+    CarrierNotConfigured,
+    CarrierRateLimited,
+    CarrierTimeout,
+    CarrierUnavailable,
+    CarrierValidationError,
+)
 from aerogram.shared.logging import get_logger
 
 __all__ = ["POCHTA_CODE", "PochtaAdapter"]
@@ -128,14 +136,43 @@ class PochtaAdapter:
         выдачу по Почте: сочетаемость видов РПО с категориями и видами
         транспортировки нигде не документирована, и отказ по одному
         сочетанию — ожидаемый исход, а не сбой.
+
+        Гасится **только отказ по этому сочетанию**. Всё, что относится
+        к запросу или к учётной записи целиком — нет индекса, несколько мест,
+        неверный токен, таймаут, разомкнутый предохранитель, — поднимается
+        сразу: повторять это по каждому продукту значит тратить суточную
+        квоту на заведомо тот же ответ.
+
+        Если не уцелело ни одного предложения, последний отказ поднимается
+        наружу. Молча вернуть пустой список значило бы сказать «Почта
+        не возит по этому направлению» там, где она сказала почему.
         """
         client = self._client_factory(acc)
         try:
             quotes: list[Quote] = []
+            last_refusal: CarrierError | None = None
             for product in _products_for(req):
-                quote = await self._quote_one(client, req, acc, product)
+                try:
+                    quote = await self._quote_one(client, req, acc, product)
+                except (
+                    CarrierValidationError,
+                    CarrierAuthError,
+                    CarrierTimeout,
+                    CarrierUnavailable,
+                    CarrierRateLimited,
+                ):
+                    raise
+                except CarrierError as exc:
+                    # Не молча: продукт, который перевозчик считать отказался,
+                    # должен быть виден в логах, а не выглядеть как «тарифов
+                    # у Почты стало меньше».
+                    log.info("pochta.product_refused", product=product.code, reason=str(exc)[:200])
+                    last_refusal = exc
+                    continue
                 if quote is not None:
                     quotes.append(quote)
+            if not quotes and last_refusal is not None:
+                raise last_refusal
             return quotes
         finally:
             await client.aclose()
