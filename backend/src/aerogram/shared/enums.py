@@ -9,6 +9,8 @@ __all__ = [
     "PLATFORM_ROLES",
     "PROBLEM_STATUSES",
     "STALLED_INCIDENT",
+    "BulkRowStatus",
+    "BulkRunStatus",
     "CargoType",
     "CarrierAccountMode",
     "CostComponentType",
@@ -234,6 +236,32 @@ class IneligibilityReason(StrEnum):
     SERVICE_UNAVAILABLE = "service_unavailable"
     CARGO_RESTRICTED = "cargo_restricted"
     TENANT_POLICY = "tenant_policy"
+
+
+class BulkRunStatus(StrEnum):
+    """Состояние массового расчёта.
+
+    ``COMPLETED`` означает, что в работе не осталось ни одной строки, —
+    даже если часть строк не прошла. Частичный успех на списке в сотни
+    получателей нормальное состояние, а не ошибка прогона.
+    """
+
+    DRAFT = "draft"
+    QUOTING = "quoting"
+    QUOTED = "quoted"
+    CREATING = "creating"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class BulkRowStatus(StrEnum):
+    """Состояние одной строки массового расчёта."""
+
+    NEW = "new"
+    QUOTED = "quoted"
+    SELECTED = "selected"
+    CREATED = "created"
+    FAILED = "failed"
 
 
 class CargoType(StrEnum):

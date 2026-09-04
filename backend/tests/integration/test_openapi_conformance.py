@@ -46,6 +46,14 @@ BEYOND_CONTRACT: frozenset[str] = frozenset(
         "/v1/counterparties/{counterparty_id}",
         "/v1/counterparties/{counterparty_id}/addresses",
         "/v1/parties/lookup",
+        # Массовые отправления: в ТЗ v3 их нет, решение принято отдельно —
+        # ADR-0021 (вариант «Б») и ADR-0022 (схема). Это надстройка над уже
+        # описанным контрактом: расчёт, решение и оформление те же самые.
+        "/v1/bulk-runs",
+        "/v1/bulk-runs/{run_id}",
+        "/v1/bulk-runs/{run_id}/quote",
+        "/v1/bulk-runs/{run_id}/select",
+        "/v1/bulk-runs/{run_id}/create",
         # Справочники: вход оператора, а не публичный контракт.
         "/v1/addresses/normalize",
         "/v1/cities/suggest",

@@ -19,6 +19,7 @@ from aerogram.config import get_settings
 
 # Импорт моделей нужен ради заполнения Base.metadata — без него autogenerate
 # сочтёт, что таблиц нет, и сгенерирует пустую миграцию.
+from aerogram.bulk import models as bulk_models  # noqa: F401
 from aerogram.core import models as core_models  # noqa: F401
 from aerogram.db import Base
 from aerogram.directories import models as directories_models  # noqa: F401

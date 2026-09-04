@@ -51,6 +51,17 @@ MACHINE_SCOPES: dict[tuple[str, str], str] = {
     # у перевозчика и стоит денег.
     ("POST", "/v1/shipments"): "shipments:write",
     ("POST", "/v1/shipments/{shipment_id}/cancel"): "shipments:write",
+    # Массовые отправления: у каждого шага область того действия, которое он
+    # совершает. Отдельной области нет намеренно — иначе один ключ
+    # «bulk:write» открыл бы и расчёт, и решение, и оформление сразу,
+    # а это ровно те три права, которые мы и разделили.
+    ("GET", "/v1/bulk-runs"): "shipments:read",
+    ("GET", "/v1/bulk-runs/{run_id}"): "shipments:read",
+    ("POST", "/v1/bulk-runs"): "rates:read",
+    ("PATCH", "/v1/bulk-runs/{run_id}"): "rates:read",
+    ("POST", "/v1/bulk-runs/{run_id}/quote"): "rates:read",
+    ("POST", "/v1/bulk-runs/{run_id}/select"): "decisions:write",
+    ("POST", "/v1/bulk-runs/{run_id}/create"): "shipments:write",
     ("GET", "/v1/carriers"): "carriers:read",
     ("GET", "/v1/carriers/{code}/terminals"): "carriers:read",
     ("GET", "/v1/analytics/carriers"): "analytics:read",

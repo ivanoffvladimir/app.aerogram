@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+from aerogram.bulk.router import bulk_router
 from aerogram.carriers import registry
 from aerogram.config import get_settings
 from aerogram.core.router import (
@@ -213,6 +214,7 @@ def create_app() -> FastAPI:
     application.include_router(rating_router, prefix=API_PREFIX)
     application.include_router(routing_router, prefix=API_PREFIX)
     application.include_router(shipments_router, prefix=API_PREFIX)
+    application.include_router(bulk_router, prefix=API_PREFIX)
     application.include_router(tracking_router, prefix=API_PREFIX)
     application.include_router(exceptions_router, prefix=API_PREFIX)
     application.include_router(reports_router, prefix=API_PREFIX)
