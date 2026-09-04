@@ -196,11 +196,31 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      # Аудит — один сетевой запрос к реестру npm, и реестр отвечает не всегда:
+      # 4 сентября шаг дважды за день падал по ERR_SOCKET_TIMEOUT при чистом
+      # lockfile, и оба раза следующий прогон проходил без единой правки.
+      # Повторяется ТОЛЬКО сетевой сбой: найденная уязвимость роняет шаг
+      # с первой попытки, иначе повторы маскировали бы её под «попробуем ещё».
       - name: npm audit
         working-directory: frontend
         run: |
+          set -o pipefail
           pnpm install --frozen-lockfile
-          pnpm audit --audit-level=high
+          for attempt in 1 2 3; do
+            if pnpm audit --audit-level=high 2>&1 | tee audit.log; then
+              exit 0
+            fi
+            if ! grep -Eq 'ERR_SOCKET_TIMEOUT|FetchError|ECONNRESET|ETIMEDOUT|request to .* failed' audit.log; then
+              echo "::error::аудит завершился не по сетевой причине — повтор бесполезен"
+              exit 1
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::реестр npm не ответил (попытка $attempt из 3), ждём 60 секунд"
+              sleep 60
+            fi
+          done
+          echo "::error::реестр npm не ответил трижды"
+          exit 1
 
   licenses:
     name: Лицензии (несблокирующая)
