@@ -1,0 +1,98 @@
+<h3>Проверка и нормализация адреса с помощью SoapUI</h3>
+Цель данного раздела:
+<ul>
+    <li>проверить авторизацию на API сервисе (здесь будут указаны реальные токен авторизации и ключ авторизации);</li>
+    <li>проверить возможности <a href="#/nogroup-normalization_adress">метода нормализации адреса</a>.</li>
+</ul>
+Здесь рассматриваются базовые подходы к созданию REST запросов, которые могут быть использованы для отладки других сервисов <b>API Онлайн-сервиса «Отправка»</b>.<br/>
+Сам <b>метод нормализации адреса</b> может быть вам полезен, когда требуется разделить входящий адрес получателя на составляющие адресные части.<br/>
+<br/>
+<h3>1 шаг: Скачайте и установите SoapUI</h3>
+1. Перейдите по ссылке <a href="https://www.soapui.org/downloads/soapui.html" target="_blank">SoapUI</a>.<br/>
+2. Скачайте "SoapUI OpenSource" бесплатную версию.<br/>
+3. Установите SoapUI.<br/>
+<br/>
+<h3>2 шаг: Запустите SoapUI и создайте REST проект</h3>
+После запуска:<br/>
+1. Создайте "REST" проект <br/>
+2. Укажите ссылку "{{exampleHost}}" на <b>API Онлайн-сервиса «Отправка»</b>.<br/>
+3. Нажмите на кнопку "OK".<br/>
+<br/>
+<img src="/static/images/specification/usecases-soapui-clean_address_1.jpg">
+<br/>
+<br/>
+
+<h3>3 шаг: Создайте новый запрос</h3>
+После запуска:<br/>
+1. Выделите ресурс, кликните на нём правой кнопкой мыши и выберите меню "New REST Resource"<br/>
+2. Укажите локальную ссылку "/1.0/clean/address". Данная ссылка взята из <a href="#/nogroup-normalization_adress">метода нормализации адреса</a>. Ссылки для других методов уточняйте в документации.<br/>
+3. Нажмите на кнопку "OK".<br/>
+<br/>
+<img src="/static/images/specification/usecases-soapui-clean_address_2.jpg">
+<br/>
+<br/>
+
+<h3>4 шаг: Отредактируйте запрос</h3>
+1. Выберите ресурс<br/>
+2. В открывшемся окне укажите тип запроса <b>POST</b>. Данный тип взят из <a href="#/nogroup-normalization_adress">метода нормализации адреса</a>. Типы для других методов уточняйте в документации.
+Это могут быть следующие типы: "GET", "POST", "PUT" или "DELETE".<br/>
+3. Нажмите на закладку "Headers" и добавьте 3 заголовка:<br/>
+<ul>
+    <li>Добавьте параметр авторизации приложения <b>Authorization</b> и укажите префикс <b>AccessToken</b>, символ "пробела" и <b><a href="#/authorization-token">токен авторизации приложения</a></b>;</li>
+    <li>Добавьте параметр авторизации пользователя <b>X-User-Authorization</b> и укажите префикс <b>Basic</b>, символ "пробела" и <b><a href="#/authorization-key">ключ авторизации пользователя</a></b>;</li>
+    <li>Добавьте параметр формата ожидаемого результата <b>Content-Type</b> и укажите <b>application/json;charset=UTF-8</b></li>
+</ul>
+4. В теле запроса укажите один или несколько адресов для нормализации, согласно формату метода <a href="#/nogroup-normalization_adress">сервиса нормализации адреса</a>.<br/>
+<br/>
+
+Пример:<br/>
+Мы должны нормализовать два адреса: "<font color="magenta">Москва, Варшавское шоссе, 37</font>" и "<font color="magenta">ул. Мясницкая, д. 26, г. Москва</font>".<br/>
+
+Для этого:<br/>
+1. Для каждого адреса мы готовим JSON структуру: <font color="magenta"> { "id": "adr 1", "original-address": "Москва, Варшавское шоссе, 37" } </font>
+и <font color="magenta"> { "id": "adr 2", "original-address": "ул. Мясницкая, д. 26, г. Москва" } </font>, где<br/>
+<ul>
+    <li><b>id</b> - уникальный признак этого адреса, в рамках одного запроса. Т.к. нормализация двух адресов будет проходит в рамках одного запроса, то выбираем произвольные различающиеся признаки, например: <b>adr 1</b> и <b>adr 2</b>;</li>
+    <li><b>original-address</b> - адрес, который мы нормализуем.</li>
+</ul>
+2. Эти JSON структуры мы должны объединить в группу.<br/>
+Для обозначения группы используются "квадратные скобки" ( <b>[</b> и <b>]</b> ).<br/>
+Для разделения элементов внутри группы используется "запятая" ( <b>,</b> ).<br/>
+<br/>
+Таким образом, мы получаем окончательное тело запроса:<br/>
+<font color="magenta">
+[<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": "adr 1",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"original-address": "Москва, Варшавское шоссе, 37"<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;},<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": "adr 2",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"original-address": "ул. Мясницкая, д. 26, г. Москва, 1"<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+]<br/>
+</font>
+<br/>
+<b>Внимание! Если метод групповой, то необходимо создавать группу даже для одного элемента JSON структуры.</b><br/>
+Пример:<br/>
+<font color="magenta">
+[<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": "adr 2",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"original-address": "Москва, Варшавское шоссе, 37"<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+]<br/>
+</font>
+<br/>
+<br/>
+
+<img src="/static/images/specification/usecases-soapui-clean_address_3.jpg">
+<br/>
+<br/>
+<h3>5 шаг: Выполните запрос</h3>
+1. Выберите тип ожидаемого ответа <b>JSON</b><br/>
+2. Нажмите на знак запуска.<br/>
+3. Проконтролируйте полученный результат.<br/>
+<br/>
+<img src="/static/images/specification/usecases-soapui-clean_address_4.jpg">
+<br/>

@@ -1,0 +1,777 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" class="m-standalone">
+<head><title>
+	
+	
+	Сетевые заявки
+ 
+	 — Документация по API
+	
+ — Личный кабинет клиента «ПЭК»
+</title>
+
+<meta charset="utf-8" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<base href="https://kabinet.pecom.ru/" />
+<link rel="shortcut icon" type="image/x-icon" href="https://kabinet.pecom.ru/favicon.ico" />
+<link href="/Content/css/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+
+<link rel="stylesheet" type="text/css" href="/assets.axd/SiteCss/303912915/" media="all"/>
+<script type="text/javascript" src="/assets.axd/SiteJs/-955027702/"></script>
+<script type="text/javascript" src="/assets.axd/TimeManagementJs/-1531748568/"></script>
+
+
+
+<!--[if lt IE 9]>
+<script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+<script src="/js/getComputedStyle.js"></script>
+<link href="/css/ie.css" rel="stylesheet">
+<![endif]-->
+
+	<link rel="stylesheet" type="text/css" href="/assets.axd/ApiSiteCss/1033975754/" media="all"/>  
+	<script type="text/javascript" src="/assets.axd/ApiSiteJs/-1237400396/"></script>
+
+    <!-- Перенесено из Combress, дабы предотвратить зацикленность вызывов (если баннер - это страница текущего портала) -->
+    <script src="../../Content/JavaScript/pecom/jquery.pecom_banners.js"></script>
+</head>
+<body class="m-standalone">
+    
+
+
+
+<!-- Modal with Feedback -->
+
+
+
+    <div id="spinner-front" style="color: #E4003C">
+        <img src="Content/Images/ajax-loader-indicator.gif"/><br>
+        Подождите, операция выполняется...
+    </div>
+    <div id="spinner-back"></div>
+
+    <input id="header_banner_id" type="hidden" value=""/>
+    <input id="main_page_banner_id" type="hidden" value=""/>
+
+    
+
+     <div class="row" style="background-color: white;">
+        <div class="container">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-md-14" id="head-banner-content" style="max-height:86px; overflow: auto;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <header class="header">
+        <div class="container">
+            <div class="row">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-xs-3">
+                            
+                            <div class="logo">
+                                <a href="/" title="Перейти на главную страницу">
+                                    <img src="/Content/pink/img/logo.png" alt="Логотип ПЭК" />
+                                </a>
+                                <a href="https://pecom.ru/">Перейти на сайт</a>
+                            </div>
+                            
+                        </div>
+                        <div class="col-xs-11">
+                            <div class="top-right-menu">
+                                <ul>
+
+                                    <li class="news with-badge">
+                                        
+                                    </li>
+                                    <li class="status">
+                                        
+                                    </li>
+
+                                    <li class="text-center">
+                                          
+                                    </li>
+                                    
+<li class="login-container">
+    
+    <div>
+        
+        <div class="guest pct pct-login">
+            <a href="/login">Войти</a>
+        </div>
+        
+        <div class="guest pct" style="padding-left: 15px;">
+            <a href="/register">Получить доступ
+            <br />
+                в личный кабинет</a>
+        </div>
+        
+    </div>
+
+    
+    
+</li>
+
+
+
+
+
+
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Модальное окно айфрейма подключения к программе лояльности -->
+    <div class="modal fade" id="loyalty-program-modal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" aria-labelledby="loyalty-program-label">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header text-center">
+                    <h3>Программа лояльности</h3>
+                    <button type="button" class="redcross" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true" id="close-loyalty-program-modal">×</span>
+                    </button>
+                </div>
+                <div id="loyalty-program-iframe" class="modal-body text-center">
+                    <div class="row text-center">
+                        <img alt="loader" src="/Content/Images/ajax-loader-indicator.gif" />
+                    </div>
+                    <iframe src="" style="width: 100%; height: 750px; overflow: hidden; background: transparent; overflow-x: hidden; overflow-y: hidden; display: none;"
+                        frameborder="0" allowtransparency="true" seamless="seamless" scrolling="no"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    
+<div class="container">
+    <div class="row">
+        <div class="col-xs-14">
+            <div class="alert alert-warning" style="margin: 0;">
+                <p>
+                    <strong>Личный кабинет</strong> позволяет:
+		<strong>анализировать</strong> информацию об&nbsp;отправленном и&nbsp;полученном грузе;
+		<strong>контролировать</strong> расходование средств на&nbsp;перевозки;
+		<strong>формировать</strong> заявки на&nbsp;забор груза.
+                
+                <a href="/register" class="b-link-register label label-success">Получить доступ</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <section class="main">
+        <div class="container">
+            <div class="row">
+                <div class="col-xs-14">
+                    
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-14">
+                    
+	<div class="b-doc-content">
+		
+			<div class="navigation">			
+				<a href="/api/v1">&larr;&nbsp;назад</a>
+			</div>
+		
+<h1>Группа <code>/cargopickupnetwork/</code>&nbsp;&mdash; операции с сетевыми заявками</h1>   
+
+<h2 id="toc-method-submit">Метод <code>/cargopickupnetwork/submit/</code>&nbsp;&mdash; оформление заявки</h2>
+<h4><code>Метод не рекомендуется к использованию, корректная работа метода не гарантируется</code></h4>
+
+<h3>Доступ</h3>
+<ul>
+	<li>Зарегистрированные пользователи</li>
+</ul>   
+
+<h3>Комментарии</h3>
+<ul>
+	<li>Максимальное количество грузов в одной заявке (и объектов с информацией о грузах в ответе)&nbsp;&mdash; <strong>50</strong></li>
+    <li id="comments__recommendations"><a href="UserData/Api/Общие рекомендации по передаче адреса в запрос при интеграции.docx">Общие рекомендации по передаче адреса забора/доставки в запрос при интеграции с транспортной компанией</a></li>
+    <li>В элементах массива <code>cargos.items[]</code> с данными о грузах необходимо указывать данные получателя в объекте <code>cargos.items[].receiver</code>.</li>
+	<li>У объекта <code>cargos.items[].services.(услуга).payer.other</code> для услуг pickUp (забор), transporting (перевозка), delivery (доставка), insurance (страховка) добавилось поле
+        <code>paymentCity</code>.</li>
+    <li id="comments__cargopickupnetwork__services">Реквизит <code>"paymentCity"</code> рекомендуется передавать только в некоторых случаях, описанных ниже. При передаче <code>"paymentCity"</code> в нём ожидается указание наименования филиала оплаты. "Филиал оплаты" - филиал ПЭК, в котором плательщик за услугу ПЭК будет получать оригиналы закрывающих бухгалтерских документов: УПД, отчёт по страхованию и т.п. Филиал оплаты также определяет возможность применения к грузу некоторых назначенных контрагенту скидок и сервисов.
+<br /><code>"paymentCity"</code> обязателен только при указании плательщиком "третьего лица" (type=3)! 
+<br />Если плательщиками указаны Отправитель (type=1) или Получатель (type=2), то <code>"paymentCity"</code> следует передавать ТОЛЬКО в следующих случаях:
+<ul><li>плательщиком за услугу указан Отправитель (type=1) и Филиал оплаты, отличается от филиала отправления,</li>
+    <li>плательщиком за услугу указан Получатель (type=2) и Филиал оплаты, отличается от филиала получения.</li>
+</ul>
+По умолчанию, если Плательщик - отправитель, то Филиалом оплаты будет указан Филиал отправления; если Плательщик - получатель, то Филиал получения.
+<br />Наименование филиала можно получить в ответе методов <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a> в поле <code>branches[].title</code> или <a href="/api/v1/help/branches#toc-method-findzonebyaddress"><code>/branches/findzonebyaddress/</code></a> в поле <code>branchTitle</code></li>	
+        <li>Можно указать штрих-коды для позиций грузов. Для этого надо во-первых для всей заявки в поле <code>cargos.common.typeClientBarcode</code> указать тип штрих-кода, регистр при указании типа штрих-кода не важен.
+        Список допустимых типов штрих-кодов можно получить с помощью метода
+        <a href="/api/v1/help/cargopickupnetwork#toc-method-availabletypebarcode">/cargopickupnetwork/availabletypebarcode</a>.
+        Для каждого груза нужно указать массив со штрих-кодами позиций груза в поле <code>cargos.items[].cargo.clientPositionsBarcode</code>.
+        Штрих-кодов не должно быть указано больше, чем позиций груза (<code>cargos.items[].cargo.positionsCount</code>).
+	</li>
+    <li>Для подачи заявки с наложенным платежом, следует использовать другие методы API. Свяжитесь с нами, если у Вас есть такая потребность.</li>
+    <li><code>cargos.items[].receiver.identityCard.type</code> в значении 0 (Без предоставления документа) подразумевает, что идентификация получателя (доступна по договору оферты) будет произведена с использованием кода СМС. Ограничения на использование данного способа идентификации описаны <a href="https://pecom.ru/services/additional-features/upr-vidacha/">здесь</a></li>
+    <li>Данные по наименованию филиала отправления и получения для реквизитов <code>sender.city</code> и <code>receiver.city</code> можно получить используя метод <a href="/api/v1/help/branches#toc-method-findzonebyaddresss"><code>/branches/findzonebyaddress/</code></a>. На вход в метод передавать адрес забора и/или доставки, в ответе метода брать значение реквизита <code>branchTitle</code> и подставлять в реквизит <code>city</code> соответствующего блока.</li>
+    <li id="comments__is_day_by_day">Возможность забора груза "день в день" в соответствии с Вашим договором уточняйте у своего закрепленного менеджера или в филиале отправления. Есть ограничения по времени забора и по габаритам, которые зависят от конкретных филиалов. Подача заявок по API на забор груза "день в день" за административными чертами города, а также на праздничные и выходные дни невозможна.</li>
+</ul>
+
+<h3>Формат запроса</h3>
+<pre class="prettyprint">
+{
+  "common":{ // Общие данные по заявке [Object]
+    "applicationDate":"2012-05-15", // Планируемая дата забора груза [Date]. Обязательно. <a style="color: #87ceeb; text-decoration: underline;" class="js_comments" href="#comments__is_day_by_day">(см. комментарии)</a>
+    "responsiblePerson":"Коновалов Г.В", // ФИО ответственного за оформление заявки [String]
+    "description":"Тестовый груз" // Описание груза [String]
+                                  // поле обязательно для заполнения, если не во всех грузах заявки
+                                  // проставлено описание груза (cargos.items[].cargo.description)
+                                  // Значение необходимо выбрать из ответа метода <a href="/api/v1/help/cargocontent#toc-method-all"  style="color: #87ceeb; text-decoration: underline dotted #87ceeb;"><code>/cargocontent/all/</code></a>
+  },
+  "sender":{ // Данные об отправителе [Object]
+    "inn":"7716542310", // ИНН [String], обязательно для Юридических лиц и ИП (для физических лиц не передавать)
+    "city":"Омск", // Наименование филиала отправителя [City]
+    "title":"Наименование организации", // Наименование отправителя [String]
+    "person":"Иванов Иван Иванович", // Контактное лицо [String]
+    "phone":"22-33-44", // Телефон [String]
+    "email":"example@example.com", // E-mail [String], поле необязательно
+    "addressOffice":"Россия, г. Омск, улица Антонова, д. 2", // Адрес офиса, по которому находятся документы на получения грузов [String].
+    "addressStock":"Россия, г. Омск, улица Боровиковского, 17, строение 5", // Адрес, по которому необходимо забрать груз [String].
+    "workTimeFrom":"10:15", // Время начала рабочего дня [Time], поле необязательно
+    "workTimeTo":"18:00", // Время окончания рабочего дня [Time], поле необязательно
+    "lunchBreakFrom":"14:00", // Время начала обеденного перерыва [Time], поле необязательно
+    "lunchBreakTo":"15:00" // Время окончания обеденного перерыва [Time], поле необязательно
+    "identityCard":{ // Документ удостоверяющий личность  [Object], обязательно для Физических лиц (для юр.лиц и ИП не передавать)
+        "type": 10, // тип документа [Number] (1 - ПАСПОРТ ИНОСТРАННОГО ГРАЖДАНИНА,
+                    // 2 - РАЗРЕШЕННИЕ НА ВРЕМЕННОЕ ПРОЖИВАНИЕ, 3 - ВОДИТЕЛЬСКОЕ УДОСТОВЕРЕНИЕ,
+                    // 4 - ВИД НА ЖИТЕЛЬСТВО, 5 - ЗАГРАНИЧНЫЙ ПАСПОРТ, 6 - УДОСТОВЕРЕНИЕ БЕЖЕНЦА,
+                    // 7 - ВРЕМЕННОЕ УДОСТОВЕРЕНИЕ ЛИЧНОСТИ ГРАЖДАНИНА РФ, 
+                    // 8 - СВИДЕТЕЛЬСТВО О ПРЕДОСТАВЛЕНИИ ВРЕМЕННОГО УБЕЖИЩА НА ТЕРРИТОРИИ РФ,
+                    // 9 - ПАСПОРТ МОРЯКА, 10 - ПАСПОРТ ГРАЖДАНИНА РФ, 
+                    // 11 - СВИДЕТЕЛЬСТВО О РАССМОТРЕНИИ ХОДАТАЙСТВА О ПРИЗНАНИИ БЕЖЕНЦЕМ,
+                    // 12 - ВОЕННЫЙ  БИЛЕТ)
+        "series":"1234", // Серия [String]
+        "number":"56789", // Номер [String]
+        "date":"1985-01-01", // Дата выдачи документа, удостоверяющего личность [Date]
+        "note":"" // служебное поле для других документов [String]
+    }
+  },
+  "cargos":{ // Данные о позициях [Object]
+    "common":{ // Общие данные для всех позиций [Object], поле необязательно
+
+      /*
+        Если этот объект определён, указывать размеры для каждого груза необязательно
+      */
+      "cargoTotals": { // Общие размеры, объём и весь груза [Object], 
+                       // поле необязательно                       
+        "volume":10, // Общий объём, м3 [Number]
+        "weight":200, // Общий вес, кг [Number]
+        "maxDimension":10, // Максимальный габарит, м [Number]
+        "positionsCount":5 // Общее количество мест, шт [Number]
+      },
+
+      /*
+        Структура объектов "payer" одинакова для всех случаев и описывается один раз
+      */
+
+      /*
+        Если определены элементы этого объекта, указывать плательщиков
+        для каждого груза необязательно (детальнее см. ниже)
+
+        Это можно использовать для реализации сценариев "за доставку всех грузов платит получатель"
+        или "за перевозку грузов платит отправитель"
+      */
+      "services":{ // Определение плательщиков для всех грузов [Object], необязательно 
+                   // Правила заполнения "paymentCity" для любой услуги см. <a style="color: #87ceeb; text-decoration: underline;" class="js_comments" href="#comments__cargopickupnetwork__services">комментарии</a>
+        "pickUp":{ // Плательщик за услугу забора груза [Object], поле необязательно
+           "payer": { // Плательщик [Object]
+             "type":3, // Плательщик (1 - отправитель, 2 - получатель, 3 - третье лицо) [Number]
+             "other":{ // Данные о плательщике-третьем лице [Object], поле обязательно если "type":3
+                "inn":"7716542310", // ИНН третьего лица [String], обязательно для Юридических лиц и ИП (для физических лиц не передавать)
+                "title":"Тестовая компания", // Наименование третьего лица [String], обязательно, если type=3
+                "paymentCity":"Омск", // Наименование филиала оплаты за услугу [String]. См. <a style="color: #87ceeb; text-decoration: underline;" class="js_comments" href="#comments__cargopickupnetwork__services">комментарий</a>
+                                      // Обязательно в этом примере, т.к. за услугу pickUp плательщик указан третье лицо type=3.
+                "phone":"22-33-44" // Телефон [String], обязательно
+                "identityCard":{   // Документ удостоверяющий личность третьего лица [Object]. Обязательно, если
+                                   // плательщик 3-е лицо (type=3) является Физическом лицом  (для юр.лиц и ИП не передавать)
+                    "type": 10, // тип документа [Number] (1 - ПАСПОРТ ИНОСТРАННОГО ГРАЖДАНИНА,
+                                // 2 - РАЗРЕШЕННИЕ НА ВРЕМЕННОЕ ПРОЖИВАНИЕ, 3 - ВОДИТЕЛЬСКОЕ УДОСТОВЕРЕНИЕ,
+                                // 4 - ВИД НА ЖИТЕЛЬСТВО, 5 - ЗАГРАНИЧНЫЙ ПАСПОРТ, 6 - УДОСТОВЕРЕНИЕ БЕЖЕНЦА,
+                                // 7 - ВРЕМЕННОЕ УДОСТОВЕРЕНИЕ ЛИЧНОСТИ ГРАЖДАНИНА РФ, 
+                                // 8 - СВИДЕТЕЛЬСТВО О ПРЕДОСТАВЛЕНИИ ВРЕМЕННОГО УБЕЖИЩА НА ТЕРРИТОРИИ РФ,
+                                // 9 - ПАСПОРТ МОРЯКА, 10 - ПАСПОРТ ГРАЖДАНИНА РФ, 
+                                // 11 - СВИДЕТЕЛЬСТВО О РАССМОТРЕНИИ ХОДАТАЙСТВА О ПРИЗНАНИИ БЕЖЕНЦЕМ,
+                                // 12 - ВОЕННЫЙ  БИЛЕТ)
+                    "series":"1234", // Серия [String]
+                    "number":"56789", // Номер [String]
+                    "date":"1985-01-01", // Дата выдачи документа, удостоверяющего личность [Date]
+                    "note":"" // служебное поле для других документов [String]
+                    }
+                }
+            }
+        },
+
+        "transporting":{ // Плательщик за услугу перевозки [Object], поле необязательно
+          "payer":{ // Плательщик [Object] (детальное описание см. выше)
+            "type":1
+          }
+        },
+
+        "delivery":{ // Плательщик за услугу доставки [Object], поле необязательно
+          "payer":{ // Плательщик [Object] (детальное описание см. выше)
+            "type":1
+          }
+        },
+
+        "insurance":{ // Плательщик за услугу страхования [Object], поле необязательно
+          "payer":{ // Плательщик [Object] (детальное описание см. выше)
+            "type":1
+          }
+        }
+
+      },
+      "typeClientBarcode": "EAN13" // Тип штрих-кодов, указанных для мест грузов заявки [String]
+      // список допустимых типов штрих-кодов можно получить с помощью метода <a href="/api/v1/help/cargopickupnetwork#toc-method-availabletypebarcode" style="color: #87ceeb; text-decoration: underline dotted #87ceeb;">availabletypebarcode</a>
+      // тип штрих-кода можно набирать символами любого регистра
+    },
+    "items":[ // Данные о грузах [Array]
+      { // Информация об одном грузе [Object]
+
+        "receiver":{ // Получатель [Object]
+          "inn":"7716542310", // ИНН [String], обязательно для Юридических лиц и ИП  (для физических лиц не передавать)
+          "city":"Санкт-Петербург", // Наименование филиала получателя [City]
+          "title":"Наименование организации", // Наименование получателя [String], обязательно
+          "person":"Петров Петр Васильевич", // Контактное лицо [String]
+          "phone":"33-44-55"  // Телефон [String], обязательно
+          "identityCard":{ // Документ удостоверяющий личность  [Object], обязательно для Физических лиц (для юр.лиц и ИП не передавать)
+            "type": 10, // тип документа [Number] (// 0 - БЕЗ ПРЕДОСТАВЛЕНИЯ ДОКУМЕНТА (серию\номер можно оставить пустыми) - см. <a href="/api/v1/help/cargopickupnetwork#toc-method-submit" style="text-decoration: underline dotted #87ceeb;">комментарии</a>,
+                        // 1 - ПАСПОРТ ИНОСТРАННОГО ГРАЖДАНИНА,
+                        // 2 - РАЗРЕШЕННИЕ НА ВРЕМЕННОЕ ПРОЖИВАНИЕ, 3 - ВОДИТЕЛЬСКОЕ УДОСТОВЕРЕНИЕ,
+                        // 4 - ВИД НА ЖИТЕЛЬСТВО, 5 - ЗАГРАНИЧНЫЙ ПАСПОРТ, 6 - УДОСТОВЕРЕНИЕ БЕЖЕНЦА,
+                        // 7 - ВРЕМЕННОЕ УДОСТОВЕРЕНИЕ ЛИЧНОСТИ ГРАЖДАНИНА РФ, 
+                        // 8 - СВИДЕТЕЛЬСТВО О ПРЕДОСТАВЛЕНИИ ВРЕМЕННОГО УБЕЖИЩА НА ТЕРРИТОРИИ РФ,
+                        // 9 - ПАСПОРТ МОРЯКА, 10 - ПАСПОРТ ГРАЖДАНИНА РФ, 
+                        // 11 - СВИДЕТЕЛЬСТВО О РАССМОТРЕНИИ ХОДАТАЙСТВА О ПРИЗНАНИИ БЕЖЕНЦЕМ,
+                        // 12 - ВОЕННЫЙ  БИЛЕТ)
+            "series":"1234", // Серия [String]
+            "number":"56789", // Номер [String]
+            "date":"1985-01-01", // Дата выдачи документа, удостоверяющего личность [Date]
+            "note":"" // служебное поле для других документов [String]
+            }
+        },
+
+        "cargo":{ // Параметры груза [Object]
+          
+          "customerCorrelation":"№23434-АБ", // Произвольное значение для синхронизации на стороне клиента [String], поле необязательно
+          "type":  3,  // Идентификатор продукта/тарифа ПЭК с которым должно работать отделение [Number]. Обязательно.
+                       // ВАЖНО! Данный метод поддерживает только 2 продукта: type = 3 "ПЭК:LTL Авто" и type = 1 "ПЭК:Express Авиа"
+
+          "description": "обувь", // Описание груза [String]
+                                  // поле обязательно для всех грузов если не заполнено
+                                  // общее описание для заявки (common.description)
+                                  // Значение необходимо выбрать из ответа метода <a href="/api/v1/help/cargocontent#toc-method-all"  style="color: #87ceeb; text-decoration: underline dotted #87ceeb;"><code>/cargocontent/all/</code></a>
+
+          "orderNumber":"№23434-АБ", // Номер заказа клиента [String], поле необязательно
+          "weight":2.5, // Вес, кг [Number], поле необязательно, если указаны общие данные
+          "volume":0.1, // Объём, м3 [Number], поле необязательно, если указаны общие данные
+          "width":0.12, // Ширина, м [Number], поле необязательно, если указаны общие данные
+          "length":0.3, // Длина, м [Number], поле необязательно, если указаны общие данные
+          "height":0.4, // Высота, м [Number], поле необязательно, если указаны общие данные
+          "positionsCount":2 // Количество мест, шт [Number],
+                             // поле необязательно, если указаны общие данные
+          "clientPositionsBarcode": [ // Штрих-коды мест груза [Array]
+                                      // Если для груза заданы штрих-коды для заявки, обязательно
+                                      // указать тип используемых штрих-кодов
+                                      // cargos.common.typeClientBarcode
+                                      // список допустимых типов штрих-кодов можно получить с помощью метода <a href="/api/v1/help/cargopickupnetwork#toc-method-availabletypebarcode" style="color: #87ceeb; text-decoration: underline dotted #87ceeb;">availabletypebarcode</a>
+                "123654789", // Штрих-код клиента [String]
+                ...
+            ]
+        },
+        "conditions":{ // Условия перевозки [Object]
+          "isOpenCar":false, // Необходима открытая машина при заборе у отправителя [Boolean] 
+          "isSideLoad":true, // Необходима боковая погрузка при заборе у отправителя [Boolean]
+          "isSpecialEquipment":false, // Необходима машина со специальным оборудованием при заборе у отправителя [Boolean], 
+                                      // поле необязательно, если не указано считается равным false
+          "isUncovered":false, // Необходима растентовка при заборе у отправителя [Boolean], 
+                               // поле необязательно, если не указано считается равным false
+                              // В актуальной версии протокола не используется
+          "isFast":false, // Необходима скоростная перевозка [Boolean]
+                          // В актуальной версии протокола не используется
+          "isLoading":false // Необходима разгрузка силами «ПЭК» при доставке получателю [Boolean]  
+        },
+        "services":{ // Услуги [Object]
+          "pickUp":{ // Услуга забора груза [Object], 
+                     // поле необязательно, если указан плательщик за эту услугу
+                     // для всех грузов
+            "payer":{  // Плательщик [Object] (детальное описание см. выше)
+              "type":2
+            }
+          },
+          "transporting":{ // Перевозка [Object]
+                           // поле необязательно, если указан плательщик за эту услугу
+                           // для всех грузов
+            "payer":{ // Плательщик [Object] (детальное описание см. выше)
+             "type":1
+            }
+          },
+
+          /* 
+            Услуги, заказ которых необязателен имеют поле enabled [Boolean]
+			
+            Для услуг доставки и страхования поле "payer" необязательно, если выполняется одно 
+            из двух условий:
+              а) "enabled":false (т.е. услуга не заказана)
+              б) "enabled":true и данные о плательщике определены в объекте cargos.common.services
+                 (т.е. услуга заказана и данные о плательщике указаны для всех позиций сразу)
+
+            Для остальных услуг поле "payer" обязательно, если услуга заказана ("enabled":true)
+
+            Допустимо переопределять плательщиков, к примеру: в наборе из 10 грузов за перевозку 9
+            платит отправитель, а за перевозку одного — получатель. В этом случае в объекте
+            cargos.common.services можно указать плательщиком за услугу перевозки для всех грузов
+            отправителя (и не указывать отдельно для каждого из них), а для единственного груза 
+            за перевозку которого платит получатель указать плательщика в этом объекте.
+          */
+
+          "delivery":{ // Доставка [Object]
+            "enabled":true, // Заказана ли услуга [Boolean]
+            "avisationDateTime": "2013-04-02", // Дата авизации [Date], поле необязательно
+            "address":"Россия, г. Санкт-Петербург, улица Садовая 2, кв. 5", // Адрес доставки [String],
+                                                                            // поле обязательно, если "enabled":true
+            "payer":{ // Плательщик [Object] (детальное описание см. выше),
+                      // поле необязательно при определённых условиях (см. выше)
+              "type":1
+            }
+          },
+
+          "insurance":{ // Страховка [Object]
+            "enabled":true, // Заказана ли услуга [Boolean]
+            "cost":20000.25, // Оценочная стоимость, руб [Number], 
+                            // поле обязательно, если "enabled":true
+            "payer":{ // Плательщик [Object] (детальное описание см. выше),
+                      // поле необязательно при определённых условиях (см. выше)
+              "type":1
+            }
+          },
+
+          "documentsReturning":{ // Возврат документов [Object]
+            "enabled":true, // Заказана ли услуга [Boolean]
+            "payer":{ // Плательщик [Object] (детальное описание см. выше),
+                      // поле необязательно при определённых условиях (см. выше)
+              "type":1 
+            }
+          },
+          
+          "strapping":{ // Упаковка стреппинг-лентой [Object]
+            "enabled":false // Заказана ли услуга [Boolean]
+          },
+        
+          "sealing":{ // Пломбировка [Object]
+            "enabled":true, // Заказана ли услуга (обязательна только до 3 кг) [Boolean]
+            "positionsCount":12, // Количество мест для пломбировки [Number]
+            "payer":{ // Плательщик [Object] (детальное описание см. выше),
+                      // поле необязательно при определённых условиях (см. выше)
+              "type":3,
+              "other":{
+                "inn":"7716542310",
+                "title":"Тестовая компания",
+                "phone":"22-33-44"
+              }
+            }
+          },
+
+          "hardPacking":{ // Защитная транспортировочная упаковка [Object]
+            "enabled":true, // Заказана ли услуга [Boolean]
+            "positionsCount":5, // Количество мест в ЗТУ [Number]
+            "payer":{ // Плательщик [Object] (детальное описание см. выше),
+                      // поле необязательно при определённых условиях (см. выше)
+              "type":1
+            }
+          },
+    
+          <!--"cashOnDelivery": {
+              "enabled": true, // Заказана услуга наложенного платежа
+              "cashOnDeliverySum":456.26, // Общая стоимость заказа (сумма НП) обязательно, если заказана услуга НП [Number]
+              "actualCost":789.36, // Объявленная стоимость товара, обязательно для НП [Number]
+              "includeTES":false // За услуги платит отправитель из суммы НП [Boolean]
+          }-->
+        }
+      },
+    	 
+      {  // Информация об одном грузе [Object]
+        ... 
+      }
+
+      ... 
+
+    ] // items
+  }
+}
+</pre>
+
+<h3>Формат ответа</h3>
+<pre class="prettyprint">
+{
+  "documentId": 16, // Номер заявки [Number]
+  "cargos":[ // Информация о принятии данных грузов, описанных в заявках [Array]
+    { // Объект с информацией о приёме одной заявки [Object]
+        "customerCorrelation":"№23434-АБ", // Произвольное значение для синхронизации на стороне клиента [String]
+        "cargoCode": "780339690775", // Код груза [String]
+        "barсode": "780339690775" // Значение для штрих-кода в формате EAN-13 [String]
+        "orderNumber": "12345" // Номер заказа [String]
+        "positions": [ // Информация о местах [Array]
+          { // Информация об одном месте [Object]
+            "barcode": "7803396907750001" // Значение для штрих-кода 
+                                           // в формате CODE-128/EAN-128 [String]
+          },
+          ...
+        ],
+        "typeClientBarcode": "EAN13", // Тип штрих-кода [String]
+        "clientPositionsBarcode": [ // Штрих-коды клиента [Array]
+            "123654789", // штрих-код клиента [String]
+            ...
+        ]
+    }, 
+    ...
+  ]
+}
+</pre>
+
+
+
+	</div><!-- /.b-doc-content -->	
+
+                </div>
+            </div>
+            
+            
+            
+        </div>
+    </section>
+
+
+    <!--
+		Page-level JS init
+	-->
+    <script type="text/javascript">
+        /* <![CDATA[ */
+        (function($) { 
+            $(function () {
+                
+	prettyPrint();
+	var anchors = document.querySelectorAll('.js_comments');
+    anchors.forEach(function(anchor) {
+        anchor.addEventListener('click',
+            function(e) {
+                e.preventDefault();
+
+                var blockId = anchor.getAttribute('href');
+
+                document.querySelector(blockId).scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            });
+    });
+			
+		
+                });	
+        })(jQuery);
+        /* ]]> */
+    </script>
+
+    
+
+<script type="text/javascript">
+    (function ($) {
+        $('.select').chosen({
+            disable_search: false,
+            inherit_select_classes: true,
+            width: '100%',
+            no_results_text: "Не найдено:",
+            max_selected_options: 3,
+            placeholder_text: "Выберите значение",
+            placeholder_text_multiple: "Выберите значение"
+        });
+    })(jQuery);
+</script>
+
+<!-- Matomo Tag Manager -->
+<script>
+  var _mtm = window._mtm = window._mtm || [];
+  _mtm.push({'mtm.startTime': (new Date().getTime()), 'event': 'mtm.Start'});
+  (function() {
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.async=true; g.src='http://178.130.58.239/js/container_2J6IpJJf.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Tag Manager -->
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+   m[i].l=1*new Date();
+   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+   ym(78386, "init", {
+        clickmap:true,
+        trackLinks:true,
+        accurateTrackBounce:true,
+        webvisor:true,
+        trackHash:true,
+        ecommerce:"dataLayer"
+   });
+</script>
+<noscript>
+    <div>
+        <img src="https://mc.yandex.ru/watch/78386" style="position: absolute; left: -9999px;" alt="" />
+    </div>
+</noscript>
+<!-- /Yandex.Metrika counter -->
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+   m[i].l=1*new Date();
+   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+   ym(99273454, "init", {
+        clickmap:true,
+        trackLinks:true,
+        accurateTrackBounce:true,
+        ecommerce:"dataLayer"
+   });
+</script>
+<noscript>
+    <div>
+        <img src="https://mc.yandex.ru/watch/99273454" style="position: absolute; left: -9999px;" alt="" />
+    </div>
+</noscript>
+<!-- /Yandex.Metrika counter -->
+
+
+
+
+
+
+
+<script type="text/javascript">
+(function(e,t){var n=e.amplitude||{_q:[],_iq:{}};var r=t.createElement("script")
+;r.type="text/javascript"
+;r.integrity="sha384-a+mq7tiLwde/00Oc7avFHLn/ttGfdAq1rtZc7u97SEzIiyYoT2IsOKWCkAThwdEu"
+;r.crossOrigin="anonymous";r.async=true
+;r.src="https://cdn.amplitude.com/libs/amplitude-5.3.0-min.gz.js"
+;r.onload=function(){if(!e.amplitude.runQueuedFunctions){
+console.log("[Amplitude] Error: could not load SDK")}}
+;var i=t.getElementsByTagName("script")[0];i.parentNode.insertBefore(r,i)
+;function s(e,t){e.prototype[t]=function(){
+this._q.push([t].concat(Array.prototype.slice.call(arguments,0)));return this}}
+var o=function(){this._q=[];return this}
+;var a=["add","append","clearAll","prepend","set","setOnce","unset"]
+;for(var u=0;u<a.length;u++){s(o,a[u])}n.Identify=o;var c=function(){this._q=[]
+;return this}
+;var l=["setProductId","setQuantity","setPrice","setRevenueType","setEventProperties"]
+;for(var p=0;p<l.length;p++){s(c,l[p])}n.Revenue=c
+;var d=["init","logEvent","logRevenue","setUserId","setUserProperties","setOptOut","setVersionName","setDomain","setDeviceId","setGlobalUserProperties","identify","clearUserProperties","setGroup","logRevenueV2","regenerateDeviceId","groupIdentify","onInit","logEventWithTimestamp","logEventWithGroups","setSessionId","resetSessionId"]
+;function v(e){function t(t){e[t]=function(){
+e._q.push([t].concat(Array.prototype.slice.call(arguments,0)))}}
+for(var n=0;n<d.length;n++){t(d[n])}}v(n);n.getInstance=function(e){
+e=(!e||e.length===0?"$default_instance":e).toLowerCase()
+;if(!n._iq.hasOwnProperty(e)){n._iq[e]={_q:[]};v(n._iq[e])}return n._iq[e]}
+;e.amplitude=n})(window,document);
+
+var project = amplitude.getInstance();
+project.init('4f4a8e9a1bca1ab33a7c06397fde723f', null, { saveEvents: true, includeUtm: true, includeReferrer: true });
+var identify = new amplitude.Identify();
+var eventProperties = {};
+
+
+</script>
+
+
+
+
+    <!-- 
+
+Version: 1.0.9743.559, hash: 
+-->
+
+    
+<div class="widjet-container">
+    
+    <div class="widjet text-center">
+        <a href="http://pecom.ru/contacts/list-filials/" target="_blank">Список филиалов
+            <i class="icon-point"></i>
+        </a>
+    </div>
+    
+</div>
+
+
+<!-- Онлайн-чат -->
+<script type='text/javascript'>
+    window['liv'+'eT'+'ex'] = true,
+        window['li'+'v'+'eTex'+'ID'] = 151733,
+        window['liveTe'+'x'+'_ob'+'j'+'ect'] = true;
+    (function() {
+        var t = document['creat'+'eElem'+'e'+'nt']('script');
+        t.type ='text/javascript';
+        t.async = true;
+        t.src = '//cs15.'+'liv'+'etex.'+'ru/js/client.'+'js';
+        var c = document['getE'+'le'+'me'+'ntsByT'+'agNam'+'e']('script')[0];
+        if ( c ) c['pare'+'ntNod'+'e']['inse'+'rtBefo'+'re'](t, c);
+        else document['docum'+'en'+'tE'+'lement']['f'+'irst'+'C'+'h'+'ild']['a'+'p'+'p'+'end'+'Chi'+'l'+'d'](t);
+    })();
+</script>
+
+<script type="text/javascript">
+    var LiveTex = {
+        onLiveTexReady: function() {
+            LiveTex.hideLabel();
+        }
+    };
+</script>
+
+<script type="text/javascript">
+    (function($) {
+        $("#slideshow > div:gt(0)").hide();
+
+        setInterval(function() {
+                $('#slideshow > div:first')
+                    .fadeOut(1000)
+                    .next()
+                    .fadeIn(1000)
+                    .end()
+                    .appendTo('#slideshow');
+            },
+            5000);
+    })(jQuery);
+</script>
+
+<!-- Онлайн-чат -->
+
+
+</body>
+
+</html>
+<!--
+	Page generation time: 169 ms
+-->

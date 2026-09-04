@@ -1,0 +1,78 @@
+<article class="article">
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th><b>Контекст</b></th><th><b>Метод</b></th></tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                CreateReturnError
+            </td>
+            <td>
+                PUT /1.0/returns</br>
+                PUT /1.0/returns/return-without-direct
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th>Значение</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+        <tr><td>DIRECT_SHIPMENT_NOT_FOUND</td><td>Прямое отправление не найдено</td></tr>
+        <tr><td>BARCODE_ERROR</td><td>Ошибка выдачи ШПИ</td></tr>
+        <tr><td>ONLINE_PAYMENT_MARK_ERROR</td><td>Ошибка ЗОО</td></tr>
+        <tr><td>SHIPMENT_API_ERROR</td><td>Ошибка при создании отправления в Shipment API</td></tr>
+        <tr><td>EASY_RETURN_NOT_SUPPORTED</td><td>Тип прямого отправления не поддерживает легкий возврат</td></tr>
+        <tr><td>EASY_RETURN_DISABLED</td><td>Легкий возрат не доступен для клиента</td></tr>
+        <tr><td>RETURN_ALREADY_EXIST</td><td>Возврат уже создан</td></tr>
+        <tr><td>ILLEGAL_DIRECT_SHIPMENT_STATE</td><td>Некорректный статус прямого отправления</td></tr>
+        <tr><td>FREE_ER_ADDRESS_NOT_ENABLED</td><td>Свободный ввод адреса не доступен</td></tr>
+        <tr><td>RETURN_SHIPMENT_NOT_FOUND</td><td>Возвратное отправление не найдено</td></tr>
+        <tr><td>ILLEGAL_RETURN_SHIPMENT_STATE</td><td>Возвратное отправление уже на маршруте</td></tr>
+        </tbody>
+    </table>
+    <br>
+    <br>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th><b>Контекст</b></th><th><b>Метод</b></th></tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                DeleteReturnError
+            </td>
+            <td>
+                DELETE /1.0/returns/delete-separate-return</br>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th>Значение</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+        <tr><td>RETURN_SHIPMENT_NOT_FOUND</td><td>Возвратное отправление не найдено</td></tr>
+        <tr><td>ILLEGAL_RETURN_SHIPMENT_STATE</td><td>Возвратное отправление уже на маршруте</td></tr>
+        </tbody>
+    </table>
+</article>

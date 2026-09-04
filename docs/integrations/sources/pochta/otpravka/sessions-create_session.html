@@ -1,0 +1,127 @@
+<article class="article"><h3>Создание пользовательской сессии</h3>
+    Создает пользовательскую сессию для созданий партий и добавления заказов в партию.<br/>
+
+    <br/>
+    Введите <a href="#/authorization-token" target="_blank">токен авторизации приложения</a> и <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a>, тогда значения заголовков будут сгенерированы автоматически.<br/>
+    <br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Токен авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="token" type="text" name="token" ng-model="token" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%">Ключ авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="key" type="text" name="key" ng-model="key" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Параметры запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Локальный URL</td>
+            <td><b>/1.0/user-session</b></td>
+        </tr>
+        <tr>
+            <td width="25%">Тип</td>
+            <td><b>POST</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Заголовки запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="30%"><b>Authorization</b></td>
+            <td><span ng-show="token"><b>AccessToken {{ token }}</b></span></td>
+        </tr>
+        <tr>
+            <td width="30%"><b>X-User-Authorization</b></td>
+            <td><span ng-show="key"><b>Basic {{ key }}</b></span></td>
+        </tr>
+        <tr>
+            <td><b>Content-Type</b></td>
+            <td><b>application/json;charset=UTF-8</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b class="code-header">Тело запроса</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('body')">скопировать схему</a></span><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="15%">
+                Структура
+            </td>
+            <td>
+                <div class="code">
+                    <div class="code-body">
+                        <div class="api-struct" tabindex="1"><span class="api-struct__description">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="2"><span class="api-struct__description col-offset-1">"batch-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>batch-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Номер партии</span></p></div>
+                        <div class="api-struct" tabindex="3"><span class="api-struct__description col-offset-1">"session-type": "CREATE_BATCHES"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>session-type</b> - Строка</span><span class="api-struct__tooltip-body">Тип пользовательской сессии = ['CREATE_BATCHES', 'ADD_BACKLOGS_TO_BATCH']</span></p></div>
+                        <div class="api-struct" tabindex="4"><span class="api-struct__description">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <b class="code-header">Ответ на запрос</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('response')">скопировать схему</a></span><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="15%">
+                Структура
+            </td>
+            <td>
+                <div class="code">
+                    <div class="code-body">
+                        <div class="api-struct" tabindex="1"><span class="api-struct__description">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="2"><span class="api-struct__description col-offset-1">"error": "EMPTY_BATCH_NAME"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>error</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Ошибка создания сессии = ['EMPTY_BATCH_NAME', 'ILLEGAL_BATCH_NAME', 'BATCH_DOESNT_EXIST']</span></p></div>
+                        <div class="api-struct" tabindex="3"><span class="api-struct__description col-offset-1">"session-uuid": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>session-uuid</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Идентификатор пользовательской сессии</span></p></div>
+                        <div class="api-struct" tabindex="4"><span class="api-struct__description">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+<!--    <a href="" ng-click="turn('examples')"><h3>Примеры кода для работы с API</h3></a>
+    <div ng-show="examples && examples.enable">
+        <a href="" ng-click="turn('python')"><h4>Python (3 версия)</h4></a>
+        <div ng-show="python && python.enable">
+            Необходимые модули:<br/>
+            <table>
+                <thead>
+                <tr>
+                    <th><b>Модуль</b></th>
+                    <th><b>Описание</b></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+                        requests
+                    </td>
+                    <td>
+                        <a href="https://requests.readthedocs.io" target="_blank">Документация</a> и <a href="https://requests.readthedocs.io/en/master/user/install" target="_blank">Инструкции по установке</a>
+                    </td>
+                </tr>
+
+                </tbody>
+            </table>
+            <ul>
+                <li><a href="#/sessions-create_session_py" target="_blank">Пример кода</a></li>
+                <li><a href="#/sessions-create_session_py_custom" target="_blank">Генератор кода</a></li>
+            </ul>
+        </div>
+    </div> -->
+</article>

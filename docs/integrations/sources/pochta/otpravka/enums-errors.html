@@ -1,0 +1,325 @@
+<article class="article">
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th><b>Контекст</b></th><th><b>Метод</b></th></tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                BatchError
+            </td>
+            <td>
+                POST /1.0/user/shipment</br>
+                POST /1.0/batch/{name}/shipment
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th>Значение</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+        <tr><td>ALL_SHIPMENTS_SENT</td><td>Все отправления уже отправлены</td></tr>
+        <tr><td>BARCODE_ERROR</td><td>Ошибка при получении ШПИ</td></tr>
+        <tr><td>EMPTY_ADDRESS_TYPE_TO</td><td>Тип адреса не указан</td></tr>
+        <tr><td>EMPTY_INDEX_TO</td><td>Почтовый индекс не указан</td></tr>
+        <tr><td>EMPTY_INSR_VALUE</td><td>Объявленная сумма не указана</td></tr>
+        <tr><td>EMPTY_MAIL_CATEGORY</td><td>Категория почтового отправления не указана</td></tr>
+        <tr><td>EMPTY_MAIL_DIRECT</td><td>Почтовое направление не указано</td></tr>
+        <tr><td>EMPTY_MAIL_TYPE</td><td>Тип почтового отправления не указан</td></tr>
+        <tr><td>EMPTY_MASS</td><td>Масса не указана</td></tr>
+        <tr><td>EMPTY_NUM_ADDRESS_TYPE</td><td>Не задан номер для соответствующего типа адреса</td></tr>
+        <tr><td>EMPTY_PAYMENT</td><td>Наложенный платеж не указан</td></tr>
+        <tr><td>EMPTY_PLACE_TO</td><td>Населенный пункт не указан</td></tr>
+        <tr><td>EMPTY_REGION_TO</td><td>Регион не заполнен</td></tr>
+        <tr><td>EMPTY_TRANSPORT_TYPE</td><td>Способ пересылки не указан</td></tr>
+        <tr><td>EMPTY_POSTOFFICE_CODE</td><td>Индекс приемного почтового отделения не задан</td></tr>
+        <tr><td>ILLEGAL_ADDRESS_TYPE_TO</td><td>Тип адреса некорректен</td></tr>
+        <tr><td>ILLEGAL_INDEX_TO</td><td>Почтовый индекс некорректен</td></tr>
+        <tr><td>ILLEGAL_INITIALS</td><td>ФИО некорректно</td></tr>
+        <tr><td>ILLEGAL_INSR_VALUE</td><td>Объявленная сумма некорректна</td></tr>
+        <tr><td>ILLEGAL_MAIL_CATEGORY</td><td>Категория почтового отправления некорректна</td></tr>
+        <tr><td>ILLEGAL_MAIL_DIRECT</td><td>Почтовое направление некорректно</td></tr>
+        <tr><td>ILLEGAL_MAIL_TYPE</td><td>Тип почтового отправления некорректен</td></tr>
+        <tr><td>ILLEGAL_MASS</td><td>Масса некорректна</td></tr>
+        <tr><td>ILLEGAL_MASS_EXCESS</td><td>Вес отправления не должен превышать N кг</td></tr>
+        <tr><td>ILLEGAL_PAYMENT</td><td>Наложенный платеж некорректен</td></tr>
+        <tr><td>ILLEGAL_POSTCODE</td><td>Индекс приемного почтового отделения в настройках и в партии отличаются</td></tr>
+        <tr><td>ILLEGAL_POSTOFFICE_CODE</td><td>Индекс приемного почтового отделения некорректен</td></tr>
+        <tr><td>ILLEGAL_TRANSPORT_TYPE</td><td>Некорректный способ пересылки</td></tr>
+        <tr><td>IMP13N_ERROR</td><td>Ошибка имперсонализации</td></tr>
+        <tr><td>INSR_VALUE_EXCEEDS_MAX</td><td>Превышено максимальное значение N руб</td></tr>
+        <tr><td>NO_AVAILABLE_POSTOFFICES</td><td>Нет доступных точек сдачи</td></tr>
+        <tr><td>NOT_FOUND</td><td>Отправление не найдено</td></tr>
+        <tr><td>PAST_DUE_DATE</td><td>Дата отправки просрочена</td></tr>
+        <tr><td>READONLY_STATE</td><td>Изменения в партии недопустимы</td></tr>
+        <tr>
+            <td>RESTRICTED_MAIL_CATEGORY</td>
+            <td>Для создания отправлений с наложенным платежом необходимо указать номер ЕСПП в настройках сервиса.
+            Обратитесь к вашему персональному менеджеру в Почте или напишите письмо на почтовый ящик <a href="mailto:support.otpravka@russianpost.ru">support.otpravka@russianpost.ru</a>
+            </td>
+        </tr>
+        <tr><td>SENDING_MAIL_FAILED</td><td>Ошибка при отправке почты</td></tr>
+        <tr><td>TARIFF_ERROR</td><td>Ошибка при расчете тарифа</td></tr>
+        <tr><td>DIFFERENT_TRANSPORT_TYPE</td><td>Способы пересылки отправления и партии отличаются</td></tr>
+        <tr><td>DIFFERENT_MAIL_TYPE</td><td>Типы почтовых отправлений не совпадают</td></tr>
+        <tr><td>DIFFERENT_MAIL_CATEGORY</td><td>Категории почтовых отправления не совпадают</td></tr>
+        <tr><td>DIFFERENT_MAIL_RANK</td><td>Разряд отправления и партии отличаются</td></tr>
+        <tr>
+            <td>ABSENT_OVERSIZE_POSTMARK</td>
+            <td>Отправление не может быть добавлено в партию с отметкой "Негабаритная"</td>
+        </tr>
+        <tr>
+            <td>UNEXPECTED_OVERSIZE_POSTMARK</td>
+            <td>Негабаритное отправление не может быть добавлено в партию без отметки "Негабаритная"</td>
+        </tr>
+        <tr>
+            <td>ABSENT_FRAGILE_POSTMARK</td>
+            <td>Отправление без отметки "Осторожно/Хрупкое/Терморежим" не может быть добавлено в партию с отметкой "Осторожно/Хрупкое/Терморежим"</td>
+        </tr>
+        <tr>
+            <td>UNEXPECTED_FRAGILE_POSTMARK</td>
+            <td>Отправление с отметкой "Осторожно/Хрупкое/Терморежим" не может быть добавлено в партию без отметки "Осторожно/Хрупкое/Терморежим"</td>
+        </tr>
+        <tr>
+            <td>ABSENT_COURIER_DELIVERY_POSTMARK</td>
+            <td>Отправление без отметки "Курьер" не может быть добавлено в партию с отметкой "Курьер"</td>
+        </tr>
+        <tr>
+            <td>UNEXPECTED_COURIER_DELIVERY_POSTMARK</td>
+            <td>Отправление с отметкой "Курьер" не может быть добавлено в партию без отметки "Курьер"</td>
+        </tr>
+        <tr>
+            <td>ABSENT_ORDER_OF_NOTICE_POSTMARK</td>
+            <td>Отправление без отметки "С заказным уведомлением" не может быть добавлено в партию с отметкой "С заказным уведомлением"</td>
+        </tr>
+        <tr>
+            <td>UNEXPECTED_ORDER_OF_NOTICE_POSTMARK</td>
+            <td>Отправление с отметкой "С заказным уведомлением" не может быть добавлено в партию без отметки "С заказным уведомлением"</td>
+        </tr>
+        <tr>
+            <td>ABSENT_SIMPLE_NOTICE_POSTMARK</td>
+            <td>Отправление без отметки "С простым уведомлением" не может быть добавлено в партию с отметкой "С простым уведомлением"</td>
+        </tr>
+        <tr>
+            <td>UNEXPECTED_SIMPLE_NOTICE_POSTMARK</td>
+            <td>Отправление с отметкой "С простым уведомлением" не может быть добавлено в партию без отметки "С простым уведомлением"</td>
+        </tr>
+        <tr><td>UNDEFINED </td><td>Неопределенная ошибка</td></tr>
+        </tbody>
+    </table>
+    <br>
+    <br>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th><b>Контекст</b></th><th><b>Метод</b></th></tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                RemoveBacklogErrorCode
+            </td>
+            <td>
+                DELETE /1.0/backlog
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th>Значение</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+        <tr> <td>UNDEFINED</td> <td>Неопределенная ошибка</td> </tr>
+        <tr> <td>ACCESS_VIOLATION</td> <td>Нарушение доступа</td> </tr>
+        <tr> <td>NOT_FOUND</td> <td>Не найден</td> </tr>
+        </tbody>
+    </table>
+
+    <br>
+    <br>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th><b>Контекст</b></th><th><b>Метод</b></th></tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                RemoveFromBatchErrorCode
+            </td>
+            <td>
+                POST /1.0/user/backlog<br>
+                DELETE /1.0/shipment
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th>Значение</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+        <tr><td>UNDEFINED</td><td>Неопределенная ошибка</td></tr>
+        <tr><td>DELIVERY_IN_PROGRESS</td><td>Отправление уже отправлено</td></tr>
+        <tr><td>ACCESS_VIOLATION</td><td>Нарушение доступа</td></tr>
+        <tr><td>NOT_FOUND</td><td>Не найден</td></tr>
+        <tr><td>READONLY_STATE</td><td>Изменения в партии недопустимы</td></tr>
+        </tbody>
+    </table>
+    <br>
+    <br>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th><b>Контекст</b></th><th><b>Метод</b></th></tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                OrderValidationError
+            </td>
+            <td>
+                PUT /1.0/user/backlog <br>
+                PUT /1.0/backlog/{id}<br>
+                PUT /1.0/batch/{name}/shipment<br>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th>Значение</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+        <tr><td>EMPTY_MAIL_CATEGORY</td><td>Категория почтового отправления не указана</td></tr>
+        <tr><td>ILLEGAL_MAIL_CATEGORY</td><td>Категория "%s" не поддерживается для данного типа отправления</td></tr>
+        <tr>
+            <td>RESTRICTED_MAIL_CATEGORY</td>
+            <td>Для создания отправлений с наложенным платежом необходимо указать номер ЕСПП в настройках сервиса.
+            Обратитесь к вашему персональному менеджеру в Почте или напишите письмо на почтовый ящик <a href="mailto:support.otpravka@russianpost.ru">support.otpravka@russianpost.ru</a>
+            </td>
+        </tr>
+        <tr><td>EMPTY_MAIL_TYPE</td><td>Тип почтового отправления не указан</td></tr>
+        <tr><td>ILLEGAL_MAIL_TYPE</td><td>Тип почтового отправления некорректен</td></tr>
+        <tr><td>EMPTY_ADDRESS_TYPE_TO</td><td>Тип адреса не указан</td></tr>
+        <tr><td>ILLEGAL_ADDRESS_TYPE_TO</td><td>Тип адреса некорректен</td></tr>
+        <tr><td>EMPTY_MAIL_DIRECT</td><td>Почтовое направление не указано</td></tr>
+        <tr><td>ILLEGAL_MAIL_DIRECT</td><td>Почтовое направление некорректно</td></tr>
+        <tr><td>ILLEGAL_INDEX_TO</td><td>Почтовый индекс некорректен</td></tr>
+        <tr><td>EMPTY_INDEX_TO</td><td>Почтовый индекс не указан</td></tr>
+        <tr><td>EMPTY_REGION_TO</td><td>Регион не заполнен</td></tr>
+        <tr><td>EMPTY_PLACE_TO</td><td>Населенный пункт не указан</td></tr>
+        <tr><td>EMPTY_TELADDRESS</td><td>Телефон получателя является обязательным для данного вида отправления</td></tr>
+        <tr><td>EMPTY_INSR_VALUE</td><td>Объявленная сумма не указана</td></tr>
+        <tr><td>ILLEGAL_INSR_VALUE</td><td>Объявленная сумма некорректна</td></tr>
+        <tr><td>INSR_VALUE_EXCEEDS_MAX</td><td>Превышено максимальное значение %s руб</td></tr>
+        <tr><td>EMPTY_PAYMENT</td><td>Наложенный платеж не указан</td></tr>
+        <tr><td>ILLEGAL_PAYMENT</td><td>Наложенный платеж некорректен</td></tr>
+        <tr><td>NOT_INSURED_PAYMENT</td><td>Наложенный платеж превышает объявленную ценность</td></tr>
+        <tr><td>EMPTY_TRANSPORT_TYPE</td><td>Способ пересылки не указан</td></tr>
+        <tr><td>ILLEGAL_TRANSPORT_TYPE</td><td>Cервис пока не поддерживает расчёт стоимости доставки в этот регион</td></tr>
+        <tr><td>EMPTY_MASS</td><td>Масса не указана</td></tr>
+        <tr><td>ILLEGAL_MASS</td><td>Масса некорректна</td></tr>
+        <tr><td>ILLEGAL_MASS_EXCESS</td><td>Превышение максимальной массы</td></tr>
+        <tr><td>TARIFF_ERROR</td><td>Ошибка тарификации(дополнительно поле см. Details)</td></tr>
+        <tr><td>IMP13N_ERROR</td><td>Ошибка имперсонализации</td></tr>
+        <tr><td>ILLEGAL_INITIALS</td><td>ФИО некорректно</td></tr>
+        <tr><td>EMPTY_NUM_ADDRESS_TYPE</td><td>Не задан номер для соответствующего типа адреса</td></tr>
+        <tr><td>BARCODE_ERROR</td><td>Ошибка при получении ШПИ</td></tr>
+        <tr><td>DIFFERENT_POSTCODE</td><td>Способы пересылки отправления и партии отличаются</td></tr>
+        <tr><td>EMPTY_POSTOFFICE_CODE</td><td>Индекс отделения места приема не задан</td></tr>
+        <tr><td>ILLEGAL_POSTOFFICE_CODE</td><td>Индекс приемного почтового отделения некорректен</td></tr>
+        <tr><td>NO_AVAILABLE_POSTOFFICES</td><td>Нет доступных отделений места приема</td></tr>
+        <tr><td>ILLEGAL_FRAGILE</td><td>Отметка "Осторожно/Хрупкое/Терморежим" неприменима для указанного типа отправлений</td></tr>
+        <tr><td>EMPTY_MAIL_RANK</td><td>Код разряда почтового отправления не задан в настройках пользователя</td></tr>
+        <tr><td>EMPTY_ENVELOPE_TYPE</td><td>Не задан тип конверта</td></tr>
+        <tr><td>ILLEGAL_ENVELOPE_TYPE</td><td>Недопустимое значение "Тип конверта" для выбранного вида отправления</td></tr>
+        <tr><td>ILLEGAL_ADDRESS_LETTER</td><td>Недопустимое значение "Литера"</td></tr>
+        <tr><td>ILLEGAL_ADDRESS_SLASH</td><td>Недопустимое значение "Дробь"</td></tr>
+        <tr><td>ILLEGAL_ADDRESS_CORPUS</td><td>Недопустимое значение "Корпус"</td></tr>
+        <tr><td>ILLEGAL_ADDRESS_BUILDING</td><td>Недопустимое значение "Строение"</td></tr>
+        <tr><td>ILLEGAL_ADDRESS_ROOM</td><td>Недопустимое значение "Комната"</td></tr>
+        <tr><td>EMPTY_PAYMENT_METHOD</td><td>Способ оплаты не задан</td></tr>
+        <tr><td>ILLEGAL_PAYMENT_METHOD</td><td>Некорректный способ оплаты</td></tr>
+        <tr><td>ABSENT_OVERSIZE_POSTMARK</td><td>Отправление не может быть добавлено в партию с отметкой "Негабаритная"</td></tr>
+        <tr><td>UNEXPECTED_OVERSIZE_POSTMARK</td><td>Негабаритное отправление не может быть добавлено в партию без отметки "Негабаритная"</td></tr>
+        <tr><td>ABSENT_COURIER_DELIVERY_POSTMARK</td><td>Отправление без отметки "Курьер" не может быть добавлено в партию с отметкой "Курьер"</td></tr>
+        <tr><td>UNEXPECTED_COURIER_DELIVERY_POSTMARK</td><td>Отправление с отметкой "Курьер" не может быть добавлено в партию без отметки "Курьер"</td></tr>
+        <tr><td>ABSENT_FRAGILE_POSTMARK</td><td>Отправление без отметки "Осторожно/Хрупкое/Терморежим" не может быть добавлено в партию с отметкой "Осторожно/Хрупкое/Терморежим"</td></tr>
+        <tr><td>UNEXPECTED_FRAGILE_POSTMARK</td><td>Отправление с отметкой "Осторожно/Хрупкое/Терморежим" не может быть добавлено в партию без отметки "Осторожно/Хрупкое/Терморежим"</td></tr>
+        <tr><td>ABSENT_ORDER_OF_NOTICE_POSTMARK</td><td>Отправление без отметки "С заказным уведомлением" не может быть добавлено в партию с отметкой "С заказным уведомлением"</td></tr>
+        <tr><td>UNEXPECTED_ORDER_OF_NOTICE_POSTMARK</td><td>Отправление с отметкой "С заказным уведомлением" не может быть добавлено в партию без отметки "С заказным уведомлением"</td></tr>
+        <tr><td>ABSENT_SIMPLE_NOTICE_POSTMARK</td><td>Отправление без отметки "С простым уведомлением" не может быть добавлено в партию с отметкой "С простым уведомлением"</td></tr>
+        <tr><td>UNEXPECTED_SIMPLE_NOTICE_POSTMARK</td><td>Отправление с отметкой "С простым уведомлением" не может быть добавлено в партию без отметки "С простым уведомлением"</td></tr>
+        <!--<tr><td>ILLEGAL_SMS_NOTICE_RECIPIENT_VALUE</td><td>Недопустимое значение флага СМС оповещения получателя</td></tr>-->
+        <!--<tr><td>EMPTY_TEL_ADDRESS_FOR_SMS_NOTICE_RECIPIENT</td><td>Телефон получателя является обязательным при включении смс оповещения</td></tr>-->
+        <tr><td>UNDEFINED</td><td>Неопределенная ошибка</td></tr>
+        </tbody>
+    </table>
+    <br>
+    <br>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th><b>Контекст</b></th><th><b>Метод</b></th></tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                TariffErrorCode
+            </td>
+            <td>
+                POST /1.0/tariff
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+        <tr><th>Значение</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+        <tr> <td>UNDEFINED</td> <td>Ошибка при расчете тарифа</td> </tr>
+        <tr> <td>CODE_1372</td> <td>Доставка по указанному маршруту не осуществляется</td> </tr>
+        </tbody>
+    </table>
+</article>

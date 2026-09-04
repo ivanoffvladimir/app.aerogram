@@ -1,0 +1,2713 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" class="m-standalone">
+<head><title>
+	
+	
+	Общее описание
+ 
+	 — Документация по API
+	
+ — Личный кабинет клиента «ПЭК»
+</title>
+
+<meta charset="utf-8" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<base href="https://kabinet.pecom.ru/" />
+<link rel="shortcut icon" type="image/x-icon" href="https://kabinet.pecom.ru/favicon.ico" />
+<link href="/Content/css/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+
+<link rel="stylesheet" type="text/css" href="/assets.axd/SiteCss/303912915/" media="all"/>
+<script type="text/javascript" src="/assets.axd/SiteJs/-955027702/"></script>
+<script type="text/javascript" src="/assets.axd/TimeManagementJs/-1531748568/"></script>
+
+
+
+<!--[if lt IE 9]>
+<script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+<script src="/js/getComputedStyle.js"></script>
+<link href="/css/ie.css" rel="stylesheet">
+<![endif]-->
+
+	<link rel="stylesheet" type="text/css" href="/assets.axd/ApiSiteCss/1033975754/" media="all"/>  
+	<script type="text/javascript" src="/assets.axd/ApiSiteJs/-1237400396/"></script>
+
+    <!-- Перенесено из Combress, дабы предотвратить зацикленность вызывов (если баннер - это страница текущего портала) -->
+    <script src="../../Content/JavaScript/pecom/jquery.pecom_banners.js"></script>
+</head>
+<body class="m-standalone">
+    
+
+
+
+<!-- Modal with Feedback -->
+
+
+
+    <div id="spinner-front" style="color: #E4003C">
+        <img src="Content/Images/ajax-loader-indicator.gif"/><br>
+        Подождите, операция выполняется...
+    </div>
+    <div id="spinner-back"></div>
+
+    <input id="header_banner_id" type="hidden" value=""/>
+    <input id="main_page_banner_id" type="hidden" value=""/>
+
+    
+
+     <div class="row" style="background-color: white;">
+        <div class="container">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-md-14" id="head-banner-content" style="max-height:86px; overflow: auto;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <header class="header">
+        <div class="container">
+            <div class="row">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-xs-3">
+                            
+                            <div class="logo">
+                                <a href="/" title="Перейти на главную страницу">
+                                    <img src="/Content/pink/img/logo.png" alt="Логотип ПЭК" />
+                                </a>
+                                <a href="https://pecom.ru/">Перейти на сайт</a>
+                            </div>
+                            
+                        </div>
+                        <div class="col-xs-11">
+                            <div class="top-right-menu">
+                                <ul>
+
+                                    <li class="news with-badge">
+                                        
+                                    </li>
+                                    <li class="status">
+                                        
+                                    </li>
+
+                                    <li class="text-center">
+                                          
+                                    </li>
+                                    
+<li class="login-container">
+    
+    <div>
+        
+        <div class="guest pct pct-login">
+            <a href="/login">Войти</a>
+        </div>
+        
+        <div class="guest pct" style="padding-left: 15px;">
+            <a href="/register">Получить доступ
+            <br />
+                в личный кабинет</a>
+        </div>
+        
+    </div>
+
+    
+    
+</li>
+
+
+
+
+
+
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Модальное окно айфрейма подключения к программе лояльности -->
+    <div class="modal fade" id="loyalty-program-modal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" aria-labelledby="loyalty-program-label">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header text-center">
+                    <h3>Программа лояльности</h3>
+                    <button type="button" class="redcross" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true" id="close-loyalty-program-modal">×</span>
+                    </button>
+                </div>
+                <div id="loyalty-program-iframe" class="modal-body text-center">
+                    <div class="row text-center">
+                        <img alt="loader" src="/Content/Images/ajax-loader-indicator.gif" />
+                    </div>
+                    <iframe src="" style="width: 100%; height: 750px; overflow: hidden; background: transparent; overflow-x: hidden; overflow-y: hidden; display: none;"
+                        frameborder="0" allowtransparency="true" seamless="seamless" scrolling="no"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    
+<div class="container">
+    <div class="row">
+        <div class="col-xs-14">
+            <div class="alert alert-warning" style="margin: 0;">
+                <p>
+                    <strong>Личный кабинет</strong> позволяет:
+		<strong>анализировать</strong> информацию об&nbsp;отправленном и&nbsp;полученном грузе;
+		<strong>контролировать</strong> расходование средств на&nbsp;перевозки;
+		<strong>формировать</strong> заявки на&nbsp;забор груза.
+                
+                <a href="/register" class="b-link-register label label-success">Получить доступ</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <section class="main">
+        <div class="container">
+            <div class="row">
+                <div class="col-xs-14">
+                    
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-14">
+                    
+	<div class="b-doc-content">
+		
+
+
+
+<h1>Описание API</h1>
+
+
+
+<p>На этой странице описаны способы использования функций личного кабинета клиента &laquo;ПЭК&raquo; сторонними сайтами или приложениями. 
+Информация предназначена для разработчиков. Все возникающие вопросы по работе с API личного кабинета можно направлять по адресу: <a href="mailto:admin-extintegration@pecom.ru">admin-extintegration@pecom.ru</a></p>
+
+<div class="toc">
+	<ul>
+		<li>
+			<a href="/api/v1#toc-change-plan">План по критическим и рекомендуемым изменениям протокола API</a>
+			<ul>
+				<li><a href="/api/v1#toc-changes-expected">Ожидается</a></li>
+			</ul>
+		</li>
+		<li><a href="/api/v1#toc-changelog">История изменений</a></li>
+		<li><a href="/api/v1#toc-urls">Структура URL</a></li>
+		<li><a href="/api/v1#toc-methods">Список групп и методов</a></li>
+		<li><a href="/api/v1#toc-support">Техническая поддержка</a></li>
+		<li>
+			<a href="/api/v1#toc-protocol">Используемый протокол</a>
+			<ul>
+				<li><a href="/api/v1#toc-protocol-common">Общее описание</a></li>
+				<li><a href="/api/v1#toc-protocol-authentication">Аутентификация</a></li>
+				<li><a href="/api/v1#toc-protocol-authorization">Авторизация</a></li>
+				<li><a href="/api/v1#toc-protocol-datatypes">Типы данных JSON-объектов</a></li>
+				<li><a href="/api/v1#toc-protocol-error-handling">Обработка ошибок</a></li>			
+			</ul>
+		</li>
+		<li>
+			<a href="/api/v1#toc-usage">Примеры использования API</a>
+			<ul>
+				<li><a href="/api/v1#toc-usage-requirements">Необходимые компоненты</a></li>
+				<li><a href="/api/v1#toc-usage-cli">Использование утилит командной строки</a></li>
+				<li><a href="/api/v1#toc-usage-1c">Обработка для 1С:Предприятия 8.1-8.3</a></li>
+				<li><a href="/api/v1#toc-usage-net">Минимальный пример для .NET</a></li>
+				<li><a href="/api/v1#toc-usage-php">Минимальный пример на PHP</a></li>
+				<li>
+					<a href="/api/v1#toc-usage-phpsdk">PHP SDK</a>
+					<ul>
+						<li><a href="/api/v1#toc-usage-phpsdk-example">Пример использования</a></li>
+						<li><a href="/api/v1#toc-usage-phpsdk-example-proxy">Подключение через proxy-сервер</a></li>
+					</ul>
+				</li>
+			</ul>
+		</li>
+	</ul>
+</div>
+
+<h2 id="toc-protocol-authentication">Аутентификация</h2>
+<ul>
+    <li>Для начала работы с API вам необходимо присвоить Ключ доступа. Данное действие вы можете осуществить на странице «<a href="/profile">Регистрационные данные</a>» в разделе «Ключи API». Полученный ключ будет являться вашим паролем для доступа к API.</li>
+	<li>Для разных приложений (например, веб-сайт и 1С:Предприятие) рекомендуется использовать разные ключи (для сбора статистики, простоты отзыва ключа в случае его компроментации)</li>
+	<li>Аутентификация осуществляется c помощью <a href="http://en.wikipedia.org/wiki/Basic_access_authentication">Basic-аутентификации</a>, в качестве логина необходимо использовать имя пользователя личного кабинета клиента «ПЭК», в качестве пароля&nbsp;&mdash; любой из активных ключей доступа.</li>
+</ul>
+
+<h2 id="toc-protocol-authorization">Авторизация</h2>
+<ul>
+	<li>Доступ к API обеспечивается для двух групп пользователей (анонимный доступ не поддерживается):
+		<ul>
+			<li>«Зарегистрированные пользователи»&nbsp;&mdash; все пользователи личного кабинета клиента «ПЭК» (для регистрации посетите соответствующую <a href="/register">страницу</a>)</li>
+			<li>«Сторонние неперсонифицированные приложения»</li>
+		</ul>
+	</li>
+	<li>В документации на каждый метод указано, каким группам пользователей доступен вызов того или иного метода</li>
+</ul>		
+
+<h2 id="toc-change-plan">План по критическим и рекомендуемым изменениям протокола API</h2>
+<p>В разделе описываются ожидаемые изменения, двух категорий:</p>
+<ul>
+	<li>Критические - изменится формат взаимодействия таким образом, что некоторые или все из ранее работающих запросов изменят свое поведение или перестанут работать до внесения изменений на стороне клиента</li>
+	<li>Рекомендуемые - из протокола исключены/заменены некоторые реквизиты, и мы рекомендуем перейти на обновленный формат</li>
+</ul>
+<p>За всеми подробностями обращайтесь по адресу: <a href="mailto:admin-extintegration@pecom.ru">admin-extintegration@pecom.ru</a></p>
+<h3 id="toc-changes-expected">Ожидается</h3>
+<p>В этом списке запросы появляются минимум за неделю до релиза</p>
+
+<div style="padding: 5px;">
+    &nbsp;
+</div>
+
+<h3 id="toc-changes-implemented">Внедрено</h3>
+Критические.
+<ul>
+    <li>С 1 сентября 2026 года часть перевозочных документов переходит в электронный формат. Требование закреплено Федеральным законом от 07.06.2025 № 140-ФЗ. Это означает, что участники коммерческих грузоперевозок будут обмениваться цифровыми экспедиторскими документами через сервисы транспортного ЭДО от аккредитованных Минтрансом операторов.</li> 
+
+    <li style="list-style-type: none;">В связи с этим, с 1 сентября 2026 года в едином методе подачи заявок <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>&nbsp; станет обязательной передача нового реквизита на вход Тип документооборота "docflowType".</li>
+
+    <li style="list-style-type: none;">Возможные значения:</li>
+    <li style="list-style-type: none;">"COURIER" - Курьерский договор ВОУ по РФ (электронные документы не требуются);</li>
+    <li style="list-style-type: none;">"FFS_EDI" - Транспортно-экспедиционные услуги с ЭДО (нужны электронные перевозочные документы в ГИС ЭПД: для бухгалтерского учёта или отчётности. ПЭК подготовит черновик поручения экспедитору — вы подпишете его в своём сервисе ЭДО);</li>
+    <li style="list-style-type: none;">"FFS" - Транспортно-экспедиционные услуги (электронные документы не требуются) - при международной перевозке с плательщиком не в РФ;</li>
+    
+    <li style="list-style-type: none;">Для работы по ЭДО потребуется передача ряда обязательных реквизитов, без которых заявка не будет принята (см.актуальную документацию <a href="/api/v1/help/preregistration#toc-method-submit">Предварительное оформление — Документация по API — Личный кабинет клиента «ПЭК»</a>).</li>
+</ul>
+
+
+<h2 id="toc-changelog">История изменений</h2>
+
+
+<dl>
+    <dt>31.08.2026</dt>    
+    <dd>
+        <ul>
+            <li>В едином методе подачи заявок <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>&nbsp;&mdash; реализована возможность передачи Типа документооборота и обязательных реквизитов для работы с ЭДО.</li>
+            <li style="list-style-type: none;">В структуру запроса добавлены параметры  "common""docflowType"; "cargos"."common"."isRegisteredGoogs"  и  "cargos"."common"."countryCargocode"; новый объект "EDICounterpart".</li>
+            <li style="list-style-type: none;">При работе с ЭДО также обязательным становится передача: параметров "sender". "person" и "receiver"."person", 
+                объекта "individual" в блоках "sender" и "receiver" для физических лиц и ИП.</li>
+        </ul>
+    </dd>
+    <dt>28.04.2026</dt>    
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/cargos#toc-method-currentstatus"><code>/cargos/currentstatus/</code></a>&nbsp;&mdash; запрос текущего статуса грузов с детализацией</li>
+        </ul>
+    </dd>
+    <dt>03.04.2026</dt>
+    <dd>
+        <ul>
+            <li>
+                Добавлен метод <a href="/api/v1/help/accountingdocuments#toc-method-listforcounterparty"><code>/accountingdocuments/listforcounterparty/</code></a>&nbsp;&mdash; получение списка бухгалтерских документов за период.
+                <br>
+                Метод <code>/accountingdocuments/list/</code> выведен из актуального протокола.
+            </li>
+        </ul>
+    </dd>
+    <dt>29.12.2025</dt>
+    <dd>
+        <ul>
+            <li>
+                С 01.01.2026 г. будет добавлена возможность указать по API ставку НДС 22% при подаче заявок с Наложенным платежом. 
+                В связи с изменениями в законодательстве, ставка НДС в чеке на момент оплаты будет указана в соответствии с действующей в законодательстве.
+                Т.е. товары, переданные по техническим причинам со ставкой НДС 20%, будут оформляться по ставке НДС 22%.
+            </li>
+        </ul>
+    </dd>
+    <dt>15.12.2025</dt>
+    <dd>
+        <ul>
+            <li>В методе подачи заявок <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> реализована проверка переданной даты авизации <code>avisationDateTime</code> с учётом ориентировочного срока прибытия груза. Возможность доставки в конкретный день и наличие льготного тарифа проверяйте методом <a href="/api/v1/help/calculator#toc-method-checkdeliverydate"><code>/calculator/checkdeliverydate/</code></a>.</li>
+        </ul>
+    </dd>
+    <dt>26.08.2025</dt>
+    <dd>
+        <ul>
+            <li>Реализована возможность получения печатных форм счетов на оплату. В структуру запроса методов <a href="/api/v1/help/cargosdocuments#toc-method-order"><code>/cargosdocuments/order/</code></a> и <a href="/api/v1/help/cargosdocuments#toc-method-getcontent"><code>/cargosdocuments/getcontent/</code></a> добавлены параметры <code>"counterpartGuid"</code> и <code>"docFormat"</code>.</li>
+            <li>Добавлен метод <a href="/api/v1/help/cargosdocuments#toc-method-cargoinvoicebyperiod"><code>/cargosdocuments/cargoinvoicebyperiod/</code></a>&nbsp;&mdash; получение идентификаторов грузов за период, по которым есть задолженность по запрашиваемому плательщику</li>
+        </ul>
+    </dd>
+    <dt>20.08.2025</dt>
+    <dd>
+        <ul>
+            <li>Реализована возможность подачи заявки методом <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> с услугой забора  (orderType=3) по тарифу "Express Автоперевозка" (type=5)</li>
+            <li>Добавлен метод <a href="/api/v1/help/branches#toc-method-departmentslimit"><code>/branches/departmentslimit/</code></a> — проверка ограничений весо-габаритных характеристик груза для тарифа/ продукта «Express Автоперевозка»</li>
+        </ul>
+    </dd>    
+    <dt>30.06.2025</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлена возможность передачи номера карты клиента <code>"common"."counterpartClientCard"</code></li>
+            <li>В структуру запроса метода <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a> добавлена возможность указать карту клиента для расчета с учетом спецусловий <code>"counterpart"."counterpartClientCard"</code></li>
+        </ul>
+    </dd>
+    <dt>31.05.2025</dt>
+    <dd>
+        <ul>
+            <li>Реализована возможность подавать заявки по API с продуктом/тарифом "Доставка в торговые сети Автоперевозка (паллеты)" (7). Для работы с этим продуктом требуется заключение дополнительного соглашения.</li>
+        </ul>
+    </dd>
+    <dt>01.05.2025</dt>
+    <dd>
+        <ul>
+            <li>Добавлена возможность указать ставки НДС 5% и НДС 7% при подаче заявок с Наложенным платежом.</li>
+        </ul>
+    </dd>
+    <dt>16.04.2025</dt>
+    <dd>
+        <ul>
+            <li>В методе подачи заявок <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлена возможность указать требования к транспорту и спец.оборудование при заборе груза, параметры <code>isSpecialEquipment, isOpenCar, isSideLoad, isUncovered</code></li>
+            <li>В методе подачи заявок <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлена возможность указания адреса забора документов на получение груза по другому адресу, параметр <code>addressForDocuments</code> и комментарий к адресу забора документов, параметр <code>addressForDocumentsComment</code></li>
+        </ul>
+    </dd>
+    <dt>06.02.2025</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/cargos#toc-method-statustables"><code>/cargos/statustables/</code></a> — список доступных статусов по грузам.  Метод /cargos/statustable/ выведен из актуального протокола</li>
+        </ul>
+    </dd>
+    <dt>01.10.2024</dt>
+    <dd>
+        <ul>
+            <li>В методах подачи заявок актуализированы типы документов, удостоверяющих личность (sender.identityCard.type и receiver.identityCard.type). Возможные значения: 1 - Паспорт (прочие страны), 2 - Разрешение на временное проживание, 3 - Водительское удостоверение, 4 - Вид на жительство, 6 - Удостоверение беженца, 10 - Паспорт гражданина РФ". В актуальной версии протокола не используются типы: 5, 7, 8, 9, 11 и 12</li>
+        </ul>
+    </dd>
+    <dt>01.10.2024</dt>
+    <dd>
+        <ul>
+            <li>Реализована подача сетевых заявок на забор груза методом <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> значение параметра orderType = 14.</li>
+            <li>Метод подачи сетевых заявок <code>/cargopickupnetwork/submit/</code> выведен из актуального протокола API. Ранее осуществленные интеграции с данным методом поддерживаются в рабочем состоянии. Планов прекращать работу метода нет. При этом новых функций и любых доработок в методе <code>/cargopickupnetwork/submit/</code> не будет.</li>
+        </ul>
+    </dd>
+    <dt>19.08.2024</dt>
+    <dd>
+        <ul>
+            <li>В структуру ответа метода <a href="/api/v1/help/cargos#toc-method-deliverystatus"><code>/cargos/deliverystatus/</code></a> добавлены реквизиты <code>deliveryAddress, isLoading, deliveryHypermarket</code></li>
+            <li>В структуру ответа методов <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> и <a href="/api/v1/help/cargos#toc-method-statusbypositionbarcodes"><code>/cargos/statusbypositionbarcodes/</code></a> добавлены реквизиты <code>type, maxSize</code></li>
+        </ul>
+    </dd>
+    <dt>07.08.2024</dt>
+    <dd>
+        <ul>
+            <li>Метод получения справочника типов штрих-кодов /cargopickupnetwork/availabletypebarcode/ перенесен в группу <a href="/api/v1/help/preregistration#toc-method-availabletypebarcode"><code>/preregistration/availabletypebarcode/</code></a></li>
+        </ul>
+    </dd>
+    <dt>05.08.2024</dt>
+    <dd>
+        <ul>
+            <li>Исправлена ошибка при выводе грузов методом <a href="/api/v1/help/cargos#toc-method-listallorderbylogin"><code>/cargos/listallorderbylogin/</code></a> со значением входного параметра: selectBy = 0 (отобрать принятые грузы). До релиза выводились и принятые и не принятые грузы, для не принятых грузов отбирались по дате заявки. После релиза: в выборку будут попадать только принятые на склад ПЭК грузы, отобранные по дате приемки на склад ПЭК.</li>
+        </ul>
+    </dd>       
+    <dt>10.07.2024</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлена возможность передачи электронной почты отправителя (добавлен реквизит: "sender"/ "email").</li>
+        </ul>
+    </dd>    
+    <dt>01.07.2024</dt>
+    <dd>
+        <ul>
+            <li>В структуру ответа метода <a href="/api/v1/help/branches#toc-method-findzonebyaddress"><code>/branches/findzonebyaddress/</code></a> добавлен реквизит "precision" - критерий точности распознавания координат адреса.</li>
+            <li>Добавлен метод <a href="/api/v1/help/branches#toc-method-countrytypeidentitydocument"><code>/branches/countrytypeidentitydocument/</code></a>&nbsp;&mdash; возвращает допустимые документы, удостоверяющие личность, для страны отправления / получения</li>
+            <li>В структуры <code>sender, receiver</code> запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлен реквизит <code>individual</code>&nbsp;&mdash; данные физического лица. Рекомендуем его передавать для контрагентов отправителей/получателей - физических лиц вместо title.
+            <li>
+                В структуры <code>sender.identityCard, receiver.identityCard</code> запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлен реквизит <code>typeGuid</code>&nbsp;&mdash; идентификатор типа документа удостоверяющего личность.
+                <br />
+                <code>sender.identityCard.type</code> и <code>receiver.identityCard.type</code> в актуальной версии протокола не используются.
+            </li>
+            <li>В структуры <code>sender.identityCard, receiver.identityCard</code> запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлен реквизит <code>taxpayerID</code>&nbsp;&mdash; налоговый номер отправителя ПИН (Киргизстан), ИИН (Казахстан), УПН (Беларусь) и т.п.
+            <li>В структуры <code>sender.identityCard, receiver.identityCard</code> запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлен реквизит <code>taxpayerCountryCode</code>&nbsp;&mdash; код страны, выдавшей налоговый номер
+        </ul>
+    </dd>
+    <dt>30.06.2024</dt>
+    <dd>
+    	<ul>
+    		<li>
+                Критическое. При подаче заявок методом <a href="/api/v1/help/preregistration#toc-method-submit"><code>/PREREGISTRATION/SUBMIT/</code></a> добавили проверку на сравнение общих Веса и Объёма груза, переданных в массиве <code>"cargos"</code>, с суммарными Весом и Объёмом, рассчитанными в массиве грузомест <code>"cargoPlaceList"</code>. Должны совпадать. Обратите внимание, что массив с данными грузомест не обязателен к передаче. 
+                Если передан массив с габаритами каждого грузоместа (<code>"cargos"."cargoPlaceList"</code>), то сначала вычисляем суммарный вес и суммарный объём (объём одного грузоместа вычисляем: длина*ширина*высота) по всем элементам массива <code>"cargoPlaceList"</code>, затем округляем (всегда вверх до сотых!) и сравниваем с общими объёмом и весом в массиве <code>"cargos"</code> (округленными также вверх до сотых!) 
+            </li>
+        </ul>
+    </dd>
+    <dt>14.05.2024</dt>
+    <dd>
+        <ul>
+            <li>
+                Рекомендуемое. В API разработан новый метод <a href="/api/v1/help/cargos#toc-method-statusfullhistory"><code>/cargos/statusfullhistory/</code></a> - История изменения статусов по заявке/ грузу.
+                <br />
+                Не рекомендуем использовать старый метод <code>/statushistory/</code>
+            </li>
+        </ul>
+    </dd>
+    <dt>08.05.2024</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлена возможность передачи комментария к забору и интервала забора груза (добавлен блок "pickUpDetails")</li>
+        </ul>
+    </dd>
+    <dt>14.03.2024</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/cargosdocuments#toc-method-order"><code>/cargosdocuments/order/</code></a>&nbsp;&mdash; запрос на предоставление документа по грузу</li>
+            <li>Добавлен метод <a href="/api/v1/help/cargosdocuments#toc-method-getcontent"><code>/cargosdocuments/getcontent/</code></a>&nbsp;&mdash; получение документа по грузу
+        </ul>
+    </dd>
+    <dt>12.03.2024</dt>
+    <dd>
+        <ul>
+            <li>Из структуры запроса методов 
+                <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>, 
+                <a href="/api/v1/help/cargopickup#toc-method-submit-specified"><code>/cargopickup/submit/</code></a>, 
+                <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a> 
+                был удален реквизит isDayByDay.
+            </li>
+        </ul>
+    </dd>
+    <dt>11.03.2024</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлена возможность передачи электронной почты отправителя и получателя (добавлены реквизиты: "sender"/"email" и "reciever"/"email").</li>
+        </ul>
+    </dd>    
+    <dt>12.02.2024</dt>
+    <dd>
+        <ul>
+            <li>В структуру ответа метода <a href="/api/v1/help/branches#toc-method-nearestdepartments"><code>/branches/nearestdepartments/</code></a> добавлен реквизит "branchId" - ID филиала, к которому относится отделение (организационная привязка).</li>
+        </ul>
+    </dd>
+    <dt>07.02.2024</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод для быстрой проверки возможности оказания услуг Наложенный платеж и Выдача по СМС (упрощенная выдача) в зависимости от географии перевозки: <a href="/api/v1/help/branches#toc-method-checknocalcservices"><code>/branches/checknocalcservices/</code></a>. На данный момент оба сервиса доступны только при перевозке РФ-РФ, однако в этом или следующем году география их предоставления может расшириться.</li>
+        </ul>
+    </dd>
+    <dt>05.02.2024</dt>
+    <dd>
+        <ul>
+            <li>В структуру ответа метода <a href="/api/v1/help/cargos#toc-method-statustable"><code>/cargos/statustable/</code></a> добавлен реквизит isFinal - признак конечного статуса</li>
+        </ul>
+    </dd>
+    <dt>31.01.2024</dt>
+    <dd>
+        <ul>
+            <li>
+                Рекомендуемое. В API используется единый идентификатор продукта/тарифа в запросах и ответах всех методов, где это актуально. Полный список доступных в API продуктов/тарифов можно получить методом <a href="/api/v1/help/typesofdelivery#toc-method-all"><code>/typesOfDelivery/all/</code></a>
+                <BR />Сохраняется обратная совместимость с текущим протоколом каждого метода.
+                <BR />Рекомендуем Вам доработать подачу запроса в методах: <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a>, <a href="/api/v1/help/branches#toc-method-nearestdepartments"><code>/branches/nearestdepartments/</code></a> и <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a>
+            </li>
+        </ul>
+    </dd>
+    <dt>30.01.2024</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/typesofdelivery#toc-method-all"><code>/typesOfDelivery/all/</code></a>. Перечень актуальных продуктов/тарифов перевозки, которые поддерживаются в API</li>
+            <li>В структуру запроса метода <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a> добавлен реквизит <code>types</code> - Массив идентификаторов продуктов/тарифов ПЭК для расчета.</li>
+            <li>В структуру ответа метода <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a> добавлен реквизит <code>type</code> - Продукт/тариф, для которого выведена стоимость.</li>
+            <li>В структуру запроса методов <a href="/api/v1/help/branches#toc-method-nearestdepartments"><code>/branches/nearestDepartments/</code></a> и <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a> добавлен реквизит <code>type</code> - Идентификатор продукта/тарифа ПЭК.</li>
+            <li>Из структуры запроса методов <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a> и <a href="/api/v1/help/branches#toc-method-nearestdepartments"><code>/branches/nearestDepartments/</code></a> был удалён реквизит <code>transportingTypes</code>.</li>
+        </ul>
+    </dd>
+    <dt>26.01.2024</dt>
+    <dd>
+        <ul>
+            <li>Исправлена ошибка вывода координат. Вернули старый формат ответа метода <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a></li>
+        </ul>
+    </dd> 
+</dl>
+<p>
+    <a href="#" class="ajax changelog-more">Показать более ранние записи</a>
+    <a href="#" class="ajax changelog-more" style="display: none">Скрыть более ранние записи</a>
+</p>
+<dl style="display: none" id="changelog-more-panel">
+    <dt>04.12.2023</dt>
+    <dd>
+        <ul>
+            <li>Из группы <a href="/api/v1/help/branches"><code>/branches/</code></a> был удален метод <code>findbyid</code>. Информацию из удаленного метода можно получить методами <a href="/api/v1/help/branches#toc-method-findzonebyaddresss"><code>/branches/findzonebyaddress/</code></a> или <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a></li>
+        </ul>
+    </dd>
+    <dt>21.11.2023</dt>
+    <dd>
+        <ul>
+            <li>В структуру <code>transfers</code>, ответа метода <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a> добавлен реквизит<code>estDeliveryTime</code>&nbsp;&mdash;&nbsp; Срок перевозки (календарные дни) [Number].</li>
+        </ul>
+    </dd>
+    <dt>05.10.2023</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/cargos#toc-method-cancelandreturncargo"><code>/cargos/cancelandreturncargo/</code></a>. Оформление возврата груза отправителю после передачи груза в ПЭК </li>
+        </ul>    
+        <ul>
+            <li>Из структуры запроса метода <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a> был удален реквизит <code>overSize</code></li>
+        </ul>
+    </dd>
+    <dt>25.09.2023</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса методов <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> и <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлена возможность передачи координат адреса доставки (добавлен блок для передачи координат: <code>"reciever" / "coordinates"</code>)</li>
+        </ul>
+    </dd>  
+    <dt>18.09.2023</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/auth#toc-method-createtokentoaccessprivatedata"><code>/auth/createtokentoaccessprivatedata/</code></a>&nbsp;&mdash;&nbsp; создание токена для методов получения приватной информации</li>
+        </ul>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/counterparts#toc-method-confirmedaccesstocounterparties"><code>/counterparts/confirmedaccesstocounterparties/</code></a>&nbsp;&mdash;&nbsp; список контрагентов, которые подтвердили свою связь с логином</li>
+        </ul>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/counterparts#toc-method-connecteddiscountsservicesagreements"><code>/connecteddiscountsservicesagreements/</code></a>&nbsp;&mdash; список подключенных контрагенту скидок, сервисов и основных доп.соглашений</li>
+        </ul>
+    </dd>     
+    <dt>25.08.2023</dt>
+    <dd>
+        <ul>
+            <li>В структуру ответа методов <a href="/api/v1/help/branches#toc-method-all"><code>branches/all</code></a> и <a href="/api/v1/help/branches#toc-method-nearestdepartments"><code>branches/nearestDepartments</code></a> добавлен реквизит <code>scheduleShortWorkDays</code> - дни сокращенного режима работы отделения</li>
+        </ul>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> добавлен блок <code>refusalWarehouse</code>&nbsp;&mdash;&nbsp; информация о порядке возврата отказных/невостребованных грузов (актуально только для грузов EasyWay, в остальных продуктах игнорируется).</li>
+            <li>В структуру запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлен блок <code>refusalWarehouse</code>&nbsp;&mdash;&nbsp; информация о порядке возврата отказных/невостребованных грузов (актуально только для грузов EasyWay, в остальных продуктах игнорируется). </li>
+        </ul>
+    </dd>
+    <dt>31.12.2023</dt>
+    <dd>
+        <ul>
+            <li>Критическое. Добавление новых обязательных реквизитов и их проверок в блоке <code>"cashOnDelivery"</code> при подаче заявки (заявка с заказанным Наложенным платежом). Будут добавлены новые требования и ограничения формата данных при подаче заявок в методах <code>/PREREGISTRATION/SUBMIT/</code> и <code>/CARGOPICKUP/SUBMIT/</code>. Ограничения и требования к данным исходят из требований, предъявляемых законодательством Российской Федерации и оператора фискальных данных по оформлению кассовых чеков. Заявки с наложенным платежом, не соответствующие новому формату, приниматься не будут. В текущем описании методов подачи заявок ожидаемые ограничения и правила заполнения данных уже зафиксированы с указанием обязательных и не обязательных полей. При этом до выхода обозначенных в этом сообщении изменений новые правила подачи заявок не проверяются.</li>
+        </ul>
+    </dd>
+    <dt>30.09.2023</dt>
+    <dd>
+        <ul>
+            <li>
+                Критическое. В рамках работ по ускорению метода расчета стоимости и добавлении новых проверок на возможность перевозки добавляется несколько входных параметров. Ключевым является:
+                <pre style="width: 100%;" class="prettyprint">"transportingTypes": [] // Массив продуктов/тарифов для расчета [Array][Number]. Обязательно. В настоящее время допускается передача ОДНОГО Продукта/тарифа на расчет. Возможные значения:1, 2, 12 // 1 - LTL (сборный груз),// 2 - Express Авиаперевозка,// 12 - EasyWay</pre>
+                Рекомендуем Вам доработать подачу запроса и передавать в расчет только тот продукт, который Вам нужен. Из ответа запросов в старом формате убрали стоимость перевозки для значения 12 - EasyWay.
+            </li>
+        </ul>
+    </dd>
+    <dt>10.08.2023</dt>
+    <dd>
+        <ul>
+            <li>В структуру ответа метода <a href="/api/v1/help/branches#toc-method-nearestdepartments"><code>/branches/nearestdepartments</code></a> был добавлен реквизит <code>departmentTypeId</code>&nbsp;&mdash;&nbsp;ID типа отделения</li>
+        </ul>
+    </dd> 
+    <dt>08.08.2023</dt>    
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/cargos#toc-method-getinfoforcedstorage"><code>/cargos/getinfoforcedstorage/</code></a>&nbsp;&mdash;&nbsp; вывод информации по рассчитанной услуге вынужденного хранения</li>
+        </ul>
+        <ul>
+            <li>В структуру <code>sender</code> ответа метода <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> добавлен реквизит <code>counterpartPaymentType</code>&nbsp;&mdash;&nbsp; тип договора с клиентом</li>
+            <li>В структуру <code>receiver</code> ответа метода <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> добавлен реквизит <code>counterpartPaymentType</code>&nbsp;&mdash;&nbsp; тип договора с клиентом</li>
+        </ul>
+    </dd>  
+    <dt>17.07.2023</dt>
+    <dd>
+        <ul>
+            <li>В структуре запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> и <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> были удалены реквизиты <code>"declaredCost"</code>, <code>"accompanyingDocumentsNumbers"</code> и <code>"accompanyingDocumentsSum"</code></li>
+        </ul>
+    </dd>
+    <dt>10.07.2023</dt>
+    <dd>
+        <ul>
+            <li>В структуре запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> и <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a> был удалён реквизит <code>"receiverCode"</code></li>
+        </ul>
+    </dd>
+    <dt>28.06.2023</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/counterparts#toc-method-legalformtypes"><code>/counterparts/legalformtypes/</code></a>&nbsp;&mdash;&nbsp; общий список форм собственности контрагентов (юридических лиц, индивидуальных предпринимателей и т.п.).</li>
+            <li>Добавлен метод <a href="/api/v1/help/branches#toc-method-country"><code>/branches/country/</code></a>&nbsp;&mdash;&nbsp; список стран, в которых присутствуют отделения ПЭК</li>
+            <li>В структуру запроса метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> добавлены реквизиты <code>fs, countryOfRegistrationCode</code>&nbsp;&mdash;&nbsp;сокращенная форма собственности юр.лица/индивидуального предпринимателя и код страны регистрации по классификатору</li>
+            <li>В структуру запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлен реквизит <code>countryOfRegistrationCode</code>&nbsp;&mdash;&nbsp;код страны регистрации по классификатору</li>
+            <li>В структуру запроса метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> добавлен реквизит <code>legalForm</code>&nbsp;&mdash;&nbsp;тип контрагента</li>
+            <li>В структуру запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлен реквизит <code>legalForm</code>&nbsp;&mdash;&nbsp;тип контрагента</li>
+        </ul>
+    </dd>
+    <dt>31.05.2023</dt>
+    <dd>
+        <ul>
+            <li>Критическое. При подаче заявок для международной перевозке добавили проверки заявок на соответствие условиям заказа международной перевозки: может быть только один плательщик, услуги наложенный платеж и выдача по СМС доступны только на территории РФ, обязателен заказ услуги Сопроводительные документы. Если подается заявка, не соответствующая этим требованиям - заказ отклоняется.</li>
+            <li>Рекомендуемое. Добавили новые данные для передачи контрагентов отправителя и получателя в методах подачи заявок. Для исключения ошибок и упрощения оформлений лучше передавать новые признаки при подаче заявок.</li>
+        </ul>
+    </dd>
+    <dt>22.05.2023</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/cargos#toc-method-routesanddriverinfo"><code>/cargos/routesanddriverinfo/</code></a>, который выводит персональные данные водителей, осуществляющих забор/доставку груза</li>
+        </ul>
+    </dd>
+    <dt>24.04.2023</dt>
+    <dd>
+        <ul>
+            <li>Из группы <a href="/api/v1/help/branches"><code>/branches/</code></a> был удален метод <code>findbytitle</code>. Информацию из удаленного метода можно получить методами <a href="/api/v1/help/branches#toc-method-findzonebyaddresss"><code>/branches/findzonebyaddress/</code></a> или <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a></li>
+        </ul>
+    </dd>
+    <dt>31.03.2023</dt>
+    <dd>
+        <ul>
+            <li>Добавлен минимальный запрос метода <a href="/api/v1/help/cargopickup#toc-method-submit-specified"><code>/cargopickup/submit/</code></a>&nbsp;&mdash;&nbsp; ПОДАЧА ЗАКАЗА "НА МАШИНУ" (упрощенный забор) к заказам на перевозку</li>
+            <li>Обновлён запрос метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a></li>
+        </ul>
+    </dd>
+    <dt>22.03.2023</dt>
+    <dd>
+        <ul>
+            <li>Из структуры запроса метода <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a> были удалены реквизиты <code>senderCityId</code> и <code>receiverCityId</code></li>
+        </ul>
+    </dd>        
+    <dd>
+        <ul>
+            <li>Из структуры запроса метода <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a> был удален блок с заказом услуги Наложенный платеж <code>services.cashOnDelivery</code>. Заявки с Наложенным платежом можно подавать  методами  <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> и <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a></li>
+        </ul>
+    </dd>
+    <dd>
+        <ul>
+            <li>В структуру ответа метода <a href="/api/v1/help/branches#toc-method-findzonebyaddresss"><code>/branches/findzonebyaddress/</code></a> добавлен реквизит <code>mainWarehouseId</code>&nbsp;&mdash;&nbsp;ID склада основного отделения филиала</li>
+        </ul>
+    </dd>
+    <dt>13.03.2023</dt>
+    <dd>
+        <ul>
+            <li>Исправлена ошибка в описании реквизита includeTES в методах  <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> и <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a></li>
+        </ul>
+    </dd>    
+    <dt>30.01.2023</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/branches#toc-method-suggestaddressofintakeordelivery"><code>/branches/suggestaddressofintakeordelivery/</code></a> запроса поисковых подсказок адресов забора/доставки груза.</li>
+            <li>Добавлен метод <a href="/api/v1/help/cargos#toc-method-listallorderbylogin"><code>/cargos/listallorderbylogin/</code></a> — возвращает все грузы контрагентов, к которым есть доступ в личном кабинете через оформленное официальное письмо или получение расширенного личного кабинета.</li>
+        </ul>
+    </dd>
+    <dt>20.01.2023</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/calculator#toc-method-checkdeliverydate"><code>/calculator/checkdeliverydate/</code></a>, который возвращает ближайшие даты и интервалы времени на забор/доставку груза от даты запроса</li>
+        </ul>
+    </dd>
+    <dd>
+        <ul>
+            <li>В структуру <code>receiver</code> ответа метода <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> добавлены реквизиты <code>isCorrect, receivingByDocument, receivingBySMSCode</code>&nbsp;&mdash;&nbsp; данные по способу получения груза.</li>
+        </ul>
+    </dd>
+    <dt>09.01.2023</dt>    
+    <dd>
+        <ul>
+            <li>В структуру ответа метода <a href="/api/v1/help/cargocontent#toc-method-all"><code>/cargocontent/all/</code></a> добавлен реквизит <code>isFragile</code>&nbsp;&mdash;&nbsp; признак хрупкости груза (если стоит true, то для перевозки груза данной категории необходимо заказывать Защитную транспортировочную упаковку).</li>
+        </ul>
+    </dd> 
+    <dd>
+        <ul>
+            <li>В связи с изменениями бизнес-процессов оказания услуг паллетные перевозки, группа методов <code>/netshop/</code> исключена из списка поддерживаемых. Возможность работы через API с паллетной перевозкой запланирована, на текущий момент сроки не определены.</li>
+        </ul>
+    </dd>    
+    <dd>
+        <ul>
+            <li>Дополнена структура <code>statuses</code> ответа метода <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>&nbsp;&mdash;&nbsp; добавлен реквизит<code>isCancel</code> как признак того, что статус был выставлен, а позднее отменен, т.е. в настоящее время учетная операция, изменившая статус, отменена.</li>
+        </ul>
+    </dd>
+    <dt>27.03.2023</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a>&nbsp;&mdash;&nbsp; добавлен реквизит<code>plannedDateTime</code> плановая дата и время забора груза или плановая дата и время сдачи груза на склад ПЭК.</li>
+            <li>Из структуры запроса метода <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a>&nbsp;&mdash;&nbsp; был удалён реквизит<code>calcDate</code></li>
+        </ul>
+    </dd>
+    <dt>24.03.2023</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a>добавлен реквизит<code>currencyCode</code>&nbsp;&mdash;&nbsp; код валюты для расчёта.</li>
+        </ul>
+    </dd>
+    <dt>22.03.2023</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/currency#toc-method-all"><code>/currency/all/</code></a>&nbsp;&mdash;&nbsp; получение списка валют для расчёта перевозок.</li>
+        </ul>
+    </dd>
+    <dt>31.12.2022</dt>
+    <dd>
+        <ul>
+            <li>Рекомендуемое. Отказались от использования BitrixID и Названий филиалов при подаче заявок (в основных методах) и расчете стоимости. Общий принцип:
+                <ul>
+                    <li>
+                        указывать конкретный склад при самопривозе/выдаче в отделении (расширили набор методов, где можно получить ID склада)
+                    </li>
+                    <li>
+                        указывать только Адрес забора/доставки при заказе забора/доставки
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </dd>
+    <dt>16.08.2022</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/branches#toc-method-checkpickupdate"><code>/branches/checkpickupdate/</code></a>&nbsp;&mdash;&nbsp; определение доступности дат забора груза.</li>
+        </ul>
+    </dd>
+    <dt>24.05.2022</dt>
+    <dd>
+        <ul>
+            <li>В структуру ответа метода 
+                <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a>
+                добавлены поле <code>discountedDeliveryWeekDays</code> &nbsp;&mdash;&nbsp; дни льготной доставки
+            </li>
+        </ul>
+    </dd>
+    <dt>29.08.2022</dt>
+    <dd>
+        <ul>
+            <li>В ответ метода <a href="/api/v1/help/calculator#toc-method-calculateprice/"><code>/calculator/calculateprice/</code></a> добавлен реквизит <code>senderShippingDays</code>&nbsp;&mdash;&nbsp; дни недели отправки груза из филиала отправления в филиал получения. 1 - ПН, 2 - ВТ и т.д</li>
+        </ul>
+    </dd>
+    <dt>31.08.2022</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a>&nbsp;&mdash;&nbsp; добавлен реквизит<code>transportingTypes</code> массив типов перевозок, стоимость которых необходимо рассчитать. Если не передан, то считаются все типы перевозок.</li>
+        </ul>
+    </dd>
+     
+<!-- упорядочить -->
+
+    <dt>27.12.2022</dt>
+    <dd>
+        <ul>
+            <li>В структуру <code>common</code> запроса метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> был добавлен реквизит <code>callToScheduleCar</code>&nbsp;&mdash;&nbsp; Признак необходимости звонка отправителю для согласования/уточнения деталей Забора груза до планирования машины. true - оператор будет звонить для согласования, false - оператор не будет звонить. Машина будет запланирована автоматически</li>
+
+        </ul>
+    </dd>
+    <dt>25.11.2022</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/cargopickup#toc-method-checkOrderedPickupType3Car"><code>/cargopickup/checkOrderedPickupType3Car/</code></a> проверки статуса заявки на забор при подключеной услуге "Упрощенный заказ машины"</li>
+            <li>Дополнена структура <code>info</code> ответа метода <a href="/api/v1/help/cargos#toc-method-basicstatus"><code>/cargos/basicstatus/</code></a>&nbsp;&mdash;&nbsp; добавлен реквизит<code>deliveryPlanDate</code> плановая дата доставки.</li>
+        </ul>
+    </dd>    
+    <dt>06.09.2022</dt>
+    <dd>
+        <ul>
+            <li>Дополнена структура <code>warehouses[i]</code> ответа метода <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a>&nbsp;&mdash;&nbsp; добавлен реквизит<code>pointerDescription</code> с описанием, как добраться до отделения.</li>
+        </ul>
+    </dd>
+    <dt>02.09.2022</dt>
+    <dd>
+        <ul>
+            <li>Дополнена структура <code>warehouses[i]</code> ответа метода <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a>&nbsp;&mdash;&nbsp; добавлена дата прекращения работы отделения<code>departmentClosingDate</code>.</li>
+        </ul>
+    </dd>
+    <dt>01.09.2022</dt>
+    <dd>
+        <ul>
+            <li>Дополнена структура <code>warehouses[i]</code> ответа метода <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a>&nbsp;&mdash;&nbsp; добавлены даты доступности и запрета расчёта стоимости отделения<code>endOfAvailabilityBeforeClosing, endOfCostCalculationAvailability</code>.</li>
+        </ul>
+    </dd>    
+    <dd>
+        <ul>
+            <li>В структуру <code>info</code> ответа метода <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> добавлен реквизит <code>receivedByClientDateTime</code>&nbsp;&mdash;&nbsp; дата получения груза грузополучателем (с учетом перенаправок).</li>
+            <li>В структуру <code>info</code> ответа метода <a href="/api/v1/help/cargos#toc-method-basicstatus"><code>/cargos/basicstatus/</code></a> добавлен реквизит <code>receivedByClientDateTime</code>&nbsp;&mdash;&nbsp; дата получения груза грузополучателем (с учетом перенаправок).</li>
+            <li>В структуру <code>info</code> ответа метода <a href="/api/v1/help/cargos#toc-method-statusbypositionbarcodes"><code>/cargos/statusbypositionbarcodes/</code></a> добавлен реквизит <code>receivedByClientDateTime</code>&nbsp;&mdash;&nbsp; дата получения груза грузополучателем (с учетом перенаправок).</li>
+            <li>В структуру ответа метода <a href="/api/v1/help/cargos#toc-method-list"><code>/cargos/list/</code></a> добавлен реквизит <code>receivedByClientDateTime</code>&nbsp;&mdash;&nbsp; дата получения груза грузополучателем (с учетом перенаправок).</li>
+        </ul>
+    </dd>
+    <dt>29.08.2022</dt>
+    <dd>
+        <ul>
+            <li>В структуру ответа метода <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> были добавлены сведения, расширяющие объект <code>receiver</code>&nbsp;&mdash;&nbsp; сокращенные данные получателя.</li>
+        </ul>
+    </dd>
+    <dt>24.08.2022</dt>
+    <dd>
+        <ul>
+            <li>Из ответа метода <a href="/api/v1/help/cargos#toc-method-list"><code>/cargos/list/</code></a> был удалён реквизит <code>giveOutActualDateTime</code></li>
+        </ul>
+    </dd>      
+    <dt>19.08.2022</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/cargos#toc-method-listallorderbylogin"><code>/cargos/listallorderbylogin/</code></a>&nbsp;&mdash;&nbsp; получение достоверной информации по грузам.</li>
+        </ul>
+    </dd>
+    <dt>03.08.2022</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> были добавлены реквизиты <code>accompanyingDocuments</code>, <code>accompanyingDocumentsNumbers</code> и <code>accompanyingDocumentsSum</code>&nbsp;&mdash;&nbsp; для возможности заказа сопроводительных документов.</li>
+        </ul>
+    </dd>
+    <dt>09.06.2022</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/branches#toc-method-nearestdepartments"><code>/branches/nearestdepartments/</code></a> подбора ближайших к адресу отделений для приема/выдачи грузов</li>
+        </ul>
+    </dd>
+    <dt>24.05.2022</dt>
+    <dd>
+        <ul>
+            <li>Дополнена структура ответа метода <a href="/api/v1/help/cargopickup#toc-method-status"><code>/cargopickup/status/</code></a>&nbsp;&mdash;&nbsp; добавлены данные по времени работы, наименованию автомобиля и статусу забора.</li>
+        </ul>
+    </dd>
+    <dt>02.09.2022</dt>
+    <dd>
+        <ul>
+            <li>Дополнена структура <code>warehouses[i]</code> ответа метода <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a>&nbsp;&mdash;&nbsp; добавлена дата прекращения работы отделения<code>DepartmentClosingDate</code>.</li>
+        </ul>
+    </dd>
+    <dt>25.04.2022</dt>
+    <dd>
+        <ul>
+            <li>Дополнена структура <code>warehouses[i]</code> ответа метода <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a>&nbsp;&mdash;&nbsp; добавлены даты доступности и запрета расчёта стоимости отделения<code>endOfAvailabilityBeforeClosing, endOfCostCalculationAvailability</code>.</li>
+        </ul>
+    </dd>
+    <dt>22.04.2022</dt>
+    <dd>
+        <ul>
+            <li>Дополнена структура ответа метода <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a>&nbsp;&mdash;&nbsp; добавлен список выходных и праздничных дней<code>scheduleHolidayDays</code>.</li>
+            <li>Дополнена структура ответа метода <a href="/api/v1/help/branches#toc-method-findzonebyaddresss"><code>/branches/findzonebyaddress/</code></a>&nbsp;&mdash;&nbsp; добавлен объект<code>GeoData</code>, описывающий результат процесса геокодирования.</li>
+        </ul>
+    </dd>
+    <dt>10.04.2022</dt>
+    <dd>
+        <ul>
+            <li>Изменена структура <code>cargos[i].services</code> ответа методов <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> и <a href="/api/v1/help/cargos#toc-method-statusbypositionbarcodes"><code>/cargos/statusbypositionbarcodes/</code></a>&nbsp;&mdash;&nbsp; убрано поле<code>discount</code>.</li>
+        </ul>
+    </dd>
+    <dt>22.03.2022</dt>
+    <dd>
+        <ul>
+            <li>Доработана структура <code>payments</code> метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>&nbsp;&mdash;&nbsp; добавлены реквизиты<code>sealing</code> и <code>strapping</code>.</li>
+        </ul>
+    </dd>
+    <dt>15.03.2022</dt>
+    <dd>
+        <ul>
+            <li>Доработаны ответы методов <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>и<a href="/api/v1/help/cargos#toc-method-statusbypositionbarcodes"><code>/cargos/statusbypositionbarcodes/</code></a>&nbsp;&mdash;&nbsp; добавлен реквизит<code>intakePlanDateTime</code>.</li>
+        </ul>
+    </dd>
+    <dt>13.03.2022</dt>
+    <dd>
+        <ul>
+            <li>Обновлена <a href="/api/v1#toc-usage-1c">обработка для 1С:Предприятия 8.3</a></li>
+        </ul>
+    </dd>
+    <dt>02.02.2022</dt>
+    <dd>
+        <ul>
+            <li>Доработаны структуры <code>sender</code> и <code>receiver</code> методов <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>, <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>&nbsp;&mdash;&nbsp; добавлен реквизит <code>kpp</code>.</li>
+        </ul>
+    </dd>
+    <dt>19.01.2022</dt>
+    <dd>
+        <ul>
+            <li>В структуру <code>services.delivery</code> запроса метода<a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> был добавлен реквизит <code>dateOfDeliveryCheck</code> &nbsp;&mdash;&nbsp; контроль даты доставки.</li>
+            <li>В структуру <code>receiver</code> запроса метода<a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> был добавлен реквизит <code>dateOfDeliveryCheck</code> &nbsp;&mdash;&nbsp; контроль даты доставки.</li>
+            <li>Структура ответа методов <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> и <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> была дополнена объектом <code>notifications</code>.</li>
+            <li>В структуру <code>receiver</code> запроса методов <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> и <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> было добавлено поле <code>cityFullAddress</code> &nbsp;&mdash;&nbsp;  полный адрес, включая название населенного пункта.</li>
+            <li>В структуру <code>sender</code> запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> было добавлено поле <code>cityFullAddress</code> &nbsp;&mdash;&nbsp; полный адрес, включая название населенного пункта.</li>
+        </ul>
+    </dd>
+    <dt>10.11.2021</dt>
+    <dd>
+        <ul>
+            <li>Доработана структура <code>payments</code> метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>&nbsp;&mdash;&nbsp; добавлен объект <code>hardPacking</code>.</li>
+        </ul>
+    </dd>
+
+    <dt>14.10.2021</dt>
+    <dd>
+        <ul>
+            <li>В структуру метода 
+                <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a>
+                добавлены не обязательные поля:
+                <ul>
+                    <li><code>needReturnDocuments</code> &nbsp;&mdash;&nbsp; возврат документов</li>
+                    <li><code>needArrangeTransportationDocuments</code> &nbsp;&mdash;&nbsp; организация перевозки сопроводительных документов</li>
+                </ul>
+            </li>
+        </ul>
+    </dd>
+    <dt>20.09.2021</dt>
+    <dd>
+        <ul>
+            <li>Структура ответа методов <a href="/api/v1/help/cargos#toc-method-statusbypositionbarcodes"><code>/cargos/statusbypositionbarcodes/</code></a> и <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> была дополнена объектом <code>sender.branchInfo</code>.</li>
+            <li>В структуру ответа методов <a href="/api/v1/help/cargos#toc-method-statusbypositionbarcodes"><code>/cargos/statusbypositionbarcodes/</code></a> и <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> было добавлено поле <code>intakeAddress</code> с информацией по адресу забора для грузов с забором.</li>
+        </ul>
+    </dd>
+    <dt>20.09.2021</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/cargos#toc-method-statusbypositionbarcodes"><code>/cargos/statusbypositionbarcodes/</code></a> запроса статусов грузов по клиентским штрих-кодам</li>
+        </ul>
+    </dd>
+    <dt>20.09.2021</dt>
+    <dd>
+        <ul>
+            <li>Доработана структура запроса и ответа метода<a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a> получения списка филиалов и городов: в запрос добавлены фильтры поиска по идентификаторам объектов филиальной структуры,
+                в ответ добавлен массив объектов <code>kindsOfTransportation</code>, описывающих виды перевозок
+            </li>
+        </ul>
+    </dd>
+    <dt>08.07.2021</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/branches#toc-method-findzonebyaddress"><code>/branches/findzonebyaddress/</code></a> поиска тарифных зон и филиалов по строке адреса</li>
+        </ul>
+    </dd>
+    <dt>10.06.2021</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/order#toc-method-print"><code>/order/print/</code></a> получения печатных форм заявок и этикеток в формате PDF</li>
+        </ul>
+    </dd>
+    <dt>15.04.2021</dt>
+    <dd>
+        <ul>
+            <li>В структуру <code>cargos.common</code> метода 
+                <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                 добавлено поле:
+                <ul>
+                    <li><code>adjustDimensions</code> &nbsp;&mdash;&nbsp; разрешает перестановку габаритов с целью преодоления ограничений длины/ширины/высоты</li>
+                </ul>
+            </li>
+        </ul>
+    </dd>
+    <dt>25.02.2021</dt>
+    <dd>
+        <ul>
+            <li>В структуру <code>specification</code> методов <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> и
+                <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> добавлено поле:
+                <ul>
+                    <li><code>labelKIZ</code> &nbsp;&mdash;&nbsp;  код товара в национальной системой маркировки "Честный знак"</li>
+                </ul>
+            </li>
+        </ul>
+    </dd>
+    <dt>20.01.2021</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлено необязательное поле:
+                <ul>
+                    <li><code>cargos.common.cargoPlaceList</code> &nbsp;&mdash;&nbsp; массив грузомест</li>
+                </ul>
+            </li>
+        </ul>
+    </dd>
+    <dt>20.01.2021</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a>
+                добавлено необязательное поле:
+                <ul>
+                    <li><code>cargos.items.cargo.cargoPlaceList</code> &nbsp;&mdash;&nbsp; массив грузомест</li>
+                </ul>
+            </li>
+        </ul>
+    </dd>
+    <dt>20.01.2021</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                добавлено необязательное поле:
+                <ul>
+                    <li><code>common.cargoPlaceList</code> &nbsp;&mdash;&nbsp; массив грузомест</li>
+                </ul>
+            </li>
+       </ul>
+    </dd>
+    <dt>23.12.2020</dt>
+    <dd>
+        <ul>
+            <li>В метод <a href="/api/v1/help/calculator#toc-method-submit"><code>/calculator/calculateprice/</code></a> добавлена возможность выбора склада</li>
+        </ul>
+    </dd>
+    <dt>28.10.2020</dt>
+    <dd>
+        <ul>
+            <li>В метод <a href="/api/v1/help/calculator#toc-method-submit"><code>/calculator/calculateprice/</code></a> добавлена возможность расчета вида перевозки "Изи Уэй"</li>
+        </ul>
+    </dd>
+    <dt>01.09.2020</dt>
+    <dd>
+        <ul>
+            <li>В метод <a href="/api/v1/help/calculator#toc-method-submit"><code>/calculator/calculateprice/</code></a> добавлена возможность точного расчета стоимости забора/доставки,
+                <p>для этого необходимо указать параметры <code>pickup</code> при заборе и <code>delivery</code> при доставке</p>
+            </li>
+        </ul>
+    </dd>
+    <dt>17.06.2020</dt>
+    <dd>
+        <ul>
+            <li>В метод <a href="/api/v1/help/calculator#toc-method-submit"><code>/calculator/calculateprice/</code></a> добавлен расчет услуг ПРР при заборе/доставке
+                <p>во входные параметры добавлены группа параметров <code>pickupServices</code> &nbsp;&mdash;&nbsp; для расчета ПРР при заборе и <code>deliveryServices</code> &nbsp;&mdash;&nbsp; ПРР при доставке</p>
+                <p>в ответе у услуг появились подчиненные услуги <code>services</code> &nbsp;&mdash;&nbsp; там выводятся работы ПРР </p>
+            </li>
+        </ul>
+    </dd>
+    <dt>04.03.2020</dt>
+    <dd>
+        <ul>
+            <li>В ответ метода <a href="/api/v1/help/cargos#toc-method-submit"><code>/cargos/status</code></a> добавлено поле:
+                <code>takeOnStockPlanDateTime</code> &nbsp;&mdash;&nbsp; плановая дата и время сдачи груза на склад              
+            </li>
+        </ul>
+    </dd>
+    <dt>02.03.2020</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                добавлено обязательное поле:
+                <ul>
+                    <li><code>receiver.declaredCost</code> &nbsp;&mdash;&nbsp; Объявленная стоимость товара</li>
+                </ul>
+            </li>
+            <li>Из описания запроса метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> (блок <code>receiver</code>) удалено ошибочное упоминание полей: <code>cashOnDelivery</code>, &nbsp;<code>cashOnDeliverySum</code>, &nbsp;<code>actualCost</code>, &nbsp;<code>includeTES</code></li>
+            <li>Данные поля находятся в объекте <code>services.cashOnDelivery</code> и обрабатываеются только в контексте наложенного платежа</li>
+        </ul>
+    </dd>
+    <dt>01.03.2020</dt>
+    <dd>
+        <ul>
+            <li>В структуру запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлено обязательное поле:
+                <ul>
+                    <li><code>common.declaredCost</code> &nbsp;&mdash;&nbsp; Объявленная стоимость товара</li>
+                </ul>
+            </li>
+            <li>Из описания запроса метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> (блок <code>common</code>) удалено ошибочное упоминание полей: <code>cashOnDelivery</code>, &nbsp;<code>cashOnDeliverySum</code>, &nbsp;<code>actualCost</code>, &nbsp;<code>includeTES</code></li>
+            <li>Данные поля находятся в объекте <code>services.cashOnDelivery</code> и обрабатываеются только в контексте наложенного платежа</li>
+        </ul>
+    </dd>
+    <dt>29.02.2020</dt>
+    <dd>
+        <ul>
+            <li>Ответ метода <a href="/api/v1/help/branches#toc-method-findzonebycoordinates"><code>/branches/findzonebycoordinates/</code></a> дополнен полями <code>branchUID</code>, <code>bitrixId</code>.
+            </li>            
+        </ul>
+    </dd>
+    <dt>26.02.2020</dt>
+    <dd>
+        <ul>
+            <li>В ответ метода <a href="/api/v1/help/calculator#toc-method-submit"><code>/calculator/calculateprice/</code></a> добавлено поле: <code>commonTerms.transportingType</code> &nbsp;&mdash;&nbsp; тип перевозки 1-Авто, 2-Авиа</li>
+            <li>Данный метод теперь вычисляет сроки не только для авиа-, но и для автоперевозки.</li>
+        </ul>
+    </dd>
+    <dt>20.01.2020</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлено необязательное поле:
+                <ul>
+                    <li><code>common.plannedDate</code> &nbsp;&mdash;&nbsp; Планируемая дата сдачи груза</li>
+                </ul>
+            </li>
+        </ul>
+    </dd>
+    <dt>02.12.2019</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод
+                <a href="/api/v1/help/branches#toc-method-findzonebycoordinates"><code>/branches/findzonebycoordinates/</code></a>,
+                для поиска тарифных зон и филиалов по координатам.
+            </li>
+        </ul>
+    </dd>
+    <dt>19.11.2019</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                удалено поле <code>isHPPositionsCount</code>.
+            </li>
+        </ul>
+    </dd>
+    <dt>01.04.2019</dt>
+    <dd>
+        <ul>
+            <li>Для методов <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>
+                и <a href="/api/v1/help/cargos#toc-method-basicstatus"><code>/cargos/basicstatus/</code></a>
+                удалено поле <code>isOrderNumber</code>, так как вместо кодов грузов не передаются номера заказов клиента.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>12.07.2018</dt>
+    <dd>
+        <ul>
+            <li>В методах <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>, <a href="/api/v1/help/preregistration#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                расширен объект <code>services.cashOnDelivery.specification.specifications</code>&nbsp;&mdash;&nbsp; добавлены поля: <code>fitting</code>&nbsp;&mdash;&nbsp; (примерка) и <code>openingIndividualPacking</code>&nbsp;&mdash;&nbsp;(Вскрытие инд. упаковки).
+            </li>
+        </ul>
+    </dd>
+    <dt>05.03.2018</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод
+                <a href="/api/v1/help/cargos#toc-method-statustable"><code>/cargos/statustable/</code></a>,
+                отображающий список доступных статусов по грузам.
+            </li>
+        </ul>
+    </dd>
+    <dd>
+        <ul>
+            <li>В методе <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>
+                расширен объект <code>info</code>&nbsp;&mdash;&nbsp; добавлен id статуса груза.
+            </li>
+        </ul>
+    </dd>
+    <dt>03.10.2017</dt>
+    <dd>
+        <ul>
+            <li>В методе <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                расширен объект <code>payer</code>&nbsp;&mdash;&nbsp; добавлен город оплаты за услугу.
+            </li>
+        </ul>
+    </dd>
+    <dt>22.08.2017</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>
+                добавлен массив объектов <code>debtList</code>, показывающий задолженность с детализаций по валютам.
+            </li>
+        </ul>
+    </dd>
+    <dt>25.06.2017</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                <ul>
+                    <li>Добавлены поля для погрузочных работ в <code>services</code>:
+                        <ul>
+                            <li><code>services.floor</code> &nbsp;&mdash;&nbsp; Этаж</li>
+                            <li><code>services.isElevator</code> &nbsp;&mdash;&nbsp; Есть лифт</li>
+                        </ul>
+                    </li>
+                    <li>Добавлены поля для разгрузочных работ в <code>receiver</code>:
+                        <ul>
+                            <li><code>receiver.isLoading</code> &nbsp;&mdash;&nbsp; Необходима разгрузка силами «ПЭК»</li>
+                            <li><code>receiver.floor</code> &nbsp;&mdash;&nbsp; Этаж</li>
+                            <li><code>receiver.isElevator</code> &nbsp;&mdash;&nbsp; Есть лифт</li>
+                            <li><code>receiver.carryingDistance</code> &nbsp;&mdash;&nbsp; Метры переноски груза</li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+            <!--<li>Для метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                <ul>
+                    <li>Добавлена секция <code>intake</code> в <code>services</code>, отвечающая за параметры погрузочных работ:
+                        <ul>
+                            <li><code>services.intake.isPrr</code> &nbsp;&mdash;&nbsp; Необходима погрузка силами «ПЭК», Дублирует значение поля isLoading</li>
+                            <li><code>services.intake.floor</code> &nbsp;&mdash;&nbsp; Этаж</li>
+                            <li><code>services.intake.isElevator</code> &nbsp;&mdash;&nbsp; Есть лифт</li>
+                            <li><code>services.intake.carryingDistance</code> &nbsp;&mdash;&nbsp; Метры переноски груза</li>
+                        </ul>
+                    </li>
+                    <li>Добавлена секция <code>delivery</code> в <code>services</code>, отвечающая за параметры разгрузочных работ:
+                        <ul>
+                            <li><code>services.delivery.enabled</code> &nbsp;&mdash;&nbsp; Необходима доставка груза, дублирует поле isCityDeliveryNeeded</li>
+                            <li><code>services.delivery.isPrr</code> &nbsp;&mdash;&nbsp; Необходима разгрузка силами «ПЭК»</li>
+                            <li><code>services.delivery.floor</code> &nbsp;&mdash;&nbsp; Этаж</li>
+                            <li><code>services.delivery.isElevator</code> &nbsp;&mdash;&nbsp; Есть лифт</li>
+                            <li><code>services.delivery.carryingDistance</code> &nbsp;&mdash;&nbsp; Метры переноски груза</li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>-->
+            <!--<li>Убрано поле <code>carryingDistance</code> из <code>services</code> Для метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a></li>-->
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлены необязательные поля:
+                <ul>
+                    <li><code>cargos[].services.delivery.floor</code> &nbsp;&mdash;&nbsp; Этаж</li>
+                    <li><code>cargos[].services.delivery.isElevator</code> &nbsp;&mdash;&nbsp; Есть лифт</li>
+                </ul>
+            </li>
+        </ul>
+    </dd>
+    <!--<dt>22.06.2017</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлены необязательные поля:
+                <ul>
+                    <li><code>cargos[].services.delivery.floor</code> &nbsp;&mdash;&nbsp; Этаж</li>
+                    <li><code>cargos[].services.delivery.isElevator</code> &nbsp;&mdash;&nbsp; Есть лифт</li>
+                </ul>
+            </li>
+            <li>Для метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                добавлены необязательные поля:
+                <ul>
+                    <li><code>services.floor</code> &nbsp;&mdash;&nbsp; Этаж</li>
+                    <li><code>services.isElevator</code> &nbsp;&mdash;&nbsp; Есть лифт</li>
+                </ul>
+            </li>
+        </ul>
+    </dd>-->
+    <dt>16.06.2017</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлено необязательное поле:
+                <ul>
+                    <li><code>cargos[].services.delivery.carryingDistance</code> &nbsp;&mdash;&nbsp; метры переноски груза</li>
+                </ul>
+            </li>
+            <li>Для метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                добавлено необязательное поле:
+                <ul>
+                    <li><code>services.carryingDistance</code> &nbsp;&mdash;&nbsp; метры переноски груза</li>
+                </ul>
+            </li>
+        </ul>
+    </dd>
+    <dt>21.03.2017</dt>
+    <dd>
+        <ul>
+            <li>Изменена структура ответа метода<a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a> получения списка филиалов и городов: добавлен массив объектов <code>divisions</code>,
+                 массив <code>warehouses</code> перемещен на уровень ниже.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>20.03.2017</dt>
+    <dd>
+        <ul>
+            <li>В секцию<a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> добавлен метод 
+                <a href="/api/v1/help/cargopickup#toc-method-status"><code>/cargopickup/status/</code></a> получения статусов заявок на забор груза.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>03.02.2017</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлены необязательные поля:
+                <ul>
+                    <li><code>cargos[].common.volume</code> &nbsp;&mdash;&nbsp; объём груза</li>
+                    <li><code>cargos[].common.height</code> &nbsp;&mdash;&nbsp; высота груза</li>
+                    <li><code>cargos[].common.width</code> &nbsp;&mdash;&nbsp; ширина груза</li>
+                    <li><code>cargos[].common.length</code> &nbsp;&mdash;&nbsp; длина груза</li>
+                    <li><code>cargos[].common.clientPriority</code> &nbsp;&mdash;&nbsp; приоритет</li>
+                </ul>
+            </li>
+        </ul>
+    </dd>
+    
+    <dt>10.08.2016</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлены поля <code>sender.phoneAdditional</code> и <code>cargos[].receiver.phoneAdditional</code> &nbsp;&mdash;&nbsp; добавочные номера к телефонам
+            </li>
+            <li>Для метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                добавлены поля <code>sender.phoneAdditional</code> и <code>receiver.phoneAdditional</code> &nbsp;&mdash;&nbsp; добавочные номера к телефонам
+            </li>
+        </ul>
+    </dd>
+    <dt>14.07.2016</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлено поле <code>cargos[].services.delivery.isLoading</code> &nbsp;&mdash;&nbsp; признак необходимости погрузки силами «ПЭК».
+            </li>
+        </ul>
+    </dd>
+    <dt>01.07.2016</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлены поля <code>sender.warehouseId</code> и <code>cargos[].receiver.warehouseId</code>&nbsp;&mdash;&nbsp; предпочитаемый склад отправки и/или получения груза (если не заказана услуга доставки).
+            </li>
+        </ul>
+    </dd>
+
+    <dt>20.06.2016</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлено поле <code>common.type</code> (тип перевозки).
+            </li>
+        </ul>
+    </dd>
+    <dt>10.06.2016</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                добавлено поле <code>receiver.warehouseId</code>&nbsp;&mdash;&nbsp; предпочитаемый склад получения груза (если не заказана услуга доставки).
+            </li>
+        </ul>
+    </dd>
+
+    <dt>07.06.2016</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлены поля <code>sender.person</code> и <code>cargos[].receiver.person</code> (контактные лица отправителя и получателя).
+            </li>
+        </ul>
+    </dd>
+
+    <dt>06.06.2016</dt>
+    <dd>
+        <ul>
+            <li>В результат вызова метода <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a>
+                добавлен массив объектов <code>warehouses</code> с информацией о складах, доступных на филиалах. Количество полей объекта в ближайшее время будет расширено.
+            </li>
+        </ul>
+    </dd>
+    <dt>06.06.2016</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод
+                <a href="/api/v1/help/clientpackingkind#toc-method-clientpackingkind"><code>/clientpackingkind/all/</code></a>,
+                 отображающий справочник упаковок клиента.
+            </li>
+        </ul>
+    </dd>
+    <dt>06.06.2016</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод
+                <a href="/api/v1/help/cargocontent#toc-method-cargocontent"><code>/cargocontent/all/</code></a>,
+                 отображающий справочник наименований груза.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>18.03.2016</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлено поле <code>cargos[].common.weight</code> (общий вес груза).
+            </li>
+        </ul>
+    </dd>
+    <dt>01.03.2016</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод
+                <a href="/api/v1/help/cargos#toc-method-statushistory"><code>/cargos/statushistory/</code></a>,
+                 отображающий историю статусов по грузу.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>27.01.2016</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>
+                добавлено поле <code>amountProcessed</code>, показывающее количество обработанных в соответствии со статусом мест груза.
+                Для метода <a href="/api/v1/help/cargos#toc-method-basicstatus"><code>/cargos/basicstatus/</code></a>
+                эта информация отображается в поле <code>cargoStatus</code>.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>13.01.2016</dt>
+    <dd>
+        <ul>
+            <li>Для методов <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>
+                и <a href="/api/v1/help/cargos#toc-method-basicstatus"><code>/cargos/basicstatus/</code></a>
+                добавлено поле <code>isOrderNumber</code>, использующееся в случае, когда вместо кодов грузов передаются номера заказов клиента.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>24.12.2015</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлены поля <code>sender.fs</code> (форма собственности отправителя) и <code>cargos[].receiver.fs</code>  (форма собственности получателя).
+            </li>
+        </ul>
+    </dd>
+
+    <dt>09.09.2015</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод
+                <a href="/api/v1/help/auth#toc-method-profiledata"><code>/auth/profiledata/</code></a>, возвращающий информацию, хранящуюся в профиле пользователя.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>07.07.2015</dt>
+    <dd>
+        <ul>
+            <li>В метод <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> добавлена возможность прикрепления файлов (например, схемы проезда).
+            </li>
+        </ul>
+    </dd>
+
+    <dt>06.07.2015</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод
+                <a href="/api/v1/help/calculator#toc-method-maxdimension"><code>/calculator/maxdimension/</code></a>
+                вычисления максимального габарита по известным весу и объему для расчета стоимости услуг по забору/доставке. Возвращаемое значение представляет собой максимальный размер (наибольший из размерностей груза), при превышении которого груз будет считаться негабаритным.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>29.05.2015</dt>
+    <dd>
+        <ul>
+            <li>Для запроса статуса груза <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>
+                в ответ добавлены поля <code>cargos[].info.сallStatus</code> и <code>cargos[].info.сallStatusDateTime</code>, содержащие информацию о статусе по оповещению.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>25.05.2015</dt>
+    <dd>
+        <ul>
+            <li>В метод <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> добавлена возможность указывать
+                штрих-коды для мест грузов заявки. Здесь также используется <a href="/api/v1/help/cargopickupnetwork#toc-method-availabletypebarcode">справочник</a> типов штрих-кодов.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>18.05.2015</dt>
+    <dd>
+        <ul>
+            <li>В метод <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a> добавлена возможность указывать
+                штрих-коды для мест грузов заявки. Добавлен <a href="/api/v1/help/cargopickupnetwork#toc-method-availabletypebarcode">справочник</a> типов штрих-кодов.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>07.05.2015</dt>
+    <dd>
+        <ul>
+            <li>Для запроса статуса груза <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>
+                в ответ добавлены поля <code>cargos[].services.items[].payerType</code> и <code>cargos[].services.items[].payerName</code>, содержащие информацию об оформившем заявку лице.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>30.04.2015</dt>
+    <dd>
+        <ul>
+            <li>Для запроса статуса груза <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> и <a href="/api/v1/help/cargos#toc-method-basicstatus"><code>/cargos/basicstatus/</code></a>
+                в ответ добавлены поля <code>cargos[].cargo.cargoBarCode</code> и <code>cargos[].cargo.positionBarCodes[]</code>, содержащие соответственно штрих-коды груза и грузомест. В ответ для метода <a href="/api/v1/help/cargos#toc-method-list"><code>/cargos/list/</code></a>
+                добавлено поле <code>cargos[].barCode</code> (штрих-код груза).
+            </li>
+        </ul>
+    </dd>
+
+    <dt>30.03.2015</dt>
+    <dd>
+        <ul>
+            <li>В формате запроса для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> изменена секция <code>common</code>. Добавленные поля относятся к услуге наложенного платежа и не являются обязательными для заполнения, изменений на стороне клиента не потребуется.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>28.01.2015</dt>
+    <dd>
+        <ul>
+            <li>В метод <a href="/api/v1/help/netshop#toc-method-submit"><code>/netshop/submit/</code></a> добавлено поле
+                <code>pickup.applicationDate</code>, <strong>обязательное</strong> для заполнения, если выбрана услуга забора груза.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>26.12.2014</dt>
+    <dd>
+        <ul>
+            <li>Метод <a href="/api/v1/help/cargos#toc-method-list"><code>/cargos/list/</code></a> теперь возвращает для груза номер заказа в поле
+                <code>cargos[].orderNumber</code>.
+            </li>
+        </ul>
+    </dd>
+    <dt>26.12.2014</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод <a href="/api/v1/help/receivers#toc-method-update"><code>/receivers/update/</code></a>
+                для изменения данных в справочнике получателей.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>11.08.2014</dt>
+    <dd>
+        <ul>
+            <li>Добавлен новый тип заявок
+                <a href="/api/v1/help/netshop#toc-method-submit"><code>/netshop/</code></a>
+                на прямые паллетные перевозки.
+            </li>
+        </ul>
+    </dd>
+    <dt>29.07.2014</dt>
+    <dd>
+        <ul>
+            <li>Для запроса статуса груза <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>
+                в ответ добавлено поле <code>cargos[].cargo.orderNumber</code> с номером заказа клиента.
+            </li>
+        </ul>
+    </dd>
+
+    <dt>06.05.2014</dt>
+    <dd>
+        <ul>
+            <li>В сетевой заявке на забор
+                <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a>
+                добавлено для отдельных грузов добавлено поле <code>cargos.items[].cargo.description</code> описания груза (ранее было поле только для всей заявки).
+            </li>
+        </ul>
+    </dd>
+    <dt>12.03.2014</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод
+                <a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculator/calculateprice/</code></a>
+                расчета ориентировочных сроков и стоимости перевозки.
+            </li>
+        </ul>
+    </dd>
+    <dt>6.02.2014</dt>
+    <dd>
+        <ul>
+            <li>Добавлен метод
+                <a href="/api/v1/help/branches#toc-method-findbytitle"><code>/branches/findbytitle/</code></a>,
+                
+                для поиска городов и филиалов по названию и коду.
+            </li>
+            
+        </ul>
+    </dd>
+
+    <dt>18.12.2013</dt>
+    <dd>
+        <ul>
+            <li>При оформлении заявки на <a href="/api/v1/help/preregistration">предварительное оформление</a>
+                можно указывать получателей из <a href="/api/v1/help/receivers">справочника</a> получателей,
+                как для сетевой заявки на забор.
+            </li>
+        </ul>
+    </dd>
+    <dt>4.12.2013</dt>
+    <dd>
+        <ul>
+            <li>Метод <a href="/api/v1/help/cargos#toc-method-status"><code>/cargo/status/</code></a>
+                для груза, который является возвратом документов по другому грузу, в ответе возвращает поле <code>cargos[].cargo.parentCargoCode</code> с кодом исходного груза.
+            </li>
+        </ul>
+    </dd>
+    <dt>4.12.2013</dt>
+    <dd>
+        <ul>
+            <li>В <a href="/api/v1/help/cargopickupnetwork">сетевой заявке</a> на забор
+                у объекта <code>cargos.items[].services.(услуга).payer.other</code> для услуг pickUp (забор),
+                transporting (перевозка), delivery (доставка), insurance (страховка) добавилось поле
+                <code>paymentCity</code> (город оплаты за услугу), <strong>обязательное</strong> для заполнения.
+            </li>
+        </ul>
+    </dd>
+    <dt>14.11.2013</dt>
+    <dd>
+        <ul>
+            <li>Добавлены <a href="/api/v1/help/receivers">методы</a> для работы со справочником получателей.
+                С их помощью можно добавлять реквизиты контрагентов в справочник. Впоследствии при заполнении
+                <a href="/api/v1/help/cargopickupnetwork">сетевой заявки</a> на забор можно указывать код
+                получателя из справочника вместо того, чтобы заполнять все его реквизиты по каждому грузу.
+            </li>
+        </ul>
+    </dd>
+    <dt>10.10.2013</dt>
+    <dd>
+        <ul>
+            <li>С помощью метода <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>
+                теперь можно запросить приблизительные координаты грузов. В запрос добавлен параметр <code>returnPosition</code>, в ответ&nbsp;—&nbsp;поле
+                <code>cargos[].info.position</code>.
+            </li>
+        </ul>
+    </dd>
+    <dt>11.06.2013</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлено поле <code>cargos[].billing.billingNumbers</code> (номера по биллингу).								
+            </li>
+        </ul>
+    </dd>
+    <dt>04.06.2013</dt>
+    <dd>
+        <ul>
+            <li>Обновлена <a href="/api/v1#toc-usage-1c">обработка для 1С:Предприятия 8.1, 8.3</a>
+            </li>
+        </ul>
+    </dd>
+    <dt>21.05.2013</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+                добавлен новый необязательный параметр <code>receiver.avisationDateTime</code> (дата авизации).
+            </li>
+        </ul>
+    </dd>
+    <dt>20.05.2013</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> поле <code>cargos[].receiver.addressStock</code> сделано необязательным.
+            </li>
+        </ul>
+    </dd>
+    <dt>02.04.2013</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлен необязательный параметр <code>cargos[].services.storing</code> (услуга ответственного хранения).
+            </li>
+        </ul>
+    </dd>
+    <dt>28.03.2013</dt>
+    <dd>
+        <ul>
+            <li>В результат вызова метода 
+					<a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлен новый необязательный параметр <code>cargos[].stockTitle</code> (наименование склада приема груза).
+            </li>
+        </ul>
+    </dd>
+    <dt>27.03.2013</dt>
+    <dd>
+        <ul>
+            <li>Для метода 
+					<a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a>
+                добавлен новый необязательный параметр <code>cargos.items[].services.delivery.avisationDateTime</code> (дата авизации).
+            </li>
+            <li>Для метода 
+					<a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+                добавлен новый необязательный параметр <code>cargos[].services.delivery.avisationDateTime</code> (дата авизации).
+            </li>
+        </ul>
+    </dd>
+    <dt>12.03.2013</dt>
+    <dd>
+        <ul>
+            <li>В описании методов
+					<a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>,
+					<a href="/api/v1/help/cargos#toc-method-basicstatus"><code>/cargos/basicstatus/</code></a>,
+					<a href="/api/v1/help/cargos#toc-method-list"><code>/cargos/list/</code></a>
+                добавлена информация о возможных значениях полей «Статус груза».
+            </li>
+            <li>Для методов 
+					<a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> и
+					<a href="/api/v1/help/cargos#toc-method-basicstatus"><code>/cargos/basicstatus/</code></a>
+                значения полей <code>cargos[].info.cargoStatus</code> теперь возвращаются с первой буквой в верхнем регистре.				
+            </li>
+            <li>В результатах вызова метода <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a> добавлено поле <code>branches[].address</code> (адрес филиала).
+            </li>
+        </ul>
+    </dd>
+    <dt>11.02.2013</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> добавлены новые необязательные параметры <code>common.isSpecialEquipment</code> (необходимо специальное оборудование) и <code>isUncovered</code> (необходима растентовка).
+            </li>
+            <li>Для метода  <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a> добавлены новые необязательные параметры <code>cargos.items[].conditions.isSpecialEquipment</code> (необходимо специальное оборудование) и <code>cargos.items[].conditions.isUncovered</code> (необходима растентовка).
+            </li>
+            <li>В результатах вызова методов:
+				<a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>, 
+				<a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a>, 
+				<a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлено поле <code>documentId</code>, в котором возвращается номер созданной заявки.
+            </li>
+        </ul>
+    </dd>
+    <dt>06.02.2013</dt>
+    <dd>
+        <ul>
+            <li>Новые методы: 
+				
+				<a href="/api/v1/help/cargos#toc-method-list"><code>/cargos/list/</code></a>&nbsp;(список грузов за период), 
+				<a href="/api/v1/help/notification#toc-method-cargosubscribe"><code>/notification/cargosubscribe/</code></a>&nbsp;(подписка на e-mail/SMS уведомление по грузу).
+            </li>
+            <li>Следующие методы доступны для сторонних неперсонифицированных приложений: <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a>, <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>
+            </li>
+        </ul>
+    </dd>
+    <dt>04.02.2013</dt>
+    <dd>
+        <ul>
+            <li>В результаты методов <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> и <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a> добавлен новый параметр <code>cargos[].positions[]</code> с информацией о местах.
+            </li>
+        </ul>
+    </dd>
+    <dt>29.01.2013</dt>
+    <dd>
+        <ul>
+            <li>В результат метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлен новый параметр <code>cargos[].positions[]</code> с информацией о местах.
+            </li>
+        </ul>
+    </dd>
+    <dt>18.01.2013</dt>
+    <dd>
+        <ul>
+            <li>Для метода <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> добавлен необязательный параметр <code>cargos[].common.paymentForm</code> («Форма оплаты»).
+            </li>
+        </ul>
+    </dd>
+    <dt>09.01.2013</dt>
+    <dd>
+        <ul>
+            <li>
+                <strong>ВНИМАНИЕ: Изменения, которые требуют обновления на стороне клиента</strong><br />
+                В формате запроса для метода <a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a> секция <code>receivers</code> заменена на секцию <code>receiver</code> (набор полей с информацией о получателе не изменился), в разделе <code>payments</code> для каждой услуги добавлено поле <code>paymentCity</code> (город оплаты за услугу).
+            </li>
+        </ul>
+    </dd>
+    <dt>18.12.2012</dt>
+    <dd>
+        <ul>
+            <li>Формат результатов метода <a href="/api/v1/help/accountingdocuments#toc-method-list"><code>/accountingdocuments/list/</code></a> был расширен и теперь включает массив <code>documents[].services</code> с данными об оказанных в рамках документа услугах.
+            </li>
+        </ul>
+    </dd>
+    <dt>06.12.2012</dt>
+    <dd>
+        <ul>
+            <li>Новый метод <a href="/api/v1/help/accountingdocuments#toc-method-list"><code>/accountingdocuments/list/</code></a>
+            </li>
+        </ul>
+    </dd>
+    
+    <dt>29.11.2012</dt>
+    <dd>
+        <ul>
+            <li>Для методов <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a> и <a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a> для плательщика-третьего лица теперь указание ИНН необязательно.
+            </li>
+        </ul>
+    </dd>
+    <dt>26.11.2012</dt>
+    <dd>
+        <ul>
+            <li>Филиал <code>Санкт-Петербург Обухово</code> сменил название на <code>Санкт-Петербург</code>. Пользователям, которые ранее использовали возможность автозамены при указании наименования этого филиала (изменение от 19.09.2012) никаких модификаций делать не нужно.
+				Актуальный список городов и филиалов можно всегда получить с помощью метода <a href="/api/v1/help/branches#toc-method-all"><code>/branches/all/</code></a>.
+            </li>
+        </ul>
+    </dd>
+    <dt>15.11.2012</dt>
+    <dd>
+        <ul>
+            <li>Добавлена новая группа пользователей API «Сторонние неперсонифицированные приложения»				
+            </li>
+            <li>В документации для каждого метода указано каким группам пользователей доступен метод
+            </li>
+            <li>Новый метод <a href="/api/v1/help/cargos#toc-method-basicstatus"><code>/cargos/basicstatus/</code></a>
+            </li>
+
+        </ul>
+    </dd>
+    <dt>16.10.2012</dt>
+    <dd>
+        <ul>
+            <li>Изменены лимиты на максимальное количество элементов в следующих методах: 
+				<a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status</code></a>&nbsp;(15 вместо 20),
+				<a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a>&nbsp;(10 вместо 100),
+				<a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>&nbsp;(10 вместо 100)
+            </li>
+            <li>В методе <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> добавлена проверка на верный формат кодов грузов
+            </li>
+            <li>В методе <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> добавлен новый параметр в результате вызова метода:
+				<code>cargos[].cargo.preliminaryCode</code> (предварительный код груза)
+            </li>
+            <li>Теперь возможна проверка статуса груза методом <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> не только по фактическому, но и по предварительному коду груза
+            </li>
+        </ul>
+    </dd>
+    <dt>11.10.2012</dt>
+    <dd>
+        <ul>
+            <li>Исправлена ошибка при приёме грузов с городом назначения Санкт-Петербург
+            </li>
+        </ul>
+    </dd>
+    <dt>26.09.2012</dt>
+    <dd>
+        <ul>
+            <li>Исправлена ошибка в методе <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a>, теперь порядок объектов в ответе соответствует порядку кодов грузов в запросе
+            </li>
+        </ul>
+    </dd>
+
+    <dt>25.09.2012</dt>
+    <dd>
+        <ul>
+            <li>Исправлена ошибка поиска города, относящегося к филиалу, для <a href="/api/v1#toc-protocol-datatypes">типа данных</a> <code>[City]</code>
+            </li>
+        </ul>
+    </dd>
+
+    <dt>24.09.2012</dt>
+    <dd>
+        <ul>
+            <li>Теперь для метода <a href="/api/v1/help/cargos#toc-method-status"><code>/cargos/status/</code></a> порядок объектов в ответе соответствует порядку кодов грузов в запросе (ранее результаты сортировались по алфавиту по коду груза)
+            </li>
+        </ul>
+    </dd>
+
+    <dt>19.09.2012</dt>
+    <dd>
+        <ul>
+            <li>Для <a href="/api/v1#toc-protocol-datatypes">типа данных</a> <code>[City]</code> определены следующие специальные значения: значение <code>Москва</code> эквивалентно указанию филиала <code>Москва Восток</code>, значение <code>Санкт-Петербург</code> эквивалентно указанию филиала <code>Санкт-Петербург Обухово</code>
+            </li>
+        </ul>
+    </dd>
+
+    <dt>18.09.2012</dt>
+    <dd>
+        <ul>
+            <li>Добавлена возможность указать адрес доставки груза для метода: <a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a> в параметре <code>cargos.items[].services.delivery.address</code>
+            </li>
+        </ul>
+    </dd>
+
+    <dt>06.09.2012</dt>
+    <dd>
+        <ul>
+            <li>Исправлен регистр символов в параметре <code>barcode</code> (все буквы строчные) возвращаемого результата следующих методов:
+					<a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a>,
+					<a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+            </li>
+        </ul>
+    </dd>
+
+    <dt>04.09.2012</dt>
+    <dd>
+        <ul>
+            <li>Указание ИНН отправителя и получателей необязательно для следующих методов:
+					<a href="/api/v1/help/cargopickup#toc-method-submit"><code>/cargopickup/submit/</code></a>,
+					<a href="/api/v1/help/cargopickupnetwork#toc-method-submit"><code>/cargopickupnetwork/submit/</code></a>,
+					<a href="/api/v1/help/preregistration#toc-method-submit"><code>/preregistration/submit/</code></a>
+            </li>
+        </ul>
+    </dd>
+    <dt>09.08.2012</dt>
+    <dd>
+        <ul>
+            <li>Добавлен новый метод <a href="/api/v1/help/cargos#toc-method-details"><code>/cargos/details/</code></a> для получения детальной информации о грузе и фотографий</li>
+            <li>Добавлен новый тип данных <code>[Binary]</code> для передачи двоичных данных (например, файлов)</li>
+        </ul>
+    </dd>
+    <dt>06.08.2012</dt>
+    <dd>
+        <ul>
+            <li>Исправлена ошибка в описании поля <code>orderNumber</code> для <a href="/api/v1/help/preregistration">предварительного оформления</a>, обновлена <a href="/api/v1#toc-usage-1c">обработка для 1С до версии 1.1</a></li>
+        </ul>
+    </dd>
+    <dt>12.07.2012</dt>
+    <dd>
+        <ul>
+            <li>Добавлен <a href="/api/v1#toc-usage-net">пример для .NET</a> на C#</li>
+        </ul>
+    </dd>
+    <dt>10.07.2012</dt>
+    <dd>
+        <ul>
+            <li>Добавлена поддержка <a href="/api/v1#toc-protocol-common">gzip-сжатия</a> для HTTP-ответов</li>
+            <li>Новая версия <a href="/api/v1#toc-usage-phpsdk">PHP SDK 1.2</a>
+                <ul>
+                    <li>Добавлена возможность указать дополнительные параметры для curl (например, для подключения через HTTP-прокси)</li>
+                    <li>Обновлен файл корневых сертификатов</li>
+                    <li>Добавлена возможность указать формат результата запроса (объект или массив)</li>
+                    <li>Включено gzip-сжатие</li>
+                </ul>
+            </li>
+        </ul>
+    </dd>
+    <dt>04.07.2012</dt>
+    <dd>
+        <ul>
+            <li>Новый <a href="/api/v1#toc-protocol-datatypes">тип данных</a> для указания города\филиала</li>
+        </ul>
+    </dd>
+</dl>
+
+
+
+<h2 id="toc-urls">Структура URL</h2>
+<ul>
+	<li>API представляет собой набор <strong>методов</strong>, объединённых в <strong>группы</strong></li>
+	<li>Обращение к методам API осуществляется путём отправки запроса методом <strong>POST</strong> на URL метода, который формируется следующим образом: 
+		<code>https://kabinet.pecom.ru/api/v1/&lt;<i>группа</i>&gt;/&lt;<i>метод</i>&gt;/</code></li>
+	<li>URL <code>https://kabinet.pecom.ru/api/v1/</code> является базовым и далее в документации не указывается</li>
+	<li>Общее ограничение на количество любых запросов по API: 100 запросов в минуту. После превышения числа запросов API будет возвращать ошибку.</li>
+</ul>
+
+<h2 id="toc-methods">Список групп и методов</h2>
+<ul>
+	<li>		
+		<a href="/api/v1/help/auth"><code>/auth/</code></a>&nbsp;&mdash;&nbsp;данные личного кабинета и дополнительная авторизация
+		<ul>
+			
+            <li><a href="/api/v1/help/auth#toc-method-profiledata"><code>/profiledata/</code></a>&nbsp;&mdash; отображение информации, хранящейся в профиле пользователя</li>
+			<li><a href="/api/v1/help/auth#toc-method-createtokentoaccessprivatedata"><code>/createtokentoaccessprivatedata/</code></a>&nbsp;&mdash; создание токена для методов получения приватной информации</li>
+		</ul>
+	</li>		
+	<li>	
+		<a href="/api/v1/help/branches"><code>/branches/</code></a>&nbsp;&mdash;&nbsp;информация о странах, филиалах и городах
+		<ul>
+			<li><a href="/api/v1/help/branches#toc-method-all"><code>/all/</code></a>&nbsp;&mdash; список всех филиалов и городов</li>
+            
+			
+            <li><a href="/api/v1/help/branches#toc-method-findzonebycoordinates"><code>/findzonebycoordinates/</code></a>&nbsp;&mdash; поиск тарифных зон и филиалов по координатам</li> 
+            <li><a href="/api/v1/help/branches#toc-method-findzonebyaddress"><code>/findzonebyaddress/</code></a>&nbsp;&mdash; поиск тарифных зон и филиалов по строке адреса</li> 
+			<li><a href="/api/v1/help/branches#toc-method-checkpickupdate"><code>/checkpickupdate/</code></a>&nbsp;&mdash; определение доступности дат забора груза</li>
+            <li><a href="/api/v1/help/branches#toc-method-nearestdepartments"><code>/nearestdepartments/</code></a>&nbsp;&mdash; подбор ближайших к адресу отделений для приема/выдачи грузов</li> 
+            <li><a href="/api/v1/help/branches#toc-method-suggestaddressofintakeordelivery"><code>/suggestaddressofintakeordelivery/</code></a>&nbsp;&mdash; запрос поисковых подсказок адресов забора/доставки груза</li>
+			<li><a href="/api/v1/help/branches#toc-method-country"><code>/country/</code></a>&nbsp;&mdash;&nbsp; список стран, в которых присутствуют отделения ПЭК</li>
+            <li><a href="/api/v1/help/branches#toc-method-checknocalcservices"><code>/checknocalcservices/</code></a>&nbsp;&mdash;&nbsp; проверка возможности предоставления услуг, не проверяемых в методе расчета стоимости</li>
+			<li><a href="/api/v1/help/branches#toc-method-countrytypeidentitydocument"><code>/countrytypeidentitydocument/</code></a>&nbsp;&mdash; возвращает допустимые документы, удостоверяющие личность, для страны отправления / получения</li>
+			<li><a href="/api/v1/help/branches#toc-method-departmentslimit"><code>/departmentslimit/</code></a>&nbsp;&mdash; ограничения весо-габаритных характеристик груза для тарифа/ продукта «Express Автоперевозка».</li>
+		</ul>
+	</li>
+	<li>		
+		<a href="/api/v1/help/cargos"><code>/cargos/</code></a>&nbsp;&mdash;&nbsp;операции с грузами 
+		<ul>
+			<li><a href="/api/v1/help/cargos#toc-method-status"><code>/status/</code></a>&nbsp;&mdash; статус груза</li>
+            <li><a href="/api/v1/help/cargos#toc-method-currentstatus"><code>/currentstatus/</code></a>&nbsp;&mdash; запрос текущего статуса грузов с детализацией</li>
+			<li><a href="/api/v1/help/cargos#toc-method-statusbypositionbarcodes"><code>/statusbypositionbarcodes/</code></a>&nbsp;&mdash; статус груза по клиентским штрих-кодам</li>
+			<li><a href="/api/v1/help/cargos#toc-method-basicstatus"><code>/basicstatus/</code></a>&nbsp;&mdash; базовая информация о статусе груза</li>
+			<li><a href="/api/v1/help/cargos#toc-method-deliverystatus"><code>/deliverystatus/</code></a>&nbsp;&mdash; предоставляет данные по доставке груза</li>
+			<li><a href="/api/v1/help/cargos#toc-method-details"><code>/details/</code></a>&nbsp;&mdash; детальная информация о грузе, фотографии</li>
+			<li><a href="/api/v1/help/cargos#toc-method-listallorderbylogin"><code>/listallorderbylogin/</code></a>&nbsp;&mdash; возвращает все грузы контрагентов, к которым есть доступ в личном кабинете</li>
+		    <li><a href="/api/v1/help/cargos#toc-method-statusfullhistory"><code>/statusfullhistory/</code></a>&nbsp;&mdash; история изменения статусов по заявке/ грузу</li>
+		    <li><a href="/api/v1/help/cargos#toc-method-statustables"><code>/statustables/</code></a>&nbsp;&mdash; список доступных статусов по грузам</li>
+			<li><a href="/api/v1/help/cargos#toc-method-routesanddriverinfo"><code>/routesanddriverinfo/</code></a>&nbsp;&mdash; выводит персональные данные водителей, осуществляющих забор/доставку груза</li>
+			<li><a href="/api/v1/help/cargos#toc-method-getinfoforcedstorage"><code>/getinfoforcedstorage/</code></a>&nbsp;&mdash;&nbsp; информация по рассчитанному ВХ.</li>
+			<li><a href="/api/v1/help/cargos#toc-method-cancelandreturncargo"><code>/cancelandreturncargo/</code></a>&nbsp;&mdash; оформление возврата груза отправителю после передачи груза в ПЭК</li>
+		</ul>
+	</li>
+    <li>
+        <a href="/api/v1/help/order"><code>/order/</code></a>&nbsp;&mdash;&nbsp;операции со всеми видами заявок
+        <ul>
+            <li><a href="/api/v1/help/order#toc-method-all"><code>/cancellation/</code></a>&nbsp;&mdash; аннулирование ранее созданных заявок на основании кодов грузов</li>
+            <li><a href="/api/v1/help/order#toc-method-print"><code>/print/</code></a>&nbsp;&mdash; получения печатных форм заявок и этикеток в формате PDF</li>
+        </ul>
+    </li>
+	<li>
+		<a href="/api/v1/help/cargopickup"><code>/cargopickup/</code></a>&nbsp;&mdash;&nbsp;заказ "на машину" к заказам "на перевозку"
+		<ul>
+			<li><a href="/api/v1/help/cargopickup#toc-method-submit"><code>/submit/</code></a>&nbsp;&mdash; подача заказа "На машину и перевозку (разовый забор)" или "На перевозку (с отдельным Заказом на машину)"</li>
+            <li><a href="/api/v1/help/cargopickup#toc-method-submit-specified"><code>/submit/</code></a>&nbsp;&mdash; подача заказа "на машину" к заказам "на перевозку"</li>
+			<li><a href="/api/v1/help/cargopickup#toc-method-status"><code>/status/</code></a>&nbsp;&mdash; получение статуса услуги "Забор груза"</li>
+            <li><a href="/api/v1/help/cargopickup#toc-method-checkOrderedPickupType3Car"><code>/checkOrderedPickupType3Car/</code></a>&nbsp;&mdash; получение статуса услуги "Заказа на машину", поданного в рамках услуги "Упрощенный забор"</li>				
+		</ul>
+	</li>
+    <li>		
+		<a href="/api/v1/help/preregistration"><code>/preregistration/</code></a>&nbsp;&mdash;&nbsp;заявки на перевозку (авто, авиа) с забором груза от адреса отправителя и предварительное оформление
+		<ul>
+			<li><a href="/api/v1/help/preregistration#toc-method-submit"><code>/submit/</code></a>&nbsp;&mdash; единый метод подачи заявок</li>
+			<li><a href="/api/v1/help/preregistration#toc-method-availabletypebarcode"><code>/availabletypebarcode/</code></a>&nbsp;&mdash; справочник типов штрих-кодов</li>
+		</ul>
+	</li>
+	<li>		
+		<a href="/api/v1/help/accountingdocuments"><code>/accountingdocuments/</code></a>&nbsp;&mdash;&nbsp;бухгалтерские документы
+		<ul>
+			<li><a href="/api/v1/help/accountingdocuments#toc-method-listforcounterparty"><code>/listforcounterparty/</code></a>&nbsp;&mdash; получение списка бухгалтерских документов за период</li>			
+		</ul>
+	</li>
+	<li>
+		<a href="/api/v1/help/cargosdocuments"><code>/cargosdocuments/</code></a>&nbsp;&mdash;&nbsp; предоставление экспедиторских документов по грузам
+		<ul>
+		    <li><a href="/api/v1/help/cargosdocuments#toc-method-order"><code>/order/</code></a>&nbsp;&mdash; запрос на предоставление документа по грузу</li>
+			<li><a href="/api/v1/help/cargosdocuments#toc-method-getcontent"><code>/getcontent/</code></a>&nbsp;&mdash; получение документа по грузу</li>		
+			<li><a href="/api/v1/help/cargosdocuments#toc-method-cargoinvoicebyperiod"><code>/cargoinvoicebyperiod/</code></a>&nbsp;&mdash; получение идентификаторов грузов за период, по которым есть задолженность по запрашиваемому плательщику</li>
+		</ul>
+	</li>
+	<li>
+		<a href="/api/v1/help/notification"><code>/notification/</code></a>&nbsp;&mdash;&nbsp;уведомления
+		<ul>
+			<li><a href="/api/v1/help/notification#toc-method-cargosubscribe"><code>/cargosubscribe/</code></a>&nbsp;&mdash; подписка на уведомления по грузу</li>
+		</ul>
+	</li>
+	<li>
+		<a href="/api/v1/help/counterparts"><code>/counterparts/</code></a>&nbsp;&mdash;&nbsp;справочники для работы с контрагентами / данные контрагентов
+		<ul>
+			<li><a href="/api/v1/help/counterparts#toc-method-legalformtypes"><code>/legalformtypes/</code></a>&nbsp;&mdash; общий список форм собственности контрагентов (юридических лиц, индивидуальных предпринимателей и т.п.)</li>
+			<li><a href="/api/v1/help/counterparts#toc-method-confirmedaccesstocounterparties"><code>/confirmedaccesstocounterparties/</code></a>&nbsp;&mdash; список контрагентов, которые подтвердили свою связь с логином</li>
+			<li><a href="/api/v1/help/counterparts#toc-method-connecteddiscountsservicesagreements"><code>/connecteddiscountsservicesagreements/</code></a>&nbsp;&mdash; список подключенных контрагенту скидок, сервисов и основных доп.соглашений</li>
+		</ul>
+	</li>
+	<li>
+		<a href="/api/v1/help/receivers"><code>/receivers/</code></a>&nbsp;&mdash;&nbsp;список получателей
+		<ul>
+			<li><a href="/api/v1/help/receivers#toc-method-add"><code>/add/</code></a>&nbsp;&mdash; добавление получателя в справочник</li>
+			<li><a href="/api/v1/help/receivers#toc-method-list"><code>/list/</code></a>&nbsp;&mdash; просмотр списка получателей</li>
+			<li><a href="/api/v1/help/receivers#toc-method-delete"><code>/delete/</code></a>&nbsp;&mdash; удаление получателя из справочника</li>
+			<li><a href="/api/v1/help/receivers#toc-method-update"><code>/update/</code></a>&nbsp;&mdash; изменение получателя в справочнике</li>
+		</ul>
+	</li>
+	<li>
+		<a href="/api/v1/help/calculator"><code>/calculator/</code></a>&nbsp;&mdash;&nbsp;калькуляторы стоимости услуг
+		<ul>
+			<li><a href="/api/v1/help/calculator#toc-method-calculateprice"><code>/calculateprice/</code></a>&nbsp;&mdash; расчет стоимости и сроков перевозки</li>
+			<li><a href="/api/v1/help/calculator#toc-method-checkdeliverydate"><code>/checkdeliverydate/</code></a>&nbsp;&mdash; возвращает ближайшие даты и интервалы времени на забор / доставку груза от даты запроса</li>
+            
+		</ul>
+	</li>
+	<li>
+		<a href="/api/v1/help/typesofdelivery"><code>/typesOfDelivery/</code></a>&nbsp;&mdash;&nbsp;продукты и тарифы перевозки
+		<ul>
+			<li><a href="/api/v1/help/typesofdelivery#toc-method-all"><code>/all/</code></a>&nbsp;&mdash; перечень актуальных продуктов/тарифов перевозки, которые поддерживаются в API</li>
+		</ul>
+	</li>
+
+
+
+    <li>
+		<a href="/api/v1/help/cargocontent"><code>/cargocontent/</code></a>&nbsp;&mdash;&nbsp;справочник наименований груза
+		<ul>
+			<li><a href="/api/v1/help/cargocontent#toc-method-all"><code>/all/</code></a>&nbsp;&mdash; список наименований груза</li>
+		</ul>
+	</li>
+	<li>
+		<a href="/api/v1/help/currency"><code>/currency/</code></a>&nbsp;&mdash;&nbsp;валюты
+		<ul>
+			<li><a href="/api/v1/help/currency#toc-method-all"><code>/all/</code></a>&nbsp;&mdash; получение списка валют для расчёта перевозок</li>
+		</ul>
+	</li>
+    <li>
+		<a href="/api/v1/help/clientpackingkind"><code>/clientpackingkind/</code></a>&nbsp;&mdash;&nbsp;справочник упаковок клиента
+		<ul>
+			<li><a href="/api/v1/help/clientpackingkind#toc-method-all"><code>/all/</code></a>&nbsp;&mdash; список упаковок клиента</li>
+		</ul>
+	</li>
+</ul>
+
+<h2 id="toc-support">Техническая поддержка</h2>
+<p>Поддержка оказывается с помощью <a href="/feedback">обращений пользователей личного кабинета клиента «ПЭК»</a> (требуется авторизация).</p>
+
+<h2 id="toc-protocol">Используемый протокол</h2>
+<h3 id="toc-protocol-common">Общее описание</h3>
+<ul>
+	<li>Запрос должен осуществляться по протоколу <a href="http://ru.wikipedia.org/wiki/HTTPS">HTTPS</a> с <strong>обязательной</strong> проверкой сертификата сервера клиентом. Для проверки можно использовать файл сертификатов из комплекта <a href="/api/v1#toc-usage-phpsdk">PHP SDK</a>.</li>
+	<li>Формат передачи входящих и исходящих данных&nbsp;&mdash; <a href="http://ru.wikipedia.org/wiki/JSON">JSON</a>, кодировка&nbsp;&mdash;
+		<strong>UTF-8</strong></li>
+	<li>Входящие параметры должны передаваться прямо в теле POST запроса в виде строки в формате JSON</li>
+	<li>При осуществлении запросов необходимо устанавливать следующие HTTP-заголовки:
+		<pre class="prettyprint">Content-Type: application/json;charset=utf-8
+Accept: application/json</pre>
+	</li>		
+	<li>Поддерживается gzip-сжатие ответов API (к сожалению, стандарт для сжатия содержимого <i>HTTP-запросов</i> не утверждён). Использование компрессии уменьшает объем ответов в несколько раз. 
+	 Для включения сжатия необходимо устанавливать следующий HTTP-заголовок:
+		<pre class="prettyprint">Accept-Encoding: gzip</pre>	 
+	 </li>
+	<li>Все поля JSON-объекта в запросе являются обязательными, если не указано обратное</li>
+</ul>
+
+<h3 id="toc-protocol-datatypes">Типы данных JSON-объектов</h3>
+	<p>Используются <a href="http://en.wikipedia.org/wiki/JSON#Data_types.2C_syntax_and_example">стандартные типы данных JSON</a> и следующие типы:</p>
+<ul>	
+	<li>Для передачи двоичных данных используется кодирование в <a href="http://ru.wikipedia.org/wiki/Base64">Base64</a> и помещение результата в строку. Этот тип данных обозначается в документации следующим образом:
+		<pre class="prettyprint">[Binary]</pre>
+	</li>
+	<li>Для указания филиала или города, относящегося к филиалу используется тип, обозначенный в документации следующим образом:<br /> 
+		<pre class="prettyprint">[City]</pre>	 
+		Для филиала указывается его наименование в виде строки:
+		<pre class="prettyprint">
+{
+  demoCity: "Курск"
+}</pre>
+		Для городов, относящихся к филиалам, значение указывается в формате: <code>&lt;Наименование города&gt;, &lt;Наименование филиала&gt;</code>, например:
+		<pre class="prettyprint">
+{
+  demoCity: "Пристань, Курск"
+}</pre>
+
+		Регистр указания наименований городов может быть любым. Список филиалов и городов доступен в результате вызова метода <a href="/api/v1/help/branches"><code>/branches/all/</code></a>. 
+		<br /><br />
+		
+	</li>
+	<li>Значения даты и даты + времени передаются <strong>как строки</strong> в формате <a href="http://en.wikipedia.org/wiki/ISO_8601">ISO 8601</a> в следующих определённых стандартом форматах: <br />
+		<br />
+		Дата:
+		<pre class="prettyprint">
+{
+  demoDateField: "2011-03-10"
+}</pre>		
+		Поля этого типа в описании методов помечаются следующим образом:
+		<pre class="prettyprint">[Date]</pre>		
+		Дата и время:		
+		<pre class="prettyprint">
+{
+  demoDateField: "2011-03-10T09:24:24"
+}</pre>		
+		Используется <a href="http://ru.wikipedia.org/wiki/%D0%9C%D0%BE%D1%81%D0%BA%D0%BE%D0%B2%D1%81%D0%BA%D0%BE%D0%B5_%D0%B2%D1%80%D0%B5%D0%BC%D1%8F">московское время (MSK)</a>, если не указано обратное.
+		<br /><br />
+		Поля этого типа в описании методов помечаются следующим образом:
+		<pre class="prettyprint">[DateTime]</pre>		
+	</li>
+	<li>Значения времени в пределах суток передаются <strong>как строки</strong> в формате <a href="http://en.wikipedia.org/wiki/ISO_8601">ISO 8601</a> в следующих определённых стандартом форматах: <br />
+		<br />
+		Время:
+		<pre class="prettyprint">
+{
+  demoTimeField: "18:15"
+}</pre>		
+		Время с секундами:		
+		<pre class="prettyprint">
+{
+  demoTimeFieldWithSeconds: "18:15:12"
+}</pre>		
+		Используется <a href="http://ru.wikipedia.org/wiki/%D0%9C%D0%BE%D1%81%D0%BA%D0%BE%D0%B2%D1%81%D0%BA%D0%BE%D0%B5_%D0%B2%D1%80%D0%B5%D0%BC%D1%8F">московское время (MSK)</a>, если не указано обратное.
+		<br /><br />
+		Поля этого типа в описании методов помечаются следующим образом:
+		<pre class="prettyprint">[Time]</pre>		
+	</li>
+</ul>
+
+<h2 id="toc-protocol-error-handling">Обработка ошибок</h2>
+<ul>
+	<li>В случае, если указан неверный URL метода, возвращается страница ошибки с 
+	<a href="http://ru.wikipedia.org/wiki/%D0%A1%D0%BF%D0%B8%D1%81%D0%BE%D0%BA_%D0%BA%D0%BE%D0%B4%D0%BE%D0%B2_%D1%81%D0%BE%D1%81%D1%82%D0%BE%D1%8F%D0%BD%D0%B8%D1%8F_HTTP">кодом состояния</a> 
+	<code>404</code>. Содержимое страницы можно игнорировать, проверяя наличие ошибки только по коду</li>
+	<li>В случае возникновения ошибки нарушения прав доступа к методу, возвращается страница с кодом состояния <code>403</code>. Содержимое страницы также можно игнорировать.</li>
+	<li>Если возникает логическая ошибка (не указаны необходимые параметры, неверный формат входных данных и т.п.) возвращается ответ с кодом <code>200</code> и описанием ошибки в формате JSON:
+<pre class="prettyprint">{
+   "error": {           
+       "title": "Соообщение об ошибке",    
+       "message": "Детальное описание ошибки"
+    }
+}</pre>	
+В зависимости от типа ошибки могут быть добавлены дополнительные поля, но поля, указанные в примере выше возвращаются всегда.
+	</li>
+	<li>При возникновении непредусмотренной ошибки, код состояния устанавливается равным <code>500</code>, а в теле ответа выводится сообщение об ошибке в формате описанном выше.</li>
+</ul>
+
+
+<h2 id="toc-usage">Примеры использования API</h2>	
+
+<h3 id="toc-usage-requirements">Необходимые компоненты</h3>
+		
+<p>Использование API возможно для большинства платформ и языков программирования и не требуется наличие каких-либо специфических библиотек на клиентской стороне. Необходимые программные компоненты:</p>
+<ul>
+	<li>Компонент (библиотека) для приёма и отправки HTTP-запросов с поддержкой протокола HTTPS и Basic-аутентификации (<strong>необходимо</strong>)</li>
+	<li>Компонент (библиотека) для <a href="http://ru.wikipedia.org/wiki/%D0%A1%D0%B5%D1%80%D0%B8%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F">сериализации\десериализации</a> данных из\в формат JSON (<strong>опционально</strong>)</li>
+	<li>Компонент (библиотека) для кодирования\декодирования <a href="http://ru.wikipedia.org/wiki/Base64">Base64</a> (<strong>опционально</strong>, необходимо только для работы с бинарными данными)</li>
+</ul>
+
+<h3 id="toc-usage-cli">Использование утилит командной строки</h3>
+В простейшем случае нет необходимости в программировании, достаточно использовать утилиты командной строки. В данном примере используется Windows-версия <a href="http://ru.wikipedia.org/wiki/CURL">cURL</a> с поддержкой SSL (HTTPS):
+
+<pre class="prettyprint">curl.exe ^
+--verbose ^
+--cacert cacert-kabinet_pecom_ru.pem ^
+--basic ^
+--user user:FA21831AB83DB72D3261FA80BA309DBF6B2D7ADC ^
+--request POST -d @curl-input.txt ^
+--header "Content-Type: application/json; charset=utf-8" ^
+--compressed ^
+--output curl-output.txt ^
+https://kabinet.pecom.ru/api/v1/cargos/status/</pre>
+
+<p>Символ <code>^</code> используется для объединения строк. Файл <code>cacert-kabinet_pecom_ru.pem</code> содержит сертификаты и доступен в комплекте <a href="/api/v1#toc-usage-phpsdk">PHP SDK</a>.</p> 
+
+<p>Содержимое запроса берётся из файла <code>curl-input.txt</code> (кодировка UTF-8), описание формата параметров доступно на <a href="/api/v1/help/cargos">соответствующей странице</a>:</p>
+
+<pre class="prettyprint">{
+   "cargoCodes": [ 
+       "780339690775",
+       "999932277461",
+       "772193116238" 
+   ]
+}</pre>
+
+Результат будет записан в файл <code>curl-output.txt</code>.
+
+<h3 id="toc-usage-1c">Обработка для 1С:Предприятия 8.1-8.3 (обычные формы)</h3>
+<p>В архиве, доступном для скачивания представлена внешняя обработка, позволяющая:</p>
+
+<ul>
+	<li>получить статус одного или нескольких грузов</li>
+	<li>оформить заявку на забор груза</li>
+	<li>оформить заявку на предварительное оформление</li>
+</ul>
+<p>В форме обработки необходимо указать логин личного кабинета, <a href="/profile">ключ</a> и параметры для запроса.</p>
+
+<p><a href="UserData/Api/ЛичныйКабинетПЭК2023 81_83 обычные формы.zip?v=134329666357294873">Скачать версию для платформы 8.1-8.3 (обычные формы) (.zip, 170Кб)</a></p>
+<p><a href="UserData/Docs/Инструкция ЛК ПЭК 2023 v02_1.docx?v=134329666357294873">Скачать инструкцию по работе с внешней обработкой</a></p>
+<p>Также вы можете воспользоваться <a target="_blank" href="https://pecom.ru/business/developers/integration/">готовым модулем для 1С</a></p>
+<p><a href="https://its.1c.ru/db/metod8dev/content/5949/hdoc">Полезная информация на случай возникновения ошибки сертификата</a></p>
+
+<h3 id="toc-usage-net">Минимальный пример для .NET</h3>
+<p>В результате выполнения кода, приведённого ниже, будет осуществлён запрос статусов грузов и выведен результат в виде строки. Пример представляет собой консольное приложение на C#, целевая версия платформы&nbsp;&mdash; .NET Framework 3.5 и выше.</p>
+<pre class="prettyprint">
+using System;
+using System.IO;
+using System.Net;
+using System.Text;
+using System.Web.Script.Serialization;
+
+namespace PecomApiDemo
+{
+  class Program
+  {
+    static void Main(string[] args)
+    {
+      var login = "user";
+      var key = "11111111111111111122222222222222";
+
+      /*
+       * Создание объекта запроса
+       */
+      var httpRequest = (HttpWebRequest)WebRequest.Create("https://kabinet.pecom.ru/api/v1/cargos/status/");
+
+      /*
+       * Настройка параметров запроса
+       */
+      // Кодировка и тип содержимого
+      httpRequest.ContentType = "application/json; charset=utf-8";
+
+      // Тип запроса
+      httpRequest.Method = WebRequestMethods.Http.Post;
+
+      // Включение поддержки сжатия
+      httpRequest.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+
+      /* 
+       * У реализации BASIC-авторизации в .NET есть особенности:
+       * http://blog.cracca.com/2008/02/welcome.html
+       * http://devproj20.blogspot.com/2008/02/assigning-basic-authorization-http.html               
+       * Из-за этого необходимо указать заголовок вручную
+       */
+      byte[] credentialBuffer = new UTF8Encoding().GetBytes(login + ":" + key);
+      httpRequest.Headers["Authorization"] = "Basic " + Convert.ToBase64String(credentialBuffer);
+
+      try
+      {
+        /*
+         * Подготовка содержимого запроса
+         */
+        using (var sw = new StreamWriter(httpRequest.GetRequestStream()))
+        {
+          /*           
+           * Для сериализации/десериализации из/в JSON удобно использовать Json.NET
+           * http://james.newtonking.com/projects/json-net.aspx (или в виде NuGet-пакета)
+           * Эта библиотека поддерживает преобразование дат в ISO 8601
+           * Стандартные классы JavaScriptSerializer и DataContractSerializer 
+           * эту возможность не поддерживают
+           */
+          var serializer = new JavaScriptSerializer();
+          var jsonData = new
+          {
+            cargoCodes = new string[] {
+              "780339690775",
+              "999932277461",
+              "772193116238"
+            }
+          };
+          string json = serializer.Serialize(jsonData);
+          sw.Write(json);
+        }
+
+        /*
+         * Выполнение запроса
+         */
+        var httpResponse = (HttpWebResponse)httpRequest.GetResponse();
+
+        /*
+         * Получение результата запроса
+         */
+        using (var sr = new StreamReader(httpResponse.GetResponseStream()))
+        {
+          var responseText = sr.ReadToEnd();
+          Console.WriteLine(responseText);
+        }
+      }
+      catch (WebException ex)
+      {
+        using (StreamReader sr = new StreamReader(ex.Response.GetResponseStream()))
+        {
+          var responseText = sr.ReadToEnd();
+          Console.WriteLine(responseText);
+        }
+      }
+    }
+  }
+}
+</pre>
+
+<h3 id="toc-usage-php">Минимальный пример на PHP</h3>
+
+<p>В результате выполнения кода, приведённого ниже, будет осуществлён запрос статусов грузов и выведен результат в виде десериализированного PHP-объекта. Важно отметить, что в примере осуществляется проверка сертификата сервера с помощью файла сертификатов из комплекта <a href="/api/v1#usage-phpsdk">PHP SDK</a> </p>
+
+<div class="warning">
+	<p><strong>Внимание</strong>:</p>
+	<p>Пример кода приведён для иллюстрации, в случае использования PHP для доступа к API, рекомендуется использовать <a href="/api/v1#toc-usage-phpsdk">PHP SDK</a></p>
+</div>
+
+<pre class="prettyprint">
+/*
+
+Минимальный пример работы с API Личного кабинета клиента «ПЭК» для PHP
+	
+Требования:
+  - PHP 5.2 и выше
+  - Необходимые PHP-расширения:
+     - curl (<a href="http://php.net/manual/ru/book.curl.php">http://php.net/manual/ru/book.curl.php</a>)
+     - json (<a href="http://php.net/manual/ru/book.json.php">http://php.net/manual/ru/book.json.php</a>)
+
+*/
+
+// Инициализация HTTP-клиента
+$ch = curl_init();
+
+// Настройки HTTP-клиента
+curl_setopt_array($ch, array(
+	CURLOPT_RETURNTRANSFER => TRUE,
+	CURLOPT_POST => TRUE,
+	CURLOPT_SSL_VERIFYPEER => TRUE,
+	CURLOPT_SSL_VERIFYHOST => 2,
+	CURLOPT_CAINFO => dirname(__FILE__) . '/cacert-kabinet_pecom_ru.pem',
+	CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
+	CURLOPT_ENCODING => 'gzip',
+	CURLOPT_USERPWD => 'user:FA218354B83DB72D3261FA80BA309D5454ADC',
+	CURLOPT_HTTPHEADER => array(
+		'Content-Type: application/json; charset=utf-8'	
+	)
+));
+
+// Данные для запроса
+$request_data = array(
+	'cargoCodes' => array(
+		'780339690775',
+		'999932277461',
+		'772193116238'
+	));
+
+// Параметры конкретного запроса к API	
+curl_setopt_array($ch, array( 
+	CURLOPT_URL => 'https://kabinet.pecom.ru/api/v1/cargos/status/',
+	CURLOPT_POSTFIELDS => json_encode($request_data),
+));
+
+// Выполнение запроса
+$result = curl_exec($ch);
+
+// Проверка на наличие ошибки
+if (curl_errno($ch))
+{
+	// Вывод сообщения об ошибке
+	echo 'Ошибка: ' . curl_error($ch);
+}
+else
+{
+	// Вывод результата в виде строки
+	var_dump($result);
+
+	// Вывод результатов в виде объекта
+	$result_json = json_decode($result);
+	var_dump($result_json);		
+}
+
+// Освобождение ресурсов
+curl_close($ch); 
+</pre>
+
+<h3 id="toc-usage-phpsdk">PHP SDK</h3>
+<p>PHP SDK представляет собой класс, созданный чтобы упростить осуществление запросов к API из PHP-приложений и сайтов.</p>
+
+<p>Состав архива:</p>
+
+<ul>
+	<li><code>cacert-kabinet_pecom_ru.pem</code>&nbsp;&mdash; файл сертификатов</li>
+	<li><code>example.php</code>&nbsp;&mdash; пример использования</li>
+	<li><code>pecom_kabinet.php</code>&nbsp;&mdash; файл класса, реализующего SDK</li>
+	<li><code>README</code>&nbsp;&mdash; описание, история изменений</li>
+</ul>
+
+<p><a href="UserData/Api/php-sdk-1.2.zip?v=134329666357294873">Скачать версию 1.2 от 10.07.2012 (.zip, 135Кб)</a></p>
+<p><a href="UserData/Api/cacert-kabinet_pecom_ru.zip?v=134329666357294873">Скачать файл PEM (цепочка сертификатов) (.zip, 6Кб)</a></p>
+
+<h4 id="toc-usage-phpsdk-example">Пример использования</h4>
+<pre class="prettyprint">
+// Подключение файла с классом
+require_once('pecom_kabinet.php');
+
+// Создание экземпляра класса
+$sdk = new PecomKabinet('user', 'FA218354B83DB72D3261FA80BA309D5454ADC');
+
+// Вызов метода
+$result = $sdk->call('cargos', 'status', 
+	array('cargoCodes' => array(
+		'780339690775',
+		'999932277461',
+		'772193116238'
+	)
+));
+	
+// Вывод результата
+var_dump($result);
+	
+// Освобождение ресурсов
+$sdk->close();
+</pre>
+
+<h4 id="toc-usage-phpsdk-example-proxy">Подключение через proxy-сервер</h4>
+<pre class="prettyprint">
+// Подключение файла с классом
+require_once('pecom_kabinet.php');
+
+// Создание экземпляра класса
+$sdk = new PecomKabinet('user', 'FA218354B83DB72D3261FA80BA309D5454ADC', array(
+		// Параметры proxy-серерва
+		CURLOPT_PROXY => '127.0.0.1',
+		CURLOPT_PROXYPORT => 8888,
+		CURLOPT_PROXYTYPE => 'HTTP'
+));
+
+// Вызов метода
+$result = $sdk->call('cargos', 'status', 
+	array('cargoCodes' => array(
+		'780339690775',
+		'999932277461',
+		'772193116238'
+	)
+));
+	
+// Вывод результата
+var_dump($result);
+	
+// Освобождение ресурсов
+$sdk->close();
+</pre>
+
+
+	</div><!-- /.b-doc-content -->	
+
+                </div>
+            </div>
+            
+            
+            
+        </div>
+    </section>
+
+
+    <!--
+		Page-level JS init
+	-->
+    <script type="text/javascript">
+        /* <![CDATA[ */
+        (function($) { 
+            $(function () {
+                
+	prettyPrint();
+	var anchors = document.querySelectorAll('.js_comments');
+    anchors.forEach(function(anchor) {
+        anchor.addEventListener('click',
+            function(e) {
+                e.preventDefault();
+
+                var blockId = anchor.getAttribute('href');
+
+                document.querySelector(blockId).scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            });
+    });
+	
+	$('.changelog-more').click(function(){
+		$('#changelog-more-panel, .changelog-more').toggle();
+		return false;
+	});
+		
+		
+                });	
+        })(jQuery);
+        /* ]]> */
+    </script>
+
+    
+
+<script type="text/javascript">
+    (function ($) {
+        $('.select').chosen({
+            disable_search: false,
+            inherit_select_classes: true,
+            width: '100%',
+            no_results_text: "Не найдено:",
+            max_selected_options: 3,
+            placeholder_text: "Выберите значение",
+            placeholder_text_multiple: "Выберите значение"
+        });
+    })(jQuery);
+</script>
+
+<!-- Matomo Tag Manager -->
+<script>
+  var _mtm = window._mtm = window._mtm || [];
+  _mtm.push({'mtm.startTime': (new Date().getTime()), 'event': 'mtm.Start'});
+  (function() {
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.async=true; g.src='http://178.130.58.239/js/container_2J6IpJJf.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Tag Manager -->
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+   m[i].l=1*new Date();
+   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+   ym(78386, "init", {
+        clickmap:true,
+        trackLinks:true,
+        accurateTrackBounce:true,
+        webvisor:true,
+        trackHash:true,
+        ecommerce:"dataLayer"
+   });
+</script>
+<noscript>
+    <div>
+        <img src="https://mc.yandex.ru/watch/78386" style="position: absolute; left: -9999px;" alt="" />
+    </div>
+</noscript>
+<!-- /Yandex.Metrika counter -->
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+   m[i].l=1*new Date();
+   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+   ym(99273454, "init", {
+        clickmap:true,
+        trackLinks:true,
+        accurateTrackBounce:true,
+        ecommerce:"dataLayer"
+   });
+</script>
+<noscript>
+    <div>
+        <img src="https://mc.yandex.ru/watch/99273454" style="position: absolute; left: -9999px;" alt="" />
+    </div>
+</noscript>
+<!-- /Yandex.Metrika counter -->
+
+
+
+
+
+
+
+<script type="text/javascript">
+(function(e,t){var n=e.amplitude||{_q:[],_iq:{}};var r=t.createElement("script")
+;r.type="text/javascript"
+;r.integrity="sha384-a+mq7tiLwde/00Oc7avFHLn/ttGfdAq1rtZc7u97SEzIiyYoT2IsOKWCkAThwdEu"
+;r.crossOrigin="anonymous";r.async=true
+;r.src="https://cdn.amplitude.com/libs/amplitude-5.3.0-min.gz.js"
+;r.onload=function(){if(!e.amplitude.runQueuedFunctions){
+console.log("[Amplitude] Error: could not load SDK")}}
+;var i=t.getElementsByTagName("script")[0];i.parentNode.insertBefore(r,i)
+;function s(e,t){e.prototype[t]=function(){
+this._q.push([t].concat(Array.prototype.slice.call(arguments,0)));return this}}
+var o=function(){this._q=[];return this}
+;var a=["add","append","clearAll","prepend","set","setOnce","unset"]
+;for(var u=0;u<a.length;u++){s(o,a[u])}n.Identify=o;var c=function(){this._q=[]
+;return this}
+;var l=["setProductId","setQuantity","setPrice","setRevenueType","setEventProperties"]
+;for(var p=0;p<l.length;p++){s(c,l[p])}n.Revenue=c
+;var d=["init","logEvent","logRevenue","setUserId","setUserProperties","setOptOut","setVersionName","setDomain","setDeviceId","setGlobalUserProperties","identify","clearUserProperties","setGroup","logRevenueV2","regenerateDeviceId","groupIdentify","onInit","logEventWithTimestamp","logEventWithGroups","setSessionId","resetSessionId"]
+;function v(e){function t(t){e[t]=function(){
+e._q.push([t].concat(Array.prototype.slice.call(arguments,0)))}}
+for(var n=0;n<d.length;n++){t(d[n])}}v(n);n.getInstance=function(e){
+e=(!e||e.length===0?"$default_instance":e).toLowerCase()
+;if(!n._iq.hasOwnProperty(e)){n._iq[e]={_q:[]};v(n._iq[e])}return n._iq[e]}
+;e.amplitude=n})(window,document);
+
+var project = amplitude.getInstance();
+project.init('4f4a8e9a1bca1ab33a7c06397fde723f', null, { saveEvents: true, includeUtm: true, includeReferrer: true });
+var identify = new amplitude.Identify();
+var eventProperties = {};
+
+
+</script>
+
+
+
+
+    <!-- 
+
+Version: 1.0.9743.559, hash: 
+-->
+
+    
+<div class="widjet-container">
+    
+    <div class="widjet text-center">
+        <a href="http://pecom.ru/contacts/list-filials/" target="_blank">Список филиалов
+            <i class="icon-point"></i>
+        </a>
+    </div>
+    
+</div>
+
+
+<!-- Онлайн-чат -->
+<script type='text/javascript'>
+    window['liv'+'eT'+'ex'] = true,
+        window['li'+'v'+'eTex'+'ID'] = 151733,
+        window['liveTe'+'x'+'_ob'+'j'+'ect'] = true;
+    (function() {
+        var t = document['creat'+'eElem'+'e'+'nt']('script');
+        t.type ='text/javascript';
+        t.async = true;
+        t.src = '//cs15.'+'liv'+'etex.'+'ru/js/client.'+'js';
+        var c = document['getE'+'le'+'me'+'ntsByT'+'agNam'+'e']('script')[0];
+        if ( c ) c['pare'+'ntNod'+'e']['inse'+'rtBefo'+'re'](t, c);
+        else document['docum'+'en'+'tE'+'lement']['f'+'irst'+'C'+'h'+'ild']['a'+'p'+'p'+'end'+'Chi'+'l'+'d'](t);
+    })();
+</script>
+
+<script type="text/javascript">
+    var LiveTex = {
+        onLiveTexReady: function() {
+            LiveTex.hideLabel();
+        }
+    };
+</script>
+
+<script type="text/javascript">
+    (function($) {
+        $("#slideshow > div:gt(0)").hide();
+
+        setInterval(function() {
+                $('#slideshow > div:first')
+                    .fadeOut(1000)
+                    .next()
+                    .fadeIn(1000)
+                    .end()
+                    .appendTo('#slideshow');
+            },
+            5000);
+    })(jQuery);
+</script>
+
+<!-- Онлайн-чат -->
+
+
+</body>
+
+</html>
+<!--
+	Page generation time: 143 ms
+-->

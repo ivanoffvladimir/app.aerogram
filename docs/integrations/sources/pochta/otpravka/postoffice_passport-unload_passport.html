@@ -1,0 +1,93 @@
+<article class="article"><h3>Выгрузка из паспорта ОПС</h3>
+    <p>Выгружает данные ОПС, ПВЗ, Почтоматов из Паспорта ОПС.</p>
+    <p>Генерирует и возвращает zip архив с текстовым файлом TYPEdd_MMMM_yyyy.txt, где:</p>
+    <ul>
+        <li>TYPE - <a href="#/enums-passport-object-types" target="_blank">тип объекта</a></li>
+        <li>dd_MMMM_yyyy - время создания архива</li>
+    </ul>
+
+    Введите <a href="#/authorization-token" target="_blank">токен авторизации приложения</a>, <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a> и другие параметры, тогда значения заголовков и параметров будут сгенерированы автоматически.<br/>
+    <br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Токен авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="token" type="text" name="token" ng-model="token" value="" class="input__field" size="51" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%">Ключ авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="key" type="text" name="key" ng-model="key" value="" class="input__field" size="51" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>type</b><br />Тип объекта</td>
+            <td><dropdown ng-model="urlParams.type.value" name="type" list="objectTypes"
+                          text-property="text" model-property="value" ng-change="changeUrl()"></dropdown></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Параметры запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Локальный URL</td>
+            <td><b>/1.0/unloading-passport/zip<span ng-show="urlParamsString">{{urlParamsString}}</span></b></td>
+        </tr>
+        <tr>
+            <td width="25%">Тип</td>
+            <td><b>GET</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Заголовки запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="30%"><b>Authorization</b></td>
+            <td><span ng-show="token"><b>AccessToken {{ token }}</b></span></td>
+        </tr>
+        <tr>
+            <td width="30%"><b>X-User-Authorization</b></td>
+            <td><span ng-show="key"><b>Basic {{ key }}</b></span></td>
+        </tr>
+        <tr>
+            <td><b>Accept</b></td>
+            <td><b>application/octet-stream</b></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a href="" ng-click="turn('examples')"><h3>Примеры кода для работы с API</h3></a>
+    <div ng-show="examples && examples.enable">
+        <a href="" ng-click="turn('python')"><h4>Python (3 версия)</h4></a>
+        <div ng-show="python && python.enable">
+            Необходимые модули:<br/>
+            <table>
+                <thead>
+                <tr>
+                    <th><b>Модуль</b></th>
+                    <th><b>Описание</b></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+                        requests
+                    </td>
+                    <td>
+                        <a href="https://requests.readthedocs.io" target="_blank">Документация</a> и <a href="https://requests.readthedocs.io/en/master/user/install" target="_blank">Инструкции по установке</a>
+                    </td>
+                </tr>
+
+                </tbody>
+            </table>
+            <ul>
+                <li><a href="#/postoffice_passport-unload_passport_py" target="_blank">Пример кода</a></li>
+                <li><a href="#/postoffice_passport-unload_passport_py_custom" target="_blank">Генератор кода</a></li>
+            </ul>
+        </div>
+    </div>
+</article>

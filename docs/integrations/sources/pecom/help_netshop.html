@@ -1,0 +1,632 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" class="m-standalone">
+<head><title>
+	
+	
+	Прямые паллетные перевозки
+ 
+	 — Документация по API
+	
+ — Личный кабинет клиента «ПЭК»
+</title>
+
+<meta charset="utf-8" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<base href="https://kabinet.pecom.ru/" />
+<link rel="shortcut icon" type="image/x-icon" href="https://kabinet.pecom.ru/favicon.ico" />
+<link href="/Content/css/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+
+<link rel="stylesheet" type="text/css" href="/assets.axd/SiteCss/303912915/" media="all"/>
+<script type="text/javascript" src="/assets.axd/SiteJs/-955027702/"></script>
+<script type="text/javascript" src="/assets.axd/TimeManagementJs/-1531748568/"></script>
+
+
+
+<!--[if lt IE 9]>
+<script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+<script src="/js/getComputedStyle.js"></script>
+<link href="/css/ie.css" rel="stylesheet">
+<![endif]-->
+
+	<link rel="stylesheet" type="text/css" href="/assets.axd/ApiSiteCss/1033975754/" media="all"/>  
+	<script type="text/javascript" src="/assets.axd/ApiSiteJs/-1237400396/"></script>
+
+    <!-- Перенесено из Combress, дабы предотвратить зацикленность вызывов (если баннер - это страница текущего портала) -->
+    <script src="../../Content/JavaScript/pecom/jquery.pecom_banners.js"></script>
+</head>
+<body class="m-standalone">
+    
+
+
+
+<!-- Modal with Feedback -->
+
+
+
+    <div id="spinner-front" style="color: #E4003C">
+        <img src="Content/Images/ajax-loader-indicator.gif"/><br>
+        Подождите, операция выполняется...
+    </div>
+    <div id="spinner-back"></div>
+
+    <input id="header_banner_id" type="hidden" value=""/>
+    <input id="main_page_banner_id" type="hidden" value=""/>
+
+    
+
+     <div class="row" style="background-color: white;">
+        <div class="container">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-md-14" id="head-banner-content" style="max-height:86px; overflow: auto;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <header class="header">
+        <div class="container">
+            <div class="row">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-xs-3">
+                            
+                            <div class="logo">
+                                <a href="/" title="Перейти на главную страницу">
+                                    <img src="/Content/pink/img/logo.png" alt="Логотип ПЭК" />
+                                </a>
+                                <a href="https://pecom.ru/">Перейти на сайт</a>
+                            </div>
+                            
+                        </div>
+                        <div class="col-xs-11">
+                            <div class="top-right-menu">
+                                <ul>
+
+                                    <li class="news with-badge">
+                                        
+                                    </li>
+                                    <li class="status">
+                                        
+                                    </li>
+
+                                    <li class="text-center">
+                                          
+                                    </li>
+                                    
+<li class="login-container">
+    
+    <div>
+        
+        <div class="guest pct pct-login">
+            <a href="/login">Войти</a>
+        </div>
+        
+        <div class="guest pct" style="padding-left: 15px;">
+            <a href="/register">Получить доступ
+            <br />
+                в личный кабинет</a>
+        </div>
+        
+    </div>
+
+    
+    
+</li>
+
+
+
+
+
+
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Модальное окно айфрейма подключения к программе лояльности -->
+    <div class="modal fade" id="loyalty-program-modal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" aria-labelledby="loyalty-program-label">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header text-center">
+                    <h3>Программа лояльности</h3>
+                    <button type="button" class="redcross" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true" id="close-loyalty-program-modal">×</span>
+                    </button>
+                </div>
+                <div id="loyalty-program-iframe" class="modal-body text-center">
+                    <div class="row text-center">
+                        <img alt="loader" src="/Content/Images/ajax-loader-indicator.gif" />
+                    </div>
+                    <iframe src="" style="width: 100%; height: 750px; overflow: hidden; background: transparent; overflow-x: hidden; overflow-y: hidden; display: none;"
+                        frameborder="0" allowtransparency="true" seamless="seamless" scrolling="no"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    
+<div class="container">
+    <div class="row">
+        <div class="col-xs-14">
+            <div class="alert alert-warning" style="margin: 0;">
+                <p>
+                    <strong>Личный кабинет</strong> позволяет:
+		<strong>анализировать</strong> информацию об&nbsp;отправленном и&nbsp;полученном грузе;
+		<strong>контролировать</strong> расходование средств на&nbsp;перевозки;
+		<strong>формировать</strong> заявки на&nbsp;забор груза.
+                
+                <a href="/register" class="b-link-register label label-success">Получить доступ</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <section class="main">
+        <div class="container">
+            <div class="row">
+                <div class="col-xs-14">
+                    
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-14">
+                    
+	<div class="b-doc-content">
+		
+			<div class="navigation">			
+				<a href="/api/v1">&larr;&nbsp;назад</a>
+			</div>
+		
+<h1>Группа <code>/netshop/</code>&nbsp;&mdash; прямые паллетные перевозки</h1>
+
+<h2 id="toc-method-submit">Метод <code>/netshop/submit/</code>&nbsp;&mdash; оформление заявки на прямые паллетные перевозки</h2>
+
+<h3>Доступ</h3>
+<ul>
+	<li>Зарегистрированные пользователи</li>
+</ul>
+
+<h3>Комментарии</h3>
+<ul>
+	
+	<li>Коды грузов и штрих-коды, возвращаемые этим методом являются <strong>предварительными</strong> и могут изменится при фактической приёмке груза</li>
+    <li>Для грузов нужно указывать код адреса получателя из
+        <a href="/api/v1/help/netshop#toc-method-listreceiveraddresses">справочника</a> адресов получателей
+        в поле <code>cargos[].receiver.receiverAddrCode</code>.
+    </li>
+
+</ul>
+   
+<h3>Формат запроса</h3>
+<pre class="prettyprint">
+{
+  "sender": { // Данные об отправителе [Object]
+    "inn": "7716542310", // ИНН [String], поле необязательно
+    "city": "Москва Восток", // Город [City], для этого типа заявки равно "Москва Восток"
+    "title": "Наименование организации", // Наименование отправителя [String]
+    "phone": "22-33-44", // Телефон [String]
+    "identityCard":{ // Документ удостоверяющий личность  [Object]
+        "type": 10, // тип документа [Number] (1 - ПАСПОРТ ИНОСТРАННОГО ГРАЖДАНИНА,
+                    // 2 - РАЗРЕШЕННИЕ НА ВРЕМЕННОЕ ПРОЖИВАНИЕ, 3 - ВОДИТЕЛЬСКОЕ УДОСТОВЕРЕНИЕ,
+                    // 4 - ВИД НА ЖИТЕЛЬСТВО, 5 - ЗАГРАНИЧНЫЙ ПАСПОРТ, 6 - УДОСТОВЕРЕНИЕ БЕЖЕНЦА,
+                    // 7 - ВРЕМЕННОЕ УДОСТОВЕРЕНИЕ ЛИЧНОСТИ ГРАЖДАНИНА РФ, 
+                    // 8 - СВИДЕТЕЛЬСТВО О ПРЕДОСТАВЛЕНИИ ВРЕМЕННОГО УБЕЖИЩА НА ТЕРРИТОРИИ РФ,
+                    // 9 - ПАСПОРТ МОРЯКА, 10 - ПАСПОРТ ГРАЖДАНИНА РФ, 
+                    // 11 - СВИДЕТЕЛЬСТВО О РАССМОТРЕНИИ ХОДАТАЙСТВА О ПРИЗНАНИИ БЕЖЕНЦЕМ,
+                    // 12 - ВОЕННЫЙ  БИЛЕТ)
+        "series":"1234", // Серия [String]
+        "number":"56789", // Номер [String]
+        "date":"1985-01-01", // Дата [DateTime]
+        "note":"" // служебное поле для других документов [String]
+        }
+  },
+  "pickup": { // Данные об услуге забора [Object]
+    "enabled": true, // Необходима услуга забора [Boolean]
+    "payer": { // Оплата забора груза [Object]; поле обязательно, если pickup.enabled = true
+      "type": 3, // Плательщик (1 - отправитель, 2 - получатель, 3 - третье лицо) [Number]
+      "other": { // Данные о плательщике-третьем лице [Object] // поле обязательно если enabled == true и type == 3
+        "inn": "7716542310", // ИНН, поле необязательно [String]
+        "title": "Тестовая компания", // Наименование [String]
+        "phone": "22-33-44", // Телефон [String]
+        "identityCard":{ // Документ удостоверяющий личность  [Object]
+            "type": 10, // тип документа [Number] (1 - ПАСПОРТ ИНОСТРАННОГО ГРАЖДАНИНА,
+                        // 2 - РАЗРЕШЕННИЕ НА ВРЕМЕННОЕ ПРОЖИВАНИЕ, 3 - ВОДИТЕЛЬСКОЕ УДОСТОВЕРЕНИЕ,
+                        // 4 - ВИД НА ЖИТЕЛЬСТВО, 5 - ЗАГРАНИЧНЫЙ ПАСПОРТ, 6 - УДОСТОВЕРЕНИЕ БЕЖЕНЦА,
+                        // 7 - ВРЕМЕННОЕ УДОСТОВЕРЕНИЕ ЛИЧНОСТИ ГРАЖДАНИНА РФ, 
+                        // 8 - СВИДЕТЕЛЬСТВО О ПРЕДОСТАВЛЕНИИ ВРЕМЕННОГО УБЕЖИЩА НА ТЕРРИТОРИИ РФ,
+                        // 9 - ПАСПОРТ МОРЯКА, 10 - ПАСПОРТ ГРАЖДАНИНА РФ, 
+                        // 11 - СВИДЕТЕЛЬСТВО О РАССМОТРЕНИИ ХОДАТАЙСТВА О ПРИЗНАНИИ БЕЖЕНЦЕМ,
+                        // 12 - ВОЕННЫЙ  БИЛЕТ)
+            "series":"1234", // Серия [String]
+            "number":"56789", // Номер [String]
+            "date":"1985-01-01", // Дата [DateTime]
+            "note":"" // служебное поле для других документов [String]
+            }
+      }
+    },
+    "weight": 2.5, // Вес груза, кг [Number]
+    "volume": 0.1, // Объём груза, м3 [Number]
+    "address": "ул. Боровиковского, 17, строение 5", // Адрес забора [String]
+    "workTimeFrom": "09:00", // Время начала рабочего дня [Time], поле необязательно
+    "workTimeTo": "18:00", // Время окончания рабочего дня [Time], поле необязательно
+    "lunchBreakFrom": "14:00", // Время начала обеденного перерыва [Time], поле необязательно
+    "lunchBreakTo": "15:00", // Время окончания обеденного перерыва [Time], поле необязательно
+    "person": "Иванов Иван Иванович", // Контактное лицо [String]
+    "phone": "22-33-44", // Телефон [String]
+    "comment": "вход со второго этажа", // Комментарий [String]
+    "applicationDate": "2015-01-25" // Дата исполнения заявки [Date]
+  },
+  "cargos": [ // Данные о грузах [Array]
+  { // Данные об одном грузе [Object]
+    "common": { // Общие данные о грузе [Object]
+      "accompanyingDocuments": true, // Есть комплект сопроводительных документов [Boolean]
+      "accompanyingDocumentsNumbers": "№34545-БВ, №2312-БВ", // Номера сопроводительных
+                                                             // документов [String], 
+                                                             // поле обязательно, если 
+                                                             // "accompanyingDocuments":true 
+      "accompanyingDocumentsSum": 124.02, // Сумма сопроводительных документов [Number],
+                                          // поле обязательно, если "accompanyingDocuments":true 
+      "palletesCount": 1, // Количество паллет [Number]
+      "decription": "Мебель", // Описание груза [String]
+      "orderNumber": "№23434-АБ", // Номер заказа клиента [String], поле необязательно
+      "avisationDateTime": "2013-04-02", // Дата авизации [DateTime], поле необязательно
+    },
+    "receiver": {
+      "receiverAddrCode": "cf7a9c60-8261-4810-a172-c2ac653c55b1#47ab5539-f327-443d-a7d5-c69ac7af8468", // код адреса получателя [String]
+      "phone": "88-99-00", // телефон получателя, поле необязательно [String]
+      "inn": "7716542310", // ИНН получателя, поле необязательно [String]
+      "identityCard":{ // Документ удостоверяющий личность  [Object]
+        "type": 10, // тип документа [Number] (1 - ПАСПОРТ ИНОСТРАННОГО ГРАЖДАНИНА,
+                    // 2 - РАЗРЕШЕННИЕ НА ВРЕМЕННОЕ ПРОЖИВАНИЕ, 3 - ВОДИТЕЛЬСКОЕ УДОСТОВЕРЕНИЕ,
+                    // 4 - ВИД НА ЖИТЕЛЬСТВО, 5 - ЗАГРАНИЧНЫЙ ПАСПОРТ, 6 - УДОСТОВЕРЕНИЕ БЕЖЕНЦА,
+                    // 7 - ВРЕМЕННОЕ УДОСТОВЕРЕНИЕ ЛИЧНОСТИ ГРАЖДАНИНА РФ, 
+                    // 8 - СВИДЕТЕЛЬСТВО О ПРЕДОСТАВЛЕНИИ ВРЕМЕННОГО УБЕЖИЩА НА ТЕРРИТОРИИ РФ,
+                    // 9 - ПАСПОРТ МОРЯКА, 10 - ПАСПОРТ ГРАЖДАНИНА РФ, 
+                    // 11 - СВИДЕТЕЛЬСТВО О РАССМОТРЕНИИ ХОДАТАЙСТВА О ПРИЗНАНИИ БЕЖЕНЦЕМ,
+                    // 12 - ВОЕННЫЙ  БИЛЕТ)
+        "series":"1234", // Серия [String]
+        "number":"56789", // Номер [String]
+        "date":"1985-01-01", // Дата [DateTime]
+        "note":"" // служебное поле для других документов [String]
+        }
+    },
+    "services": { // Услуги [Object]
+      "palletTransporting": { // Паллетная перевозка, поле услуга обязательна [Object]
+        "payer": { // Плательщик [Object] (детальное описание см. выше, для поля pickup.payer)
+          "type": 1,
+          "other": null
+        }
+      },
+      "insurance": { // Страхование [Object]
+        "enabled": true, // Заказана ли услуга [Boolean]
+        "payer": { // Плательщик [Object] (детальное описание см. выше)
+          "type": 2,
+          "other": null
+        },
+        "cost": 2000.05 // Оценочная стоимость, руб [Number], поле обязательно, если enabled == true
+      },
+      "documentsReturningEnabled": false // Заказана ли услуга возврата документов [Boolean]
+    }
+  },
+
+  { // Данные об одном грузе [Object]
+    ...
+  },
+
+  ...
+
+  ] // cargos
+}
+</pre>
+ 
+<h3>Формат ответа</h3>
+<pre class="prettyprint">
+{
+  "documentId": 136, // Номер заявки [Number]
+  "cargos":[ // Информация о принятии данных грузов, описанных в заявках [Array]
+    { // Объект с информацией о приёме одной заявки [Object]
+       "cargoCode": "МВПТЗВА-1/1603", // Код груза [String]
+       "barсode": "1234567890123" // Значение для штрих-кода в формате EAN-13 [String]
+       "orderNumber": "12345", // Номер заказа [String]
+       "stockTitle": "МВ11", // Наименование склада приема груза [String], поле необязательно
+       "positions": [ // Информация о местах [Array]
+          { // Информация об одном месте [Object]
+            "barcode": "12345678901230001" // Значение для штрих-кода 
+                                           // в формате CODE-128/EAN-128 [String]
+          },
+          ...
+       ]	
+    },
+    ...
+  ]
+}
+</pre>
+
+
+<h2 id="toc-method-listreceiveraddresses">Метод <code>/netshop/listreceiveraddresses/</code>&nbsp;&mdash; справочник адресов получателей</h2>
+
+<h3>Доступ</h3>
+<ul>
+	<li>Зарегистрированные пользователи</li>
+</ul>
+
+<h3>Комментарии</h3>
+<ul>
+    <li>В заявке на прямую паллетную перевозку для грузов нужно указывать коды адресов получателей из справочника. С помощью данного метода можно получить этот справочник</li>
+</ul>
+   
+<h3>Формат запроса</h3>
+<pre class="prettyprint">
+{
+}
+</pre>
+
+<h3>Формат ответа</h3>
+<pre class="prettyprint">
+[ // Данные о получателях и их адресах [Array]
+  { // Данные о получателе [Object]
+    "receiver": "ООО \"Вектор\"", // Название получателя [String]
+    "inn": "7716542310", // ИНН получателя [String]
+    "stores": [ // Данные о адресах получателя [Array]
+      { // Данные об одном из адресов получателя [Object]
+        "code": "36731308-5e4d-40f4-b5d7-4c5b6058f7b0#f10e30be-d641-4439-b97a-c3b7c0ba4643", // Код адреса [String]
+        "branch": "Москва Восток", // Филиал [String]
+        "address": "ул. космонавта, 4", // Адрес [String]
+        "phone": "12-99-00" // Контактный телефон [String]
+      },
+
+      { // Данные об одном из адресов получателя [Object]
+        ...
+      },
+
+      ...
+
+    ] // stores
+  },
+
+  { // Данные о получателе [Object]
+    ...
+  },
+    ...
+]
+</pre>
+
+
+	</div><!-- /.b-doc-content -->	
+
+                </div>
+            </div>
+            
+            
+            
+        </div>
+    </section>
+
+
+    <!--
+		Page-level JS init
+	-->
+    <script type="text/javascript">
+        /* <![CDATA[ */
+        (function($) { 
+            $(function () {
+                
+	prettyPrint();
+	var anchors = document.querySelectorAll('.js_comments');
+    anchors.forEach(function(anchor) {
+        anchor.addEventListener('click',
+            function(e) {
+                e.preventDefault();
+
+                var blockId = anchor.getAttribute('href');
+
+                document.querySelector(blockId).scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            });
+    });
+			
+		
+                });	
+        })(jQuery);
+        /* ]]> */
+    </script>
+
+    
+
+<script type="text/javascript">
+    (function ($) {
+        $('.select').chosen({
+            disable_search: false,
+            inherit_select_classes: true,
+            width: '100%',
+            no_results_text: "Не найдено:",
+            max_selected_options: 3,
+            placeholder_text: "Выберите значение",
+            placeholder_text_multiple: "Выберите значение"
+        });
+    })(jQuery);
+</script>
+
+<!-- Matomo Tag Manager -->
+<script>
+  var _mtm = window._mtm = window._mtm || [];
+  _mtm.push({'mtm.startTime': (new Date().getTime()), 'event': 'mtm.Start'});
+  (function() {
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.async=true; g.src='http://178.130.58.239/js/container_2J6IpJJf.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Tag Manager -->
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+   m[i].l=1*new Date();
+   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+   ym(78386, "init", {
+        clickmap:true,
+        trackLinks:true,
+        accurateTrackBounce:true,
+        webvisor:true,
+        trackHash:true,
+        ecommerce:"dataLayer"
+   });
+</script>
+<noscript>
+    <div>
+        <img src="https://mc.yandex.ru/watch/78386" style="position: absolute; left: -9999px;" alt="" />
+    </div>
+</noscript>
+<!-- /Yandex.Metrika counter -->
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+   m[i].l=1*new Date();
+   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+   ym(99273454, "init", {
+        clickmap:true,
+        trackLinks:true,
+        accurateTrackBounce:true,
+        ecommerce:"dataLayer"
+   });
+</script>
+<noscript>
+    <div>
+        <img src="https://mc.yandex.ru/watch/99273454" style="position: absolute; left: -9999px;" alt="" />
+    </div>
+</noscript>
+<!-- /Yandex.Metrika counter -->
+
+
+
+
+
+
+
+<script type="text/javascript">
+(function(e,t){var n=e.amplitude||{_q:[],_iq:{}};var r=t.createElement("script")
+;r.type="text/javascript"
+;r.integrity="sha384-a+mq7tiLwde/00Oc7avFHLn/ttGfdAq1rtZc7u97SEzIiyYoT2IsOKWCkAThwdEu"
+;r.crossOrigin="anonymous";r.async=true
+;r.src="https://cdn.amplitude.com/libs/amplitude-5.3.0-min.gz.js"
+;r.onload=function(){if(!e.amplitude.runQueuedFunctions){
+console.log("[Amplitude] Error: could not load SDK")}}
+;var i=t.getElementsByTagName("script")[0];i.parentNode.insertBefore(r,i)
+;function s(e,t){e.prototype[t]=function(){
+this._q.push([t].concat(Array.prototype.slice.call(arguments,0)));return this}}
+var o=function(){this._q=[];return this}
+;var a=["add","append","clearAll","prepend","set","setOnce","unset"]
+;for(var u=0;u<a.length;u++){s(o,a[u])}n.Identify=o;var c=function(){this._q=[]
+;return this}
+;var l=["setProductId","setQuantity","setPrice","setRevenueType","setEventProperties"]
+;for(var p=0;p<l.length;p++){s(c,l[p])}n.Revenue=c
+;var d=["init","logEvent","logRevenue","setUserId","setUserProperties","setOptOut","setVersionName","setDomain","setDeviceId","setGlobalUserProperties","identify","clearUserProperties","setGroup","logRevenueV2","regenerateDeviceId","groupIdentify","onInit","logEventWithTimestamp","logEventWithGroups","setSessionId","resetSessionId"]
+;function v(e){function t(t){e[t]=function(){
+e._q.push([t].concat(Array.prototype.slice.call(arguments,0)))}}
+for(var n=0;n<d.length;n++){t(d[n])}}v(n);n.getInstance=function(e){
+e=(!e||e.length===0?"$default_instance":e).toLowerCase()
+;if(!n._iq.hasOwnProperty(e)){n._iq[e]={_q:[]};v(n._iq[e])}return n._iq[e]}
+;e.amplitude=n})(window,document);
+
+var project = amplitude.getInstance();
+project.init('4f4a8e9a1bca1ab33a7c06397fde723f', null, { saveEvents: true, includeUtm: true, includeReferrer: true });
+var identify = new amplitude.Identify();
+var eventProperties = {};
+
+
+</script>
+
+
+
+
+    <!-- 
+
+Version: 1.0.9743.559, hash: 
+-->
+
+    
+<div class="widjet-container">
+    
+    <div class="widjet text-center">
+        <a href="http://pecom.ru/contacts/list-filials/" target="_blank">Список филиалов
+            <i class="icon-point"></i>
+        </a>
+    </div>
+    
+</div>
+
+
+<!-- Онлайн-чат -->
+<script type='text/javascript'>
+    window['liv'+'eT'+'ex'] = true,
+        window['li'+'v'+'eTex'+'ID'] = 151733,
+        window['liveTe'+'x'+'_ob'+'j'+'ect'] = true;
+    (function() {
+        var t = document['creat'+'eElem'+'e'+'nt']('script');
+        t.type ='text/javascript';
+        t.async = true;
+        t.src = '//cs15.'+'liv'+'etex.'+'ru/js/client.'+'js';
+        var c = document['getE'+'le'+'me'+'ntsByT'+'agNam'+'e']('script')[0];
+        if ( c ) c['pare'+'ntNod'+'e']['inse'+'rtBefo'+'re'](t, c);
+        else document['docum'+'en'+'tE'+'lement']['f'+'irst'+'C'+'h'+'ild']['a'+'p'+'p'+'end'+'Chi'+'l'+'d'](t);
+    })();
+</script>
+
+<script type="text/javascript">
+    var LiveTex = {
+        onLiveTexReady: function() {
+            LiveTex.hideLabel();
+        }
+    };
+</script>
+
+<script type="text/javascript">
+    (function($) {
+        $("#slideshow > div:gt(0)").hide();
+
+        setInterval(function() {
+                $('#slideshow > div:first')
+                    .fadeOut(1000)
+                    .next()
+                    .fadeIn(1000)
+                    .end()
+                    .appendTo('#slideshow');
+            },
+            5000);
+    })(jQuery);
+</script>
+
+<!-- Онлайн-чат -->
+
+
+</body>
+
+</html>
+<!--
+	Page generation time: 363 ms
+-->

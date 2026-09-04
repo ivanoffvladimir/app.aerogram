@@ -1,0 +1,133 @@
+<article class="article"><h3>Возврат заказов в &quot;Новые&quot;</h3>
+    Метод переводит заказы из партии в раздел Новые. Партия должна быть в статусе CREATED.<br/><br/>
+
+    Введите <a href="#/authorization-token" target="_blank">токен авторизации приложения</a> и <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a>, тогда значения заголовков будут сгенерированы автоматически.<br/>
+    <br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Токен авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="token" type="text" name="token" ng-model="token" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%">Ключ авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="key" type="text" name="key" ng-model="key" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Параметры запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Локальный URL</td>
+            <td><b>/1.0/user/backlog</b></td>
+        </tr>
+        <tr>
+            <td width="25%">Тип</td>
+            <td><b>POST</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Заголовки запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="30%"><b>Authorization</b></td>
+            <td><span ng-show="token"><b>AccessToken {{ token }}</b></span></td>
+        </tr>
+        <tr>
+            <td width="30%"><b>X-User-Authorization</b></td>
+            <td><span ng-show="key"><b>Basic {{ key }}</b></span></td>
+        </tr>
+        <tr>
+            <td><b>Content-Type</b></td>
+            <td><b>application/json;charset=UTF-8</b></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <b class="code-header">Тело запроса</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('body')">скопировать схему</a></span><br/>
+
+    <table>
+        <tbody>
+        <tr>
+            <td width="15%">
+                Структура
+            </td>
+            <td>
+                <div class="code">
+                    <div class="code-body">
+                        <div class="api-struct" tabindex="1"><span class="api-struct__description">Array[string]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>Array[string]</b> - Список внутренних идентификаторов заказов</span><span class="api-struct__tooltip-body"></span></p></div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <b class="code-header">Ответ на запрос</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('response')">скопировать схему</a></span><br/>
+
+    <table>
+        <tbody>
+        <tr>
+            <td width="15%">
+                Структура
+            </td>
+            <td>
+                <div class="code">
+                    <div class="code-body">
+                        <div class="api-struct" tabindex="1"><span class="api-struct__description">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="2"><span class="api-struct__description col-offset-1">"errors": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>errors</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Список ошибок</span></p></div>
+                        <div class="api-struct" tabindex="3"><span class="api-struct__description col-offset-2">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="4"><span class="api-struct__description col-offset-3">"error-code": "UNDEFINED"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>error-code</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body"><a href='#/enums-errors' target='_blank'>Код ошибки.</a></span></p></div>
+                        <div class="api-struct" tabindex="5"><span class="api-struct__description col-offset-3">"error-details": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>error-details</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Описание ошибки</span></p></div>
+                        <div class="api-struct" tabindex="6"><span class="api-struct__description col-offset-3">"position": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>position</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Индекс в исходном массиве</span></p></div>
+                        <div class="api-struct" tabindex="7"><span class="api-struct__description col-offset-2">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="8"><span class="api-struct__description col-offset-1">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="9"><span class="api-struct__description col-offset-1">"result-ids": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>result-ids</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Список успешно обработанных внутренних идентификаторов отправлений</span></p></div>
+                        <div class="api-struct"><span class=" col-offset-2">0</span></div>
+                        <div class="api-struct" tabindex="10"><span class="api-struct__description col-offset-1">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="11"><span class="api-struct__description">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a href="" ng-click="turn('examples')"><h3>Примеры кода для работы с API</h3></a>
+    <div ng-show="examples && examples.enable">
+        <a href="" ng-click="turn('python')"><h4>Python (3 версия)</h4></a>
+        <div ng-show="python && python.enable">
+            Необходимые модули:<br/>
+            <table>
+                <thead>
+                <tr>
+                    <th><b>Модуль</b></th>
+                    <th><b>Описание</b></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+                        requests
+                    </td>
+                    <td>
+                        <a href="https://requests.readthedocs.io" target="_blank">Документация</a> и <a href="https://requests.readthedocs.io/en/master/user/install" target="_blank">Инструкции по установке</a>
+                    </td>
+                </tr>
+
+                </tbody>
+            </table>
+            <ul>
+                <li><a href="#/orders-shipment_to_backlog_py" target="_blank">Пример кода</a></li>
+                <li><a href="#/orders-shipment_to_backlog_py_custom" target="_blank">Генератор кода</a></li>
+            </ul>
+        </div>
+    </div>
+</article>

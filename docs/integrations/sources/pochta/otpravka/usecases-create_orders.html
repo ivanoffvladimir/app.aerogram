@@ -1,0 +1,192 @@
+<h3>Создание заказов</h3>
+    Перед формированием заказа необходимо воспользоваться сервисами нормализации (адрес, телефон, ФИО).
+    Данные, прошедшие нормализацию, будут использоваться при формировании заказа.<br>
+    <h4>Предварительная нормализация данных:</h4>
+    curl -X POST --header "Content-Type: application/json"<br>
+    --header "Accept: application/json;charset=UTF-8"<br>
+    --header "Authorization: AccessToken 5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8" <br>
+    --header "X-User-Authorization: Basic bG9naW46cGFzc3dvcmQ=" <br>
+    -d "[<br>
+    &nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"id\": \"1\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"original-address\": \"г. Москва, Варшавское шоссе, 37\"<br>
+    &nbsp;&nbsp;}<br>
+    ]" "https://iplatform-extapi.test.russianpost.ru/1.0/clean/address"<br>
+    <br>
+    Response body:<br>
+    <br>
+    [<br>
+    &nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"address-type": "DEFAULT",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"house": "37",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"id": "1",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"index": "117105",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"original-address": "г. Москва, Варшавское шоссе, 37",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"place": "г Москва",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"quality-code": "GOOD",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"region": "г Москва",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"room": "1",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"street": "ш Варшавское",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"valid": true,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"validation-code": "VALIDATED"<br>
+    &nbsp;&nbsp;}<br>
+    ]<br>
+    <br>
+    curl -X POST --header "Content-Type: application/json" <br>
+    --header "Accept: application/json;charset=UTF-8" <br>
+    --header "Authorization: AccessToken 5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8" <br>
+    --header "X-User-Authorization: Basic bG9naW46cGFzc3dvcmQ=" <br>
+    -d "[<br>
+    &nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"id\": \"1\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"original-fio\": \"Иванов Иван Иванович\"<br>
+    &nbsp;&nbsp;}<br>
+    ]" "https://iplatform-extapi.test.russianpost.ru/1.0/clean/physical"<br>
+    <br>
+    Response body:<br>
+    <br>
+    [<br>
+    &nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"id": "1",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"middle-name": "Иванович",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"name": "Иван",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"original-fio": "Иванов Иван Иванович",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"quality-code": "EDITED",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"surname": "Иванов",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"valid": true<br>
+    &nbsp;&nbsp;}<br>
+    ]<br>
+    <br>
+    curl -X POST --header "Content-Type: application/json" <br>
+    --header "Accept: application/json;charset=UTF-8" <br>
+    --header "Authorization: AccessToken 5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8" <br>
+    --header "X-User-Authorization: Basic bG9naW46cGFzc3dvcmQ=" <br>
+    -d "[<br>
+    &nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"area\": \"г Москва\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"id\": \"1\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"original-phone\": \"956-20-67\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"place\": \"Москва\"<br>
+    &nbsp;&nbsp;}<br>
+    ]" "https://iplatform-extapi.test.russianpost.ru/1.0/clean/phone"<br>
+    <br>
+    Response body:<br>
+    <br>
+    [<br>
+    &nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"id": "1",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"original-phone": "956-20-67",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"phone-city-code": "495",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"phone-country-code": "7",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"phone-extension": "",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"phone-number": "9562067",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"quality-code": "GOOD_CITY",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;"valid": true<br>
+    &nbsp;&nbsp;}<br>
+    ]
+
+    <h4>Создание заказа - посылка "нестандартная", тип отправления - обычный 
+    (без объявленной ценности и наложенного платежа):</h4>
+   
+    curl -X PUT --header "Content-Type: application/json" <br>
+    --header "Accept: application/json;charset=UTF-8" <br>
+    --header "Authorization: AccessToken 5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8" <br>
+    --header "X-User-Authorization: Basic bG9naW46cGFzc3dvcmQ=" <br>
+    -d "[<br>
+    &nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"address-type-to\": \"DEFAULT\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"given-name\": \"Иван\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"house-to\": \"37\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"index-to\": 117105,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mail-category\": \"ORDINARY\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mail-direct\": 643,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mail-type\": \"POSTAL_PARCEL\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mass\": 2000,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"middle-name\": \"Иванович\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"order-num\": \"заказ1\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"place-to\": \"г Москва\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"region-to\": \"г Москва\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"street-to\": \"ш Варшавское\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"surname\": \"Иванов\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"tel-address\": 79459562067<br>
+    &nbsp;&nbsp;}<br>
+    ]" "https://iplatform-extapi.test.russianpost.ru/1.0/user/backlog"<br>
+    <br>
+    Response body:<br>
+    <br>
+    {<br>
+    &nbsp;&nbsp;"result-ids": [<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;1657696<br>
+    &nbsp;&nbsp;]<br>
+    }
+
+    <h4>Создание заказа - посылка "нестандартная", тип отправления - c объявленной ценностью:</h4>
+    Добавлено поле insr-value, изменен тип отправления (WITH_DECLARED_VALUE)<br><br>
+    curl -X PUT --header "Content-Type: application/json" <br>
+    --header "Accept: application/json;charset=UTF-8" <br>
+    --header "Authorization: AccessToken 5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8" <br>
+    --header "X-User-Authorization: Basic bG9naW46cGFzc3dvcmQ=" <br>
+    -d "[<br>
+    &nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"address-type-to\": \"DEFAULT\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"given-name\": \"Иван\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"house-to\": \"37\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"index-to\": 117105,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"insr-value\": 150000,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mail-category\": \"WITH_DECLARED_VALUE\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mail-direct\": 643,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mail-type\": \"POSTAL_PARCEL\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mass\": 2000,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"middle-name\": \"Иванович\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"order-num\": \"заказ2\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"place-to\": \"г Москва\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"region-to\": \"г Москва\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"street-to\": \"ш Варшавское\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"surname\": \"Иванов\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"tel-address\": 79459562067<br>
+    &nbsp;&nbsp;}<br>
+    ]" "https://iplatform-extapi.test.russianpost.ru/1.0/user/backlog"<br>
+    <br>
+    Response body:<br>
+    <br>
+    {<br>
+    &nbsp;&nbsp;"result-ids": [<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;1657697<br>
+    &nbsp;&nbsp;]<br>
+    }
+
+    <h4>Создание заказа - посылка "нестандартная", тип отправления - c объявленной ценностью и наложенным платежом:</h4>
+    Добавлено поле payment, изменен тип отправления (WITH_DECLARED_VALUE_AND_CASH_ON_DELIVERY)<br><br>
+    curl -X PUT --header "Content-Type: application/json" <br>
+    --header "Accept: application/json;charset=UTF-8" <br>
+    --header "Authorization: AccessToken 5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8" <br>
+    --header "X-User-Authorization: Basic bG9naW46cGFzc3dvcmQ=" <br>
+    -d "[<br>
+    &nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"address-type-to\": \"DEFAULT\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"given-name\": \"Иван\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"house-to\": \"37\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"index-to\": 117105,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"insr-value\": 150000,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mail-category\": \"WITH_DECLARED_VALUE_AND_CASH_ON_DELIVERY\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mail-direct\": 643,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mail-type\": \"POSTAL_PARCEL\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"mass\": 2000,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"middle-name\": \"Иванович\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"order-num\": \"заказ3\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"payment\": 150000,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"place-to\": \"г Москва\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"region-to\": \"г Москва\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"street-to\": \"ш Варшавское\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"surname\": \"Иванов\",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;\"tel-address\": 79459562067<br>
+    &nbsp;&nbsp;}<br>
+    ]" "https://iplatform-extapi.test.russianpost.ru/1.0/user/backlog"<br>
+    <br>
+    Response body:<br>
+    <br>
+    {<br>
+    &nbsp;&nbsp;"result-ids": [<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;1657698<br>
+    &nbsp;&nbsp;]<br>
+    }

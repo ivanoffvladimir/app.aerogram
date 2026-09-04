@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" ng-app="iplatformApp" ng-strict-di="" lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Почта России - Спецификация</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=1000"/>
+    <meta name="description" content=""/>
+    <meta name="keywords" content=""/>
+
+    <meta property="og:type" content=""/>
+    <meta property="og:url" content=""/>
+    <meta property="og:title" content=""/>
+    <meta property="og:description" content=""/>
+    <meta property="og:image" content=""/>
+
+    <meta name="twitter:card" content=""/>
+    <meta name="twitter:creator" content=""/>
+    <meta name="twitter:title" content=""/>
+    <meta name="twitter:description" content=""/>
+    <meta name="twitter:image:src" content=""/>
+
+    <meta name="yandex-verification" content="18c4cd3c9c7fcc84" />
+
+    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon"/>
+
+    <link rel="stylesheet" media="screen" href="/static/css/main.css"/>
+
+    <link rel="stylesheet" href="/static/css/ext.css" media="screen"/>
+
+    <script src="/static/js/lib/lib.js"></script>
+
+    <script src="/static/js/main.js"></script>
+
+    <script src="/static/js/specification.js"></script>
+
+    <!-- Yandex metrics -->
+    <script src="/static/js/metrics.js"></script>
+    <!-- End Yandex metrics -->
+</head>
+<body class="bg-muted" ng-controller="specificationController">
+
+<loading-indicator></loading-indicator>
+
+<div class="page">
+    <header class="header">
+        <ng-include src="'/static/templates/header.html'"></ng-include>
+    </header>
+
+    <main class="content">
+        <div class="app">
+
+            <div class="app__body specification">
+                <div class="container">
+
+                    <div class="body">
+                        <div class="body__row row">
+                            <div class="body__col col-6">
+                                <div class="body__sidebar">
+                                    <div class="body__sidebar-nav">
+                                        <ul class="sidebar-nav">
+                                            <li class="sidebar-nav__item"
+                                                ng-class="{'sidebar-nav__item--active': routeIs('/main')}">
+                                                <a href='#/main'>ГЛАВНАЯ СТРАНИЦА</a>
+                                            </li>
+                                            <hr/>
+                                            <li class="sidebar-nav__item"
+                                                ng-class="{'sidebar-nav__item--active': routeIs('/flow')}">
+                                                <a href='#/flow'>ОСНОВНЫЕ ШАГИ</a>
+                                            </li>
+                                            <hr/>
+                                            <li><a href="" ng-click="turn('menu_authorization')">АВТОРИЗАЦИЯ</a>
+                                                <div ng-show="turnEnable('menu_authorization')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/authorization-token')}">
+                                                            <a href='#/authorization-token'>Токен авторизации
+                                                                приложения</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/authorization-key')}">
+                                                            <a href='#/authorization-key'>Ключ авторизации
+                                                                пользователя</a></li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <hr/>
+                                            <li><a href="" ng-click="turn('menu_testing_api')">ТЕСТИРОВАНИЕ API</a>
+                                                <div ng-show="turnEnable('menu_testing_api')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/usecases-soapui-clean_address')}">
+                                                            <a href='#/usecases-soapui-clean_address'>Проверка и
+                                                                нормализация адреса с помощью SoapUI</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/usecases-chrome-backlog')}">
+                                                            <a href='#/usecases-chrome-backlog'>Создание отправлений с
+                                                                помощью расширения Chrome браузера</a></li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <hr/>
+                                            <li><a href="" ng-click="turn('menu_orders')">ЗАКАЗЫ</a>
+                                                <div ng-show="turnEnable('menu_orders')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/orders-creating_order')}">
+                                                            <a href='#/orders-creating_order'>Создание заказа</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/orders-creating_order_v2')}">
+                                                            <a href='#/orders-creating_order_v2'>Создание заказа (версия №2)</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/orders-search_order')}">
+                                                            <a href='#/orders-search_order'>Поиск заказа</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/orders-search_order_byid')}">
+                                                            <a href='#/orders-search_order_byid'>Поиск заказа по
+                                                                идентификатору</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/orders-editing_order')}">
+                                                            <a href='#/orders-editing_order'>Редактирование заказа</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/orders-delete_new_order')}">
+                                                            <a href='#/orders-delete_new_order'>Удаление заказа</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/orders-shipment_to_backlog')}">
+                                                            <a href='#/orders-shipment_to_backlog'>Возврат заказов в
+                                                                &quot;Новые&quot;</a>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/orders-search_orders_by_group_name')}">
+                                                            <a href='#/orders-search_orders_by_group_name'>Поиск заказов по
+                                                                идентификатору группы</a></li>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+<!--                                            <li><a href="" ng-click="turn('menu_user_sessions')">ПОЛЬЗОВАТЕЛЬСКИЕ СЕССИИ</a>
+                                                <div ng-show="turnEnable('menu_user_sessions')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/sessions-create_session')}">
+                                                            <a href='#/sessions-create_session'>Создание пользовательской сессии</a></li>
+                                                    </ul>
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/sessions-add_backlogs_to_session')}">
+                                                            <a href='#/sessions-add_backlogs_to_session'>Добавление заказов в пользовательскую сессию</a></li>
+                                                    </ul>
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/sessions-remove_backlogs_from_session')}">
+                                                            <a href='#/sessions-remove_backlogs_from_session'>Удаление заказов из пользовательской сессии</a></li>
+                                                    </ul>
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/sessions-close_session')}">
+                                                            <a href='#/sessions-close_session'>Закрытие пользовательской сессии для формирования партий и добавления отправлений</a></li>
+                                                    </ul>
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/sessions-get_session')}">
+                                                            <a href='#/sessions-get_session'>Запрос данных о сессии</a></li>
+                                                    </ul>
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/sessions-retrieve_batches_info')}">
+                                                            <a href='#/sessions-retrieve_batches_info'>Запрос данных по партиям в пользовательской сессии</a></li>
+                                                    </ul>
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/sessions-retrieve_errors_info')}">
+                                                            <a href='#/sessions-retrieve_errors_info'>Запрос ошибок по заказам в пользовательской сессии</a></li>
+                                                    </ul>
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/sessions-get_sessions')}">
+                                                            <a href='#/sessions-get_sessions'>Запрос данных о сессиях</a></li>
+                                                    </ul>
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/sessions-delete_session')}">
+                                                            <a href='#/sessions-delete_session'>Удаление сессии</a></li>
+                                                    </ul>
+                                                </div>
+                                            </li> -->
+                                            <li><a href="" ng-click="turn('menu_batches')">ПАРТИИ</a>
+                                                <div ng-show="turnEnable('menu_batches')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/batches-create_batch_from_N_orders')}">
+                                                            <a href='#/batches-create_batch_from_N_orders'>Создание
+                                                                партии из N заказов</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/batches-sending_date')}">
+                                                            <a href='#/batches-sending_date'>Изменение дня отправки в
+                                                                почтовое отделение</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/batches-move_orders_to_batch')}">
+                                                            <a href='#/batches-move_orders_to_batch'>Перенос заказов в
+                                                                партию</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/batches-find_batch')}">
+                                                            <a href='#/batches-find_batch'>Поиск партии по
+                                                                наименованию</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/batches-find_orders_with_barcode')}">
+                                                            <a href='#/batches-find_orders_with_barcode'>Поиск заказов с
+                                                                ШПИ</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/batches-add_orders_to_batch')}">
+                                                            <a href='#/batches-add_orders_to_batch'>Добавление заказов в
+                                                                партию</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/batches-delete_order_from_batch')}">
+                                                            <a href='#/batches-delete_order_from_batch'>Удаление заказов
+                                                                из партии</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/batches-get_info_about_orders_in_batch')}">
+                                                            <a href='#/batches-get_info_about_orders_in_batch'>Запрос
+                                                                данных о заказах в партии</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/batches-search_all_batches')}">
+                                                            <a href='#/batches-search_all_batches'>Поиск всех партий</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/batches-find_order_by_id')}">
+                                                            <a href='#/batches-find_order_by_id'>Поиск заказа в партии
+                                                                по id</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/batches-find_orders_by_group_name')}">
+                                                            <a href='#/batches-find_orders_by_group_name'>Поиск заказов по идентификатору
+                                                                группы</a></li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <li><a href="" ng-click="turn('menu_documents')">ДОКУМЕНТЫ</a>
+                                                <div ng-show="turnEnable('menu_documents')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/documents-create_all_docs')}">
+                                                            <a href='#/documents-create_all_docs'>Генерация пакета
+                                                                документации</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/documents-create_f7_f22')}">
+                                                            <a href='#/documents-create_f7_f22'>Генерация печатной формы
+                                                                Ф7п</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/documents-create_f112')}">
+                                                            <a href='#/documents-create_f112'>Генерация печатной формы
+                                                                Ф112ЭК</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/documents-create_forms_backlog')}">
+                                                            <a href='#/documents-create_forms_backlog'>Генерация
+                                                                печатных форм для заказа (до формирования партии)</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/documents-create_forms')}">
+                                                            <a href='#/documents-create_forms'>Генерация печатных форм
+                                                                для заказа</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/documents-create_f103')}">
+                                                            <a href='#/documents-create_f103'>Генерация печатной формы
+                                                                Ф103</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/documents-checkin')}">
+                                                            <a href='#/documents-checkin'>Подготовка и отправка
+                                                                электронной формы Ф103</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/documents-create_completeness_checking_form')}">
+                                                            <a href='#/documents-create_comp_check_form'>Генерация акта
+                                                                осмотра содержимого</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/documents-easy_return_pdf')}">
+                                                            <a href='#/documents-easy_return_pdf'>Генерация возвратного
+                                                                ярлыка на одной печатной странице</a></li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <li><a href="" ng-click="turn('menu_archive')">АРХИВ</a>
+                                                <div ng-show="turnEnable('menu_archive')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/archive-search_batches')}">
+                                                            <a href='#/archive-search_batches'>Запрос данных о партиях в
+                                                                архиве</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/archive-batch_to_archive')}">
+                                                            <a href='#/archive-batch_to_archive'>Перевод партии в
+                                                                архив</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/archive-revert_batch')}">
+                                                            <a href='#/archive-revert_batch'>Возврат партии из
+                                                                архива</a></li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <li><a href="" ng-click="turn('menu_ops')">ПОИСК ОПС</a>
+                                                <div ng-show="turnEnable('menu_ops')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/services-postoffice')}">
+                                                            <a href='#/services-postoffice'>По индексу</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/services-postoffice-by-address')}">
+                                                            <a href='#/services-postoffice-by-address'>По адресу</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/services-postoffice-service')}">
+                                                            <a href='#/services-postoffice-service'>Почтовые сервисы
+                                                                ОПС</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/services-postoffice-service-group')}">
+                                                            <a href='#/services-postoffice-service-group'>Почтовые
+                                                                сервисы ОПС по идентификатору группы сервисов</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/services-postoffice-nearby')}">
+                                                            <a href='#/services-postoffice-nearby'>По координатам</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/services-postoffice-settlement.offices.codes')}">
+                                                            <a href='#/services-postoffice-settlement.offices.codes'>Поиск
+                                                                индексов в населенном пункте</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/postoffice_passport-unload_passport')}">
+                                                            <a href='#/postoffice_passport-unload_passport'>Выгрузка из паспорта ОПС</a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <li>
+                                                <a href="" ng-click="turn('menu_tss')">
+                                                    ВРЕМЕННЫЕ ИНТЕРВАЛЫ
+                                                </a>
+                                                <div ng-show="turnEnable('menu_tss')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/tss-timeslots_by_postindex')}">
+                                                            <a href='#/tss-timeslots_by_postindex'>Получение списка свободных таймслотов</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/tss-booking_by_postindex')}">
+                                                            <a href='#/tss-booking_by_postindex'>Оформление бронирования</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/tss-booking_by_postindex_uuid')}">
+                                                            <a href='#/tss-booking_by_postindex_uuid'>Формирование заказа</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/tss-timeslots_for_rebooking')}">
+                                                            <a href='#/tss-timeslots_for_rebooking'>Получение списка свободных таймслотов при перебронировании</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/tss-rebooking_by_postindex')}">
+                                                            <a href='#/tss-rebooking_by_postindex'>Оформление перебронирования</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/tss-delete_booking_by_postindex')}">
+                                                            <a href='#/tss-delete_booking_by_postindex'>Отмена заказа</a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <li><a href="" ng-click="turn('menu_long_term_archive')">ДОЛГОСРОЧНОЕ
+                                                ХРАНЕНИЕ</a>
+                                                <div ng-show="turnEnable('menu_long_term_archive')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/long-term-archive-search_shipments')}">
+                                                            <a href='#/long-term-archive-search_shipments'>Запрос данных
+                                                                о заказах в архиве</a></li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <li><a href="" ng-click="turn('menu_returns')">ВОЗВРАТЫ</a>
+                                                <div ng-show="turnEnable('menu_returns')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/returns-create_for_direct')}">
+                                                            <a href='#/returns-create_for_direct'>Создание возвратного
+                                                                отправления для ранее созданного отправления</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/returns-create_without_direct')}">
+                                                            <a href='#/returns-create_without_direct'>Создание
+                                                                отдельного возвратного отправления</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/returns-delete_separate_return')}">
+                                                            <a href='#/returns-delete_separate_return'>Удаление
+                                                                отдельного возвратного отправления</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/returns-update_separate_return')}">
+                                                            <a href='#/returns-update_separate_return'>Редактирование
+                                                                отдельного возвратного отправления</a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <li><a href="" ng-click="turn('menu_settings')">НАСТРОЙКИ</a>
+                                                <div ng-show="turnEnable('menu_settings')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/settings-shipping_points')}">
+                                                            <a href='#/settings-shipping_points'>Текущие точки сдачи</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/settings-user_settings')}">
+                                                            <a href='#/settings-user_settings'>Текущие настройки
+                                                                пользователя</a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <li><a href="" ng-click="turn('menu_nogroup')">ДАННЫЕ</a>
+                                                <div ng-show="turnEnable('menu_nogroup')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/nogroup-normalization_adress')}">
+                                                            <a href='#/nogroup-normalization_adress'>Нормализация
+                                                                адреса</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/nogroup-normalization_fio')}">
+                                                            <a href='#/nogroup-normalization_fio'>Нормализация ФИО</a>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/nogroup-normalization_phone')}">
+                                                            <a href='#/nogroup-normalization_phone'>Нормализация
+                                                                телефона</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/nogroup-rate_calculate')}">
+                                                            <a href='#/nogroup-rate_calculate'>Расчет стоимости
+                                                                пересылки</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/nogroup-count_request_api')}">
+                                                            <a href='#/nogroup-count_request_api'>Текущее количество
+                                                                запросов по API</a></li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <li>
+                                                <a href="" ng-click="turn('menu_claims')">ЗАЯВЛЕНИЯ</a>
+                                                <div ng-show="turnEnable('menu_claims')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/settings-shipping_points')}">
+                                                            <a href='#/claims-creating_claim'>Оформление заявления на дополнительную услугу</a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                            <hr/>
+                                            <li><a href="" ng-click="turn('menu_enums')">ОПИСАНИЕ СВОЙСТВ</a>
+                                                <div ng-show="turnEnable('menu_enums')">
+                                                    <ul>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/enums-base')}">
+                                                            <a href="" ng-click="turn('menu_enums_base')">Основные</a>
+                                                            <div ng-show="turnEnable('menu_enums_base')">
+                                                                <ul>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-address-type')}">
+                                                                        <a href='#/enums-base-address-type'>Тип
+                                                                            адреса</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-batch-category')}">
+                                                                        <a href='#/enums-base-batch-category'>Категория
+                                                                            партии</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-mail-category')}">
+                                                                        <a href='#/enums-base-mail-category'>Категория
+                                                                            РПО</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-mail-type')}">
+                                                                        <a href='#/enums-base-mail-type'>Вид РПО</a>
+                                                                    </li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-product')}">
+                                                                        <a href='#/enums-product'>Продукты</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-batch-status')}">
+                                                                        <a href='#/enums-base-batch-status'>Статусы
+                                                                            партии</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-postmarks')}">
+                                                                        <a href='#/enums-base-postmarks'>Коды отметок
+                                                                            внутренних и международных отправлений</a>
+                                                                    </li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-payment-methods')}">
+                                                                        <a href='#/enums-payment-methods'>Способы
+                                                                            оплаты</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-transport-type')}">
+                                                                        <a href='#/enums-base-transport-type'>Вид
+                                                                            транспортировки</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-notify-category')}">
+                                                                        <a href='#/enums-base-notify-category'>Категория
+                                                                            уведомления о вручении РПО</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-clean-address-quality')}">
+                                                                        <a href='#/enums-clean-address-quality'>Код
+                                                                            качества нормализации адреса</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-clean-address-validation')}">
+                                                                        <a href='#/enums-clean-address-validation'>Код
+                                                                            проверки нормализации адреса</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-clean-fio-quality')}">
+                                                                        <a href='#/enums-clean-fio-quality'>Код качества
+                                                                            нормализации ФИО</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-clean-fio-phone-quality')}">
+                                                                        <a href='#/enums-clean-fio-phone-quality'>Код
+                                                                            качества нормализации телефона</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-last-oper-type')}">
+                                                                        <a href='#/enums-base-last-oper-type'>Тип
+                                                                            операции из трекинга</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-last-oper-attr')}">
+                                                                        <a href='#/enums-base-last-oper-attr'>Атрибут
+                                                                            операции из трекинга</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-envelope-type')}">
+                                                                        <a href='#/enums-base-envelope-type'>Тип
+                                                                            конверта</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-mail-rank')}">
+                                                                        <a href='#/enums-base-mail-rank'>Разряд
+                                                                            письма</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-print-type')}">
+                                                                        <a href='#/enums-base-print-type'>Тип печати</a>
+                                                                    </li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-base-entries-type')}">
+                                                                        <a href='#/enums-base-entries-type'>Категория
+                                                                            вложения</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/dictionary-countries')}">
+                                                                        <a href='#/dictionary-countries'>Список
+                                                                            стран</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/dictionary-currencies')}">
+                                                                        <a href='#/dictionary-currencies'>Список
+                                                                            валют</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-courier-order-statuses')}">
+                                                                        <a href='#/enums-courier-order-statuses'>Статусы
+                                                                            заявки на вызов курьера</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-hyper-local-status')}">
+                                                                        <a href='#/enums-hyper-local-status'>Статусы
+                                                                            отправления по гиперлокальной доставке</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-batch-hyper-local-status')}">
+                                                                        <a href='#/enums-batch-hyper-local-status'>Статусы
+                                                                            партии по гиперлокальной заявки</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-ecom-services')}">
+                                                                        <a href='#/enums-ecom-services'>Коды видов
+                                                                            сервиса</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-delivery-point-type')}">
+                                                                        <a href='#/enums-delivery-point-type'>Тип пункта
+                                                                            выдачи</a></li>
+                                                                    <li class="sidebar-nav__item"
+                                                                        ng-class="{'sidebar-nav__item--active': routeIs('/enums-dimension-type')}">
+                                                                        <a href='#/enums-dimension-type'>Типоразмер</a>
+                                                                    </li>
+                                                                </ul>
+                                                            </div>
+                                                        </li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/enums-errors')}">
+                                                            <a href='#/enums-errors'>Ошибки</a></li>
+                                                        <li class="sidebar-nav__item"
+                                                            ng-class="{'sidebar-nav__item--active': routeIs('/enums-statuses')}">
+                                                            <a href='#/enums-statuses'>Состояния</a></li>
+                                                    </ul>
+                                                </div>
+                                            </li>
+
+                                        </ul>
+                                    </div>
+                                    <div class="body__sidebar-banners row">
+                                        <sidebar-banners></sidebar-banners>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="body__col col-18">
+                                <div class="body__main">
+
+                                    <article class="article">
+                                        <ng-view autoscroll="true"></ng-view>
+                                    </article>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<ng-include src="'/static/templates/footer.html'"></ng-include>
+
+<iframe id="op-iframe" src="https://passport.pochta.ru/pc/ext/v1.0/session/state" hidden></iframe>
+<iframe id="rp-iframe" src="/api/auth/session-check" hidden></iframe>
+
+<script src="/static/js/session-sync.js" type="text/javascript"></script>
+
+<script>
+    function loadPochtaService(attemptsCount) {
+        setTimeout(function() {
+            try {
+                pochtaServiceMenuInit({ targetSelector: '.dsWaffle' });
+            } catch (e) {
+                if (!attemptsCount) {
+                    return console.log(e);
+                }
+
+                if (!document.querySelector('.pochta-service-menu-button')) {
+                    loadPochtaService(attemptsCount - 1);
+                }
+            }
+        }, 500);
+    }
+</script>
+
+<script async src="https://static.pochta.ru/service-menu/client/latest/bundle.js" onload="loadPochtaService(5)"></script>
+
+</body>
+</html>

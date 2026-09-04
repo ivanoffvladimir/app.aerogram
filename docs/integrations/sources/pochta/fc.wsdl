@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsp="http://www.w3.org/ns/ws-policy" xmlns:wsp1_2="http://schemas.xmlsoap.org/ws/2004/09/policy" xmlns:wsam="http://www.w3.org/2007/05/addressing/metadata" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tns="http://fclient.russianpost.org" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://schemas.xmlsoap.org/wsdl/" targetNamespace="http://fclient.russianpost.org" name="ItemDataService">
+<types>
+<xsd:schema>
+<xsd:import namespace="http://fclient.russianpost.org/postserver" schemaLocation="https://tracking.russianpost.ru/fc?xsd=1"/>
+</xsd:schema>
+<xsd:schema>
+<xsd:import namespace="http://fclient.russianpost.org" schemaLocation="https://tracking.russianpost.ru/fc?xsd=2"/>
+</xsd:schema>
+</types>
+<message name="getTicket">
+<part xmlns:ns1="http://fclient.russianpost.org/postserver" name="parameters" element="ns1:ticketRequest"/>
+</message>
+<message name="getTicketResponse">
+<part xmlns:ns2="http://fclient.russianpost.org/postserver" name="parameters" element="ns2:ticketResponse"/>
+</message>
+<message name="getResponseByTicket">
+<part xmlns:ns3="http://fclient.russianpost.org/postserver" name="parameters" element="ns3:answerByTicketRequest"/>
+</message>
+<message name="getResponseByTicketResponse">
+<part xmlns:ns4="http://fclient.russianpost.org/postserver" name="parameters" element="ns4:answerByTicketResponse"/>
+</message>
+<portType name="FederalClient">
+<operation name="getTicket">
+<input wsam:Action="http://fclient.russianpost.org/FederalClient/getTicketRequest" message="tns:getTicket"/>
+<output wsam:Action="http://fclient.russianpost.org/FederalClient/getTicketResponse" message="tns:getTicketResponse"/>
+</operation>
+<operation name="getResponseByTicket">
+<input wsam:Action="http://fclient.russianpost.org/FederalClient/getResponseByTicketRequest" message="tns:getResponseByTicket"/>
+<output wsam:Action="http://fclient.russianpost.org/FederalClient/getResponseByTicketResponse" message="tns:getResponseByTicketResponse"/>
+</operation>
+</portType>
+<binding name="ItemDataServicePortBinding" type="tns:FederalClient">
+<soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document"/>
+<operation name="getTicket">
+<soap:operation soapAction=""/>
+<input>
+<soap:body use="literal"/>
+</input>
+<output>
+<soap:body use="literal"/>
+</output>
+</operation>
+<operation name="getResponseByTicket">
+<soap:operation soapAction=""/>
+<input>
+<soap:body use="literal"/>
+</input>
+<output>
+<soap:body use="literal"/>
+</output>
+</operation>
+</binding>
+<service name="ItemDataService">
+<port name="ItemDataServicePort" binding="tns:ItemDataServicePortBinding">
+<soap:address location="https://tracking.russianpost.ru/fc"/>
+</port>
+</service>
+</definitions>

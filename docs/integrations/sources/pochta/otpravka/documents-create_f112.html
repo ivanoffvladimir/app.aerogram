@@ -1,0 +1,106 @@
+<article class="article">
+
+    <h3>Генерация печатной формы Ф112ЭК</h3>
+    Генерирует и возвращает pdf-файл с заполненной формой Ф112ЭК для указанного заказа.
+    Только для заказа с «наложенным платежом». Если заказ не имеет данного атрибута, метод вернет ошибку.
+    Если параметр sending-date не передается, берется текущая дата.
+    <br/>
+    <br/>
+    Введите <a href="#/authorization-token" target="_blank">токен авторизации приложения</a>,
+        <a href="#/authorization-key" target="_blank">
+            ключ авторизации пользователя</a> и другие параметры, тогда значения заголовков и параметров будут сгенерированы автоматически.<br/>
+    <br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Токен авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="token" type="text" name="token" ng-model="token" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%">Ключ авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="key" type="text" name="key" ng-model="key" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>id</b><br/>Уникальный идентификатор заказа</td>
+            <td><div class="input input__field-wrap">
+                <input id="id" type="text" name="id" ng-model="id" value="" class="input__field" size="51" pattern="^[0-9]+$" >
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>sending-date</b> (Опционально)<br/>Дата отправки в почтовое отделение (yyyy-MM-dd)</td>
+            <td><div class="input input__field-wrap">
+                <input id="sending-date" type="text" name="sending-date" ng-model="data.urlParamsF112.sendingDate.value" value=""
+                       class="input__field" size="51" pattern="^((19|20)\d\d)-(0?[1-9]|1[012])-(0?[1-9]|[12][0-9]|3[01])$"
+                       ng-change="changeUrlF112()">
+            </div></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Параметры запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Локальный URL</td>
+            <td><b>/1.0/forms/<span ng-show="id">{{ id }}</span><span ng-show="!id">{id}</span>/f112pdf<span
+                    ng-show="data.urlParamsString">{{data.urlParamsString}}</span>
+            </b></td>
+        </tr>
+        <tr>
+            <td width="25%">Тип</td>
+            <td><b>GET</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Заголовки запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="30%"><b>Authorization</b></td>
+            <td><span ng-show="token"><b>AccessToken {{ token }}</b></span></td>
+        </tr>
+        <tr>
+            <td width="30%"><b>X-User-Authorization</b></td>
+            <td><span ng-show="key"><b>Basic {{ key }}</b></span></td>
+        </tr>
+        <tr>
+            <td><b>Content-Type</b></td>
+            <td><b>application/json;charset=UTF-8</b></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a href="" ng-click="turn('examples')"><h3>Примеры кода для работы с API</h3></a>
+    <div ng-show="examples && examples.enable">
+        <a href="" ng-click="turn('python')"><h4>Python (3 версия)</h4></a>
+        <div ng-show="python && python.enable">
+            Необходимые модули:<br/>
+            <table>
+                <thead>
+                <tr>
+                    <th><b>Модуль</b></th>
+                    <th><b>Описание</b></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+                        requests
+                    </td>
+                    <td>
+                        <a href="https://requests.readthedocs.io" target="_blank">Документация</a> и <a href="https://requests.readthedocs.io/en/master/user/install" target="_blank">Инструкции по установке</a>
+                    </td>
+                </tr>
+
+                </tbody>
+            </table>
+            <ul>
+                <li><a href="#/documents-create_f112_py" target="_blank">Пример кода</a></li>
+                <li><a href="#/documents-create_f112_py_custom" target="_blank">Генератор кода</a></li>
+            </ul>
+        </div>
+    </div>
+</article>

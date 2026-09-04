@@ -1,0 +1,81 @@
+<article class="article">
+<h3>Ключ авторизации пользователя</h3>
+<b>Ключ авторизации пользователя</b> генерируется с помощью алгоритма base64.
+Перед кодированием имя и пароль, выданные сервисом passport.pochta.ru, разделяются двоеточием.<br/>
+Пример: base64(login:password) = bG9naW46cGFzc3dvcmQ=<br/>
+    <br/>
+    <b>Внимание! Не сохраняйте и не храните ваш пароль к API в текстовых файлах, так как это может привести к его хищению и/или компрометации.<br/>
+        Не оставляйте записанные на бумаге и т.п. носителях информации токен авторизации, ключ авторизации, логин и пароль к API, не передавайте эти данные третьим лицам!</b><br/>
+    <br/>
+    <br/>
+    <h3>Генерация ключа авторизации</h3>
+    Вы можете сгенерировать ключ авторизации здесь или можете воспользоватся сторонним сервисом.
+    <br/>
+    <br/>
+
+    <form class="form mailing-form" name="base64generator">
+
+        <div class="row">
+            <div class="col-12">
+                <div class="input">
+                    <label class="input__title" >Имя пользоватателя (емайл)</label>
+                    <div class="input__field-wrap">
+                        <input id="orderNum-field" type="text" name="name" ng-model="base64form.username" value="" class="input__field" />
+                    </div>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="input">
+                    <label class="input__title" >Пароль</label>
+                    <div class="input__field-wrap">
+                        <input id="telephone-field" type="password" name="password" ng-model="base64form.userpassword" value="" class="input__field" >
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="input" >
+            <label class="input__title">Сгенерированный ключ авторизации пользователя</label>
+            <div class="input__field-wrap">
+                <input id="fullName-field" type="text" name="key" ng-model="base64form.key" value="" class="input__field" readonly />
+            </div>
+        </div>
+        <div>
+            <button type="submit" id="save-button" class="mailing-form__close-button button button--large" ng-click="generate()">
+                <span class="button__text" >Сгенерировать</span>
+            </button>
+        </div>
+
+        </div>
+    </form>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <h3>Добавление ключа в заголовок запроса</h3>
+    Добавьте параметр авторизации пользователя <b>X-User-Authorization</b> и укажите префикс <b>Basic</b>, символ "пробела" и <b>ключ авторизации пользователя</b>.<br/>
+    <br/>
+    Пример:
+    <table>
+        <thead>
+        <tr>
+            <th>Наименование</th>
+            <th>Значение</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>X-User-Authorization</td>
+            <td>Basic bG9naW46cGFzc3dvcmQ=</td>
+        </tr>
+        </tbody>
+    </table>
+    <br/>
+
+    <h3>Ссылки</h3>
+    <ul>
+        <li><a href="https://ru.wikipedia.org/wiki/Base64#.D0.A1.D1.81.D1.8B.D0.BB.D0.BA.D0.B8" target="_blank">Base64 исходный коды и Base64-онлайн декодировщик</a></li>
+    </ul>
+    <br/>
+
+</article>

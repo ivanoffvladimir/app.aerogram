@@ -1,0 +1,165 @@
+<article class="article"><h3>Нормализация адреса</h3>
+    Разделяет и помещает сущности переданных адресов (город, улица) в соответствующие поля возвращаемого объекта.
+    Параметр id (идентификатор записи) используется для установления соответствия переданных и полученных записей,
+    так как порядок сортировки возвращаемых записей не гарантируется. Метод автоматически ищет и возвращает индекс
+    близлежащего ОПС по указанному адресу.<br/>
+    <b>Адрес считается корректным к отправке, если в ответе запроса:</b>
+    <ul>
+        <li><a href='#/enums-clean-address-quality' target='_blank'>quality-code</a>=GOOD, POSTAL_BOX, ON_DEMAND или UNDEF_05;</li>
+        <li><a href='#/enums-clean-address-validation' target='_blank'>validation-code</a>=VALIDATED, OVERRIDDEN или CONFIRMED_MANUALLY.</li>
+    </ul>
+
+    <br/>
+    Введите <a href="#/authorization-token" target="_blank">токен авторизации приложения</a> и <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a>, тогда значения заголовков будут сгенерированы автоматически.<br/>
+    <br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Токен авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="token" type="text" name="token" ng-model="token" value="" class="input__field" size="51" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%">Ключ авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="key" type="text" name="key" ng-model="key" value="" class="input__field" size="51" />
+            </div></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Параметры запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Локальный URL</td>
+            <td><b>/1.0/clean/address</b></td>
+        </tr>
+        <tr>
+            <td width="25%">Тип</td>
+            <td><b>POST</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Заголовки запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="30%"><b>Authorization</b></td>
+            <td><span ng-show="token"><b>AccessToken {{ token }}</b></span></td>
+        </tr>
+        <tr>
+            <td width="30%"><b>X-User-Authorization</b></td>
+            <td><span ng-show="key"><b>Basic {{ key }}</b></span></td>
+        </tr>
+        <tr>
+            <td><b>Content-Type</b></td>
+            <td><b>application/json;charset=UTF-8</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b class="code-header">Тело запроса</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('body')">скопировать схему</a></span><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="15%">
+                Структура
+            </td>
+            <td>
+                <div class="code">
+                    <div class="code-body">
+                        <div class="api-struct" tabindex="1"><span class="api-struct__description">[</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>[</b> - Символ</span><span class="api-struct__tooltip-body">Начало группы</span></p></div>
+                        <div class="api-struct" tabindex="2"><span class="api-struct__description col-offset-1">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="3"><span class="api-struct__description col-offset-2">"id": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>id</b> - Строка</span><span class="api-struct__tooltip-body">Идентификатор записи</span></p></div>
+                        <div class="api-struct" tabindex="4"><span class="api-struct__description col-offset-2">"original-address": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>original-address</b> - Строка</span><span class="api-struct__tooltip-body">Оригинальные адрес одной строкой</span></p></div>
+                        <div class="api-struct" tabindex="5"><span class="api-struct__description col-offset-1">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="6"><span class="api-struct__description">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <b>Внимание!</b><br/>
+    Анализируйте <b>код качества (quality-code)</b> и <b>код проверки (validation-code)</b> в ответах.
+    <br/>
+    <a href='#/enums-clean-address-quality' target='_blank'>Код качества</a> должен быть: GOOD, POSTAL_BOX, ON_DEMAND или UNDEF_05.<br/>
+    <a href='#/enums-clean-address-validation' target='_blank'>Код проверки</a> должен быть: VALIDATED, OVERRIDDEN или CONFIRMED_MANUALLY.<br/>
+    <font color="red">Иначе нормализуемый адрес может быть неприемлем для доставки!</font>
+    <br/>
+    <br/>
+
+    <b class="code-header">Ответ на запрос</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('response')">скопировать схему</a></span><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="15%">
+                Структура
+            </td>
+            <td>
+                <div class="code">
+                    <div class="code-body">
+                        <div class="api-struct" tabindex="1"><span class="api-struct__description">[</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>[</b> - Символ</span><span class="api-struct__tooltip-body">Начало группы</span></p></div>
+                        <div class="api-struct" tabindex="2"><span class="api-struct__description col-offset-1">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="3"><span class="api-struct__description col-offset-2">"address-type": "DEFAULT"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>address-type</b> - Строка</span><span class="api-struct__tooltip-body"><a href='#/enums-base-address-type' target='_blank'>Тип адреса</a></span></p></div>
+                        <div class="api-struct" tabindex="4"><span class="api-struct__description col-offset-2">"area": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>area</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Район</span></p></div>
+                        <div class="api-struct" tabindex="5"><span class="api-struct__description col-offset-2">"building": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>building</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Часть здания: Строение</span></p></div>
+                        <div class="api-struct" tabindex="6"><span class="api-struct__description col-offset-2">"corpus": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>corpus</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Часть здания: Корпус</span></p></div>
+                        <div class="api-struct" tabindex="7"><span class="api-struct__description col-offset-2">"hotel": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>hotel</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Название гостиницы</span></p></div>
+                        <div class="api-struct" tabindex="8"><span class="api-struct__description col-offset-2">"house": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>house</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Часть адреса: Номер здания</span></p></div>
+                        <div class="api-struct" tabindex="9"><span class="api-struct__description col-offset-2">"id": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>id</b> - Строка</span><span class="api-struct__tooltip-body">Идентификатор записи</span></p></div>
+                        <div class="api-struct" tabindex="10"><span class="api-struct__description col-offset-2">"index": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>index</b> - Строка</span><span class="api-struct__tooltip-body">Почтовый индекс</span></p></div>
+                        <div class="api-struct" tabindex="11"><span class="api-struct__description col-offset-2">"letter": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>letter</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Часть здания: Литера</span></p></div>
+                        <div class="api-struct" tabindex="12"><span class="api-struct__description col-offset-2">"location": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>location</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Микрорайон</span></p></div>
+                        <div class="api-struct" tabindex="13"><span class="api-struct__description col-offset-2">"num-address-type": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>num-address-type</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Номер для а/я, войсковая часть, войсковая часть ЮЯ, полевая почта</span></p></div>
+                        <div class="api-struct" tabindex="14"><span class="api-struct__description col-offset-2">"original-address": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>original-address</b> - Строка</span><span class="api-struct__tooltip-body">Оригинальные адрес одной строкой</span></p></div>
+                        <div class="api-struct" tabindex="15"><span class="api-struct__description col-offset-2">"place": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>place</b> - Строка</span><span class="api-struct__tooltip-body">Населенный пункт</span></p></div>
+                        <div class="api-struct" tabindex="16"><span class="api-struct__description col-offset-2">"quality-code": "GOOD"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>quality-code</b> - Строка</span><span class="api-struct__tooltip-body"><a href='#/enums-clean-address-quality' target='_blank'>Код качества нормализации адреса</a></span></p></div>
+                        <div class="api-struct" tabindex="17"><span class="api-struct__description col-offset-2">"region": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>region</b> - Строка</span><span class="api-struct__tooltip-body">Область, регион</span></p></div>
+                        <div class="api-struct" tabindex="18"><span class="api-struct__description col-offset-2">"room": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>room</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Часть здания: Номер помещения</span></p></div>
+                        <div class="api-struct" tabindex="19"><span class="api-struct__description col-offset-2">"slash": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>slash</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Часть здания: Дробь</span></p></div>
+                        <div class="api-struct" tabindex="20"><span class="api-struct__description col-offset-2">"street": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>street</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Часть адреса: Улица</span></p></div>
+                        <div class="api-struct" tabindex="21"><span class="api-struct__description col-offset-2">"validation-code": "CONFIRMED_MANUALLY"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>validation-code</b> - Строка</span><span class="api-struct__tooltip-body"><a href='#/enums-clean-address-validation' target='_blank'>Код проверки нормализации адреса</a></span></p></div>
+                        <div class="api-struct" tabindex="22"><span class="api-struct__description col-offset-1">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="23"><span class="api-struct__description">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a href="" ng-click="turn('examples')"><h3>Примеры кода для работы с API</h3></a>
+    <div ng-show="examples && examples.enable">
+        <a href="" ng-click="turn('python')"><h4>Python (3 версия)</h4></a>
+        <div ng-show="python && python.enable">
+            Необходимые модули:<br/>
+            <table>
+                <thead>
+                <tr>
+                    <th><b>Модуль</b></th>
+                    <th><b>Описание</b></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+                        requests
+                    </td>
+                    <td>
+                        <a href="https://requests.readthedocs.io" target="_blank">Документация</a> и <a href="https://requests.readthedocs.io/en/master/user/install" target="_blank">Инструкции по установке</a>
+                    </td>
+                </tr>
+
+                </tbody>
+            </table>
+            <ul>
+                <li><a href="#/nogroup-normalization_adress_py" target="_blank">Пример кода</a></li>
+                <li><a href="#/nogroup-normalization_adress_py_custom" target="_blank">Генератор кода</a></li>
+            </ul>
+        </div>
+    </div>
+</article>

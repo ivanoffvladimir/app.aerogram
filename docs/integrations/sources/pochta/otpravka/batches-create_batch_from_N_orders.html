@@ -1,0 +1,248 @@
+<article class="article">
+    <h3>Создание партии из N заказов</h3>
+    Автоматически создает партию и переносит указанные подготовленные заказы в эту партию.
+    Если заказы относятся к разным типам и категориям – создается несколько партий.
+    Заказы распределяются по соответствующим партиям. Каждому перенесенному заказу автоматически присваивается ШПИ.<br/>
+
+    <br/>
+    Введите <a href="#/authorization-token" target="_blank">токен авторизации приложения</a>, <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a> и другие параметры, тогда значения заголовков и параметров будут сгенерированы автоматически.<br/>
+    <br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Токен авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="token" type="text" name="token" ng-model="token" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%">Ключ авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="key" type="text" name="key" ng-model="key" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>sending-date</b> (Опционально)<br/>Дата сдачи в почтовое отделение (yyyy-MM-dd)</td>
+            <td><div class="input input__field-wrap">
+                <input id="sending-date" type="text" name="sending-date" ng-model="sendingDate" value="" class="input__field" size="51" pattern="^((19|20)\d\d)-(0?[1-9]|1[012])-(0?[1-9]|[12][0-9]|3[01])$" >
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>timezone-offset</b> (Опционально)<br/>Смещение даты сдачи от UTC в секундах</td>
+            <td><div class="input input__field-wrap">
+                <input id="timezone-offset" type="text" name="timezone-offset" ng-model="timezoneOffset" value="" class="input__field" size="51" pattern="^\d+$" >
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>use-online-balance</b><br/>(Опционально)<br />Признак использования онлайн баланса</td>
+            <td>
+                <label class="checkbox">
+                    <span class="checkbox__label">Использовать онлайн баланс</span>
+                    <input
+                            id="use-online-balance"
+                            type="checkbox"
+                            name="use-online-balance"
+                            ng-model="useOnlineBalance"
+                    >
+                    <span class="checkbox__checkbox"></span>
+                </label>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Параметры запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Локальный URL</td>
+            <td><b>/1.0/user/shipment{{
+                buildUrlParams({
+                    sendingDate: { value: sendingDate, prefix: 'sending-date' },
+                    timezoneOffset: { value: timezoneOffset, prefix: 'timezone-offset' },
+                    useOnlineBalance: { value: useOnlineBalance, prefix: 'use-online-balance' }
+                })
+            }}</b></td>
+        </tr>
+        <tr>
+            <td width="25%">Тип</td>
+            <td><b>POST</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Заголовки запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="30%"><b>Authorization</b></td>
+            <td><span ng-show="token"><b>AccessToken {{ token }}</b></span></td>
+        </tr>
+        <tr>
+            <td width="30%"><b>X-User-Authorization</b></td>
+            <td><span ng-show="key"><b>Basic {{ key }}</b></span></td>
+        </tr>
+        <tr>
+            <td><b>Content-Type</b></td>
+            <td><b>application/json;charset=UTF-8</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b class="code-header">Тело запроса</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('body')">скопировать схему</a></span><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="15%">
+                Структура
+            </td>
+            <td>
+                <div class="code">
+                    <div class="code-body">
+                        <div class="api-struct" tabindex="2"><span class="api-struct__description">[</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Начало группы</span></p></div>
+                        <div class="api-struct" tabindex="4"><span class="api-struct__description col-offset-1">0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>Массив идентификаторов</b></span><span class="api-struct__tooltip-body">Список внутренних идентификаторов заказов</span></p></div>
+                        <div class="api-struct" tabindex="8"><span class="api-struct__description">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <b class="code-header">Ответ на запрос</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('response')">скопировать схему</a></span><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="15%">
+                Структура
+            </td>
+            <td>
+                <div class="code">
+                    <div class="code-body">
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"batches": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>batches</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Список партий</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-2">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"accepted-count": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>accepted-count</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Количество отправленни, прибывших в отделение связи (для БК)</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"batch-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>batch-name</b> - Строка</span><span class="api-struct__tooltip-body">Номер партии</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"batch-status": "CREATED"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>batch-status</b> - Строка</span><span class="api-struct__tooltip-body">Статус партии. См. <a href='#/enums-base-batch-status' target='_blank'>Статус партии</a></span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"batch-status-date": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>batch-status-date</b> - Строка</span><span class="api-struct__tooltip-body">Дата обновления статуса</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"bk-hash": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>bk-hash</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Хэш-код бандероль-комплектов</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"branch-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>branch-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Идентификатор подразделения</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"combined-batch-mail-types": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>combined-batch-mail-types</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Типы отправлений в комбинированной партии. См. <a href='#/enums-base-mail-type' target='_blank'>Вид РПО</a></span></p></div>
+                        <div class="api-struct"><span class=" col-offset-4">"UNDEFINED"</span></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"courier-call-rate-with-vat": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>courier-call-rate-with-vat</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Плата за услугу "Курьерский сбор" с НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"courier-call-rate-wo-vat": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>courier-call-rate-wo-vat</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Плата за услугу "Курьерский сбор" без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"courier-order-statuses": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>courier-order-statuses</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Статусы заявки на вызов курьера. См. <a href='#/enums-courier-order-statuses' target='_blank'>Статусы заявки на вызов курьера</a></span></p></div>
+                        <div class="api-struct"><span class=" col-offset-4">"NOT_REQUIRED"</span></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"delivery-count": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>delivery-count</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Количество отправленни, врученных адресату (для БК)</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"delivery-notice-payment-method": "CASHLESS"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>delivery-notice-payment-method</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Способ оплаты уведомления о вручении РПО. См. <a href='#/enums-base-payment-method' target='_blank'>Способ оплаты</a></span></p></div>
+                        <div class="api-struct api-struct--extra" tabindex="0"><span class="api-struct__description col-offset-3">"document-download-status": "NEW_TRANSPORT_BLANK"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>document-download-status</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Статус необходимости скачивания новых документов. См. <a href='#/enums-document-download-status' target='_blank'>Статус загрузки документов</a></span></p></div>
+                        <div class="api-struct"><span class=" col-offset-3">"electronic-f103": true</span></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"fragile-rate": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>fragile-rate</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Плата за услугу "Осторожно, хрупкое, терморежим" без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"fragile-rate-vat": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>fragile-rate-vat</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Плата за услугу "Осторожно, хрупкое, терморежим" c НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"group-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>group-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Наименование группы (для Многоместных отправлений см. <a href='https://otpravka.pochta.ru/help/#/details/170' target='_blank'>ММО</a>)</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"hyper-local-status": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>hyper-local-status</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Статус по гиперлокальной доставке. См. <a href='#/enums-batch-hyper-local-status' target='_blank'>Статус по гиперлокальной доставке</a></span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"international": true</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>international</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак международной почты</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"is-postoffice-ukd": true</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>is-postoffice-ukd</b> - Логические: true или false</span><span class="api-struct__tooltip-body">Является ли место приема УКД</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"list-number": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>list-number</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Номер документа для сдачи партии</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"list-number-date": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>list-number-date</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Дата документа для сдачи партии (yyyy-MM-dd)</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"mail-category": "ORDERED"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>mail-category</b> - Строка</span><span class="api-struct__tooltip-body">Категория РПО. См. <a href='#/enums-base-mail-category' target='_blank'>Категория РПО</a></span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"mail-category-text": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>mail-category-text</b> - Строка</span><span class="api-struct__tooltip-body">Категория РПО (текст)</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"mail-rank": "WO_RANK"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>mail-rank</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Код разряда партии. См. <a href='#/enums-base-mail-rank' target='_blank'>Разряд письма</a></span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"mail-type": "UNDEFINED"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>mail-type</b> - Строка</span><span class="api-struct__tooltip-body">Вид РПО. См. <a href='#/enums-base-mail-type' target='_blank'>Вид РПО</a></span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"mail-type-text": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>mail-type-text</b> - Строка</span><span class="api-struct__tooltip-body">Вид РПО (текст)</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"notice-payment-method": "CASHLESS"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>notice-payment-method</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Способ оплаты уведомления. См. <a href='#/enums-base-payment-method' target='_blank'>Способ оплаты</a></span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"payment-method": "CASHLESS"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>payment-method</b> - Строка</span><span class="api-struct__tooltip-body">Способ оплаты. См. <a href='#/enums-base-payment-method' target='_blank'>Способ оплаты</a></span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"person-code": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>person-code</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Идентификатор пользователя</span></p></div>
+                        <div class="api-struct api-struct--extra" tabindex="0"><span class="api-struct__description col-offset-3">"postmarks": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>postmarks</b> - Массив</span><span class="api-struct__tooltip-body">Отметки внутренних и международных отправлений. См. <a href='#/enums-base-postmarks' target='_blank'>Коды отметок внутренних и международных отправлений</a></span></p></div>
+                        <div class="api-struct"><span class=" col-offset-4">"WITHOUT_MARK"</span></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"postoffice-address": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>postoffice-address</b> - Строка</span><span class="api-struct__tooltip-body">Адрес места приема</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"postoffice-code": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>postoffice-code</b> - Строка</span><span class="api-struct__tooltip-body">Индекс места приема</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"postoffice-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>postoffice-name</b> - Строка</span><span class="api-struct__tooltip-body">Наименование места приема</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"pre-postal-preparation": true</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>pre-postal-preparation</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Предпочтовая подготовка</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-avia-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-avia-rate-sum</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Сумма платы за авиа пересылку в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-avia-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-avia-rate-vat-sum</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">НДС от суммы платы за авиа пересылку в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-completeness-checking-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-completeness-checking-rate-sum</b> - Целое число</span><span class="api-struct__tooltip-body">Сумма платы за проверку комплектности в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-completeness-checking-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-completeness-checking-rate-vat-sum</b> - Целое число</span><span class="api-struct__tooltip-body">НДС от суммы платы за проверку комплектности в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-contents-checking-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-contents-checking-rate-sum</b> - Целое число</span><span class="api-struct__tooltip-body">Сумма платы за проверку вложений в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-contents-checking-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-contents-checking-rate-vat-sum</b> - Целое число</span><span class="api-struct__tooltip-body">НДС от суммы платы за проверку вложений в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-count": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-count</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Количество заказов в партии</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-functionality-checking-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-functionality-checking-rate-sum</b> - Целое число</span><span class="api-struct__tooltip-body">Сумма платы за проверку вложений с проверкой функциональности в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-functionality-checking-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-functionality-checking-rate-vat-sum</b> - Целое число</span><span class="api-struct__tooltip-body">НДС от суммы платы за проверку вложений с проверкой функциональности в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-ground-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-ground-rate-sum</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Сумма платы за наземную пересылку в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-ground-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-ground-rate-vat-sum</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">НДС от суммы платы за наземную пересылку в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-insure-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-insure-rate-sum</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Сумма платы за объявленную ценность в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-insure-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-insure-rate-vat-sum</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">НДС от суммы платы за объявленную ценность в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-inventory-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-inventory-rate-sum</b> - Целое число</span><span class="api-struct__tooltip-body">Сумма платы за опись вложения в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-inventory-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-inventory-rate-vat-sum</b> - Целое число</span><span class="api-struct__tooltip-body">НДС от суммы платы за опись вложения в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-mass": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-mass</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Общий вес в граммах</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-mass-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-mass-rate-sum</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Сумма платы за пересылку в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-mass-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-mass-rate-vat-sum</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">НДС от суммы платы за пересылку в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-notice-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-notice-rate-sum</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Сумма надбавки за уведомление о вручении в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-notice-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-notice-rate-vat-sum</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">НДС от суммы надбавки за уведомление о вручении в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-partial-redemption-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-partial-redemption-rate-sum</b> - Целое число</span><span class="api-struct__tooltip-body">Сумма платы за частичный выкуп в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-partial-redemption-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-partial-redemption-rate-vat-sum</b> - Целое число</span><span class="api-struct__tooltip-body">НДС от суммы платы за частичный выкуп в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-pre-postal-preparation-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-pre-postal-preparation-rate-sum</b> - Целое число</span><span class="api-struct__tooltip-body">Сумма платы за услугу 'Предпочтовая подготовка' в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-pre-postal-preparation-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-pre-postal-preparation-rate-vat-sum</b> - Целое число</span><span class="api-struct__tooltip-body">НДС от суммы платы за услугу 'Предпочтовая подготовка' в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-sms-notice-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-sms-notice-rate-sum</b> - Целое число</span><span class="api-struct__tooltip-body">Сумма платы за смс нотификацию в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-sms-notice-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-sms-notice-rate-vat-sum</b> - Целое число</span><span class="api-struct__tooltip-body">НДС от суммы платы за смс нотификацию в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-with-fitting-rate-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-with-fitting-rate-sum</b> - Целое число</span><span class="api-struct__tooltip-body">Сумма платы за проверку вложений с примеркой в копейках, без НДС</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipment-with-fitting-rate-vat-sum": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipment-with-fitting-rate-vat-sum</b> - Целое число</span><span class="api-struct__tooltip-body">НДС от суммы платы за проверку вложений с примеркой в копейках</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"shipping-notice-type": "SIMPLE"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>shipping-notice-type</b> - Строка</span><span class="api-struct__tooltip-body">Категория уведомления о вручении РПО. См. <a href='#/enums-base-notify-category' target='_blank'>Категория уведомления о вручении РПО.</a></span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"transport-type": "SURFACE"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>transport-type</b> - Строка</span><span class="api-struct__tooltip-body">Вид транспортировки. См. <a href='#/enums-base-transport-type' target='_blank'>Вид транспортировки</a></span></p></div>
+                        <div class="api-struct"><span class=" col-offset-3">"ukd": true</span></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"use-online-balance": true</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>use-online-balance</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак использования онлайн-баланса</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"wo-mass": true</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>wo-mass</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Без указания массы</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-2">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"errors": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>errors</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Список ошибок</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-2">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"error-code": "ALL_SHIPMENTS_SENT"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>error-code</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Код ошибки. См. <a href='#/enums-errors' target='_blank'>ошибки</a></span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"error-description": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>error-description</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Описание ошибки</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"error-details": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>error-details</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Детали ошибки</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-3">"position": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>position</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Индекс в исходном массиве</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-2">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"result-ids": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>result-ids</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Список успешно обработанных внутренних индентификаторов отправлений</span></p></div>
+                        <div class="api-struct"><span class=" col-offset-2">0</span></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="0"><span class="api-struct__description">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a href="" ng-click="turn('examples')"><h3>Примеры кода для работы с API</h3></a>
+    <div ng-show="examples && examples.enable">
+        <a href="" ng-click="turn('python')"><h4>Python (3 версия)</h4></a>
+        <div ng-show="python && python.enable">
+            Необходимые модули:<br/>
+            <table>
+                <thead>
+                <tr>
+                    <th><b>Модуль</b></th>
+                    <th><b>Описание</b></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+                        requests
+                    </td>
+                    <td>
+                        <a href="https://requests.readthedocs.io" target="_blank">Документация</a> и <a href="https://requests.readthedocs.io/en/master/user/install" target="_blank">Инструкции по установке</a>
+                    </td>
+                </tr>
+
+                </tbody>
+            </table>
+            <ul>
+                <li><a href="#/batches-create_batch_from_N_orders_py" target="_blank">Пример кода</a></li>
+                <li><a href="#/batches-create_batch_from_N_orders_py_custom" target="_blank">Генератор кода</a></li>
+            </ul>
+        </div>
+    </div>
+</article>

@@ -1,0 +1,139 @@
+<h3>Создание заказов с помощью расширения Chrome браузера</h3>
+Цель данного раздела:
+<ul>
+    <li>проверить авторизацию на API сервисе. Здесь будут указаны реальные токен авторизации и ключ авторизации;</li>
+    <li>создание отправлений через <b>API Онлайн-сервиса «Отправка»</b>.</li>
+</ul>
+Здесь рассматриваются базовые подходы к созданию REST запросов, которые могут быть использованы для отладки других сервисов <b>API Онлайн-сервиса «Отправка»</b>.<br/>
+<br/>
+<h3>1 шаг: Скачайте и установите плагин</h3>
+1. Перейдите по ссылке и установите <a href="https://chrome.google.com/webstore/detail/advanced-rest-client/hgmloofddffdnphfgcellkdfbfbjeloo?hl=en-US" target="_blank">"Advanced REST client" плагин</a>.<br/>
+<br/>
+<h3>2 шаг: Запустите плагин</h3>
+1. Откройте новую пустую страницу, вставьте ссылку <b>chrome://apps</b> и нажмите "Enter" на клавиатуре<br/>
+2. Запустите "Advanced REST client" плагин.<br/>
+<br/>
+<img src="/static/images/specification/usecases-chrome-backlog_1.jpg">
+<br/>
+<br/>
+
+<h3>3 шаг: Создайте новый запрос для добавления заказов</h3>
+После запуска:<br/>
+1. Укажите ссылку, состоящую из адреса сервера <b>{{exampleHost}}</b> и локального адреса <b>/1.0/user/backlog</b>. Локальный адрес взят из <a href="#/orders-creating_order">метода "Создание заказа без ШПИ"</a>. Ссылки для других методов уточняйте в документации.<br/>
+Таким образом, ссылка должна выглядеть так:<br/> <b>{{exampleHost}}/1.0/user/backlog</b><br/>
+<br/>
+2. Укажите тип запроса <b>PUT</b>. Данный тип взят из <a href="#/orders-creating_order">метода "Создание заказа без ШПИ"</a>. Типы для других методов уточняйте в документации.
+<br/>
+Это могут быть следующие типы: "GET", "POST", "PUT" или "DELETE".<br/>
+<br/>
+3. Нажмите на закладку "Headers form" и добавьте 3 заголовка:<br/>
+<ul>
+    <li>Добавьте параметр авторизации приложения <b>Authorization</b> и укажите префикс <b>AccessToken</b>, символ "пробела" и <b><a href="#/authorization-token">токен авторизации приложения</a></b>;</li>
+    <li>Добавьте параметр авторизации пользователя <b>X-User-Authorization</b> и укажите префикс <b>Basic</b>, символ "пробела" и <b><a href="#/authorization-key">ключ авторизации пользователя</a></b>;</li>
+    <li>Добавьте параметр формата ожидаемого результата <b>Content-Type</b> и укажите <b>application/json;charset=UTF-8</b></li>
+</ul>
+<br/>
+4. В теле запроса <b>Raw Payload</b> укажите один или несколько заказов согласно формату <a href="#/orders-creating_order">метода "Создание заказа без ШПИ"</a>.<br/>
+<br/>
+
+Пример:<br/>
+Мы должны добавить две посылки:<br/>
+1) "117105, г Москва, ш Варшавское, д 37", 1 кг, заказ в магазине "001", тел.: 79459562067, получатель: Иванов Иван Иванович<br/>
+2) "630084, обл Новосибирская, г Новосибирск, проезд Газовый, д 13, кв 99", 20 кг, заказ в магазине "002", тел.: 79458712076, получатель: Сидоров Сергей Владимирович<br/>
+<br/>
+
+Для этого:<br/>
+1) Разделите адреса на части вручную или с помощью <a href="#/nogroup-normalization_adress">метода нормализации адреса</a>. Смотрите пример: <a href='#/usecases-soapui-clean_address'>Проверка и нормализация адреса с помощью SoapUI</a>.<br/>
+2) Для каждого адреса мы готовим JSON структуры согласно формату <a href="#/orders-creating_order">метода "Создание заказа без ШПИ"</a>.<br/>
+3) Эти JSON структуры мы должны объединить в группу.<br/>
+Для обозначения группы используются "квадратные скобки" ( <b>[</b> и <b>]</b> ).<br/>
+Для разделения элементов внутри группы используется "запятая" ( <b>,</b> ).<br/>
+<br/>
+Таким образом, мы получаем окончательное тело запроса:<br/>
+<font color="magenta">
+[<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"address-type-to": "DEFAULT",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"given-name": "Иван",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"house-to": "37",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"index-to": 117105,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-category": "ORDINARY",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-direct": 643,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-type": "POSTAL_PARCEL",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mass": 1000,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"middle-name": "Иванович",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"order-num": "001",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"place-to": "г Москва",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"region-to": "г Москва",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"street-to": "ш Варшавское",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"surname": "Иванов",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"tel-address": 79459562067,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transport-type": "SURFACE"<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;},<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"address-type-to": "DEFAULT",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"given-name": "Сергей",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"house-to": "13",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"index-to": 630084,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-category": "ORDINARY",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-direct": 643,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-type": "POSTAL_PARCEL",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mass": 20000,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"middle-name": "Владимирович",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"order-num": "002",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"place-to": "г Новосибирск",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"region-to": "обл Новосибирская",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"room-to": "99",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"street-to": "проезд Газовый",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"surname": "Сидоров",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"tel-address": 79458712076,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transport-type": "SURFACE"<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+]<br/>
+</font>
+<b>Внимание! Если метод групповой, то необходимо создавать группу даже для одного элемента JSON структуры.</b><br/>
+Пример:<br/>
+<font color="magenta">
+[<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"address-type-to": "DEFAULT",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"given-name": "Сергей",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"house-to": "13",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"index-to": 630084,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-category": "ORDINARY",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-direct": 643,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-type": "POSTAL_PARCEL",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mass": 200,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"middle-name": "Владимирович",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"order-num": "002",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"place-to": "г Новосибирск",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"region-to": "обл Новосибирская",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"room-to": "99",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"street-to": "проезд Газовый",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"surname": "Сидоров",<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"tel-address": 79458712076,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transport-type": "SURFACE"<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+]<br/>
+</font>
+<br/>
+<br/>
+
+<img src="/static/images/specification/usecases-chrome-backlog_2.jpg">
+<br/>
+<br/>
+<h3>4 шаг: Выполните запрос</h3>
+1. Нажмите кнопку <b>SEND</b><br/>
+2. Будут возвращены идентификаторы заданных заказов или ошибки. Можно посмотреть <b>Raw</b> или <b>JSON</b> форматы.<br/>
+3. Для успешно созданных заказов будут возвращены идентификаторы.<br/>
+4. Для несозданных заказов будут возвращены описания ошибок.<br/>
+В данном случае: <b>ILLEGAL_MASS_EXCESS</b> (Превышена допустимая масса). В "details" описана максимальная масса в граммах (10 кг) для заказа в 1-й "позиции" ( 2-й элемент списка).<br/>
+<b>Внимание! Нумерация начинается с нулевого элемента (0, 1, 2 и т.д.).</b><br/>
+<br/>
+<br/>
+<img src="/static/images/specification/usecases-chrome-backlog_3.jpg">
+<br/>
+<br/>
+<h3>5 шаг: Проверьте отправление через Web браузер в приложении <b>«Отправка»</b> </h3>
+<br/>
+<img src="/static/images/specification/usecases-chrome-backlog_4.jpg">

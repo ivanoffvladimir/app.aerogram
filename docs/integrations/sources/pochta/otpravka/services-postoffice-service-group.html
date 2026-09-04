@@ -1,0 +1,119 @@
+<article class="article"><h3>Поиск почтовых сервисов ОПС по идентификатору группы сервисов</h3>
+
+    Введите <a href="#/authorization-token" target="_blank">токен авторизации приложения</a> и <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a>, тогда значения заголовков будут сгенерированы автоматически.<br/>
+    <br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Токен авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="token" type="text" name="token" ng-model="token" value="" class="input__field" size="51" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%">Ключ авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="key" type="text" name="key" ng-model="key" value="" class="input__field" size="51" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>postal-code</b><br/>Индекс почтового отделения</td>
+            <td><div class="input input__field-wrap">
+                <input id="postalCode" type="text" name="postalCode" ng-model="postalCode" value="" class="input__field" size="51" pattern="^[0-9]{6}$" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>service-group-id</b><br/>Идентификатор группы сервисов.</td>
+            <td><div class="input input__field-wrap">
+                <input id="serviceGroupId" type="text" name="serviceGroupId" ng-model="serviceGroupId" value="" class="input__field" size="51" pattern="^[0-9]+$" />
+            </div></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Параметры запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Локальный URL</td>
+            <td><b>/postoffice/1.0/<span ng-show="postalCode">{{ postalCode }}</span><span ng-show="!postalCode">{postal-code}</span>/services/<span ng-show="serviceGroupId">{{ serviceGroupId }}</span><span ng-show="!serviceGroupId">{service-group-id}</span></b>
+            </td>
+        </tr>
+        <tr>
+            <td width="25%">Тип</td>
+            <td><b>GET</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Заголовки запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="30%"><b>Authorization</b></td>
+            <td><span ng-show="token"><b>AccessToken {{ token }}</b></span></td>
+        </tr>
+        <tr>
+            <td width="30%"><b>X-User-Authorization</b></td>
+            <td><span ng-show="key"><b>Basic {{ key }}</b></span></td>
+        </tr>
+        <tr>
+            <td><b>Content-Type</b></td>
+            <td><b>application/json;charset=UTF-8</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b class="code-header">Ответ на запрос</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('response')">скопировать схему</a></span><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="15%">
+                Структура
+            </td>
+            <td>
+                <div class="code">
+                    <div class="code-body">
+                        <div class="api-struct" tabindex="1"><span class="api-struct__description">[</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>[</b> - Символ</span><span class="api-struct__tooltip-body">Начало группы</span></p></div>
+                        <div class="api-struct" tabindex="2"><span class="api-struct__description col-offset-1">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="3"><span class="api-struct__description col-offset-2">"code": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>code</b> - Строка</span><span class="api-struct__tooltip-body">Код сервиса (например: 1.2)</span></p></div>
+                        <div class="api-struct" tabindex="4"><span class="api-struct__description col-offset-2">"group-id": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>group-id</b> - Целое число</span><span class="api-struct__tooltip-body">Внутренний идентификатор группы, которой принадлежит сервис</span></p></div>
+                        <div class="api-struct" tabindex="5"><span class="api-struct__description col-offset-2">"name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>name</b> - Строка</span><span class="api-struct__tooltip-body">Описание сервиса</span></p></div>
+                        <div class="api-struct" tabindex="6"><span class="api-struct__description col-offset-1">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="7"><span class="api-struct__description">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a ng-click="turn('examples')"><h3>Примеры кода для работы с API</h3></a>
+    <div ng-show="examples && examples.enable">
+        <a ng-click="turn('python')"><h4>Python (3 версия)</h4></a>
+        <div ng-show="python && python.enable">
+            Необходимые модули:<br/>
+            <table>
+                <thead>
+                <tr>
+                    <th><b>Модуль</b></th>
+                    <th><b>Описание</b></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+                        requests
+                    </td>
+                    <td>
+                        <a href="https://requests.readthedocs.io" target="_blank">Документация</a> и <a href="https://requests.readthedocs.io/en/master/user/install" target="_blank">Инструкции по установке</a>
+                    </td>
+                </tr>
+
+                </tbody>
+            </table>
+            <ul>
+                <li><a href="#/services-postoffice-service-group_py" target="_blank">Пример кода</a></li>
+                <li><a href="#/services-postoffice-service-group_py_custom" target="_blank">Генератор кода</a></li>
+            </ul>
+        </div>
+    </div>
+</article>

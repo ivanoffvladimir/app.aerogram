@@ -1,0 +1,234 @@
+<article class="article">
+  <h3>Атрибут операции из трекинга</h3>
+  <table>
+      <colgroup>
+        <col class="col-6" />
+        <col class="col-18" />
+      </colgroup>
+      <thead>
+          <tr><th>Значение</th><th>Описание</th></tr>
+      </thead>
+      <tbody>
+              <tr><td>UNKNOWN</td><td>Атрибут операции не определен</td></tr>
+              <tr><td>FOREIGN_ACCEPTING</td><td>Прием иностранного отправления</td></tr>
+              <tr><td>SINGLE_ACCEPTING</td><td>Единичный</td></tr>
+              <tr><td>PARTIAL_ACCEPTING</td><td>Партионный</td></tr>
+              <tr><td>PARTIAL_ACCEPTING_REMOTE</td><td>Партионный электронно</td></tr>
+              <tr><td>GIVING_COMMON</td><td>Случай операции "Вручение" зарубежного отправления, когда код операции и аттрибута операции, получаемый в
+                      ответе, равен 0, т.е. мы не в состоянии по описанию операции "Вручение" точно определить было ли отправление
+                      получено адресатом или отправителем, а также как оно было получено, через почтомат или нет.</td></tr>
+              <tr><td>GIVING_RECIPIENT</td><td>Вручение адресату</td></tr>
+              <tr><td>GIVING_SENDER</td><td>Вручение отправителю</td></tr>
+              <tr><td>GIVING_RECIPIENT_IN_PO</td><td>Выдано адресату через почтомат</td></tr>
+              <tr><td>GIVING_SENDER_IN_PO</td><td>Выдано отправителю через почтомат</td></tr>
+              <tr><td>GIVING_RECIPIENT_REMOTE</td><td>Адресату электронно</td></tr>
+              <tr><td>GIVING_RECIPIENT_POSTMAN</td><td>Адресату почтальоном</td></tr>
+              <tr><td>GIVING_SENDER_POSTMAN</td><td>Отправителю почтальоном</td></tr>
+              <tr><td>GIVING_RECIPIENT_COURIER</td><td>Адресату курьером</td></tr>
+              <tr><td>GIVING_SENDER_COURIER</td><td>Отправителю курьером</td></tr>
+              <tr><td>GIVING_RECIPIENT_CONTROL</td><td>Адресату с контролем ответа</td></tr>
+              <tr><td>GIVING_RECIPIENT_CONTROL_POSTMAN</td><td>Адресату с контролем ответа почтальоном</td></tr>
+              <tr><td>GIVING_RECIPIENT_CONTROL_COURIER</td><td>Адресату с контролем ответа курьером</td></tr>
+              <tr><td>RETURNING_BY_EXPIRED_STORING</td><td>.Истек срок хранения</td></tr>
+              <tr><td>RETURNING_BY_SENDER_REQUEST</td><td>Заявление отправителя</td></tr>
+              <tr><td>RETURNING_BY_RECEPIENT_ABSENCE</td><td>Отсутствие адресата по указанному адресу</td></tr>
+              <tr><td>RETURNING_BY_RECEPIENT_REJECT</td><td>Отказ адресата</td></tr>
+              <tr><td>RETURNING_BY_RECEPIENT_DEATH</td><td>Смерть адресата</td></tr>
+              <tr><td>RETURNING_BY_UNREADABLE_ADDRESS</td><td>Невозможно прочесть адрес адресата</td></tr>
+              <tr><td>RETURNING_BY_CUSTOM</td><td>Возврат таможни</td></tr>
+              <tr><td>RETURNING_BY_UNKNOWN_RECEPIENT</td><td>Адресат, абонирующий абонементный почтовый шкаф, не указан или указан неправильно</td></tr>
+              <tr><td>RETURNING_BY_OTHER_REASONS</td><td>Иные обстоятельства</td></tr>
+              <tr><td>RETURNING_BY_WRONG_ADRESS</td><td>Неверный адрес</td></tr>
+              <tr><td>DELIVERING_BY_CLIENT_REQUEST</td><td>По заявлению пользователя</td></tr>
+              <tr><td>DELIVERING_TO_NEW_ADDRESS</td><td>Выбытие адресата по новому адресу</td></tr>
+              <tr><td>DELIVERING_BY_ROUTER</td><td>Засылка</td></tr>
+              <tr><td>LOST</td><td>Утрачено</td></tr>
+              <tr><td>CONFISCATED</td><td>Изъято</td></tr>
+              <tr><td>SKIPPING_BY_ERROR</td><td>Засылка</td></tr>
+              <tr><td>SKIPPING_BY_CUSTOM</td><td>Решение таможни</td></tr>
+              <tr><td>UNDELIVERED</td><td>Доставка по указанному адресу не осуществляется</td></tr>
+              <tr><td>POSTE_RESTANTE_STORING</td><td>До востребования</td></tr>
+              <tr><td>STORING_IN_BOX</td><td>На абонементный ящик</td></tr>
+              <tr><td>TEMPORAL_STORING</td><td>Установленный срок хранения</td></tr>
+              <tr><td>ADDITIONAL_STORING</td><td>Продление срока хранения по заявлению адресата</td></tr>
+              <tr><td>CUSTOM_HOLDING</td><td>Продление срока выпуска таможней</td></tr>
+              <tr><td>UNASSIGNED</td><td>Нероздано</td></tr>
+              <tr><td>UNCLAIMED</td><td>Невостребовано</td></tr>
+              <tr><td>PROHIBITED</td><td>Содержимое запрещено к пересылке</td></tr>
+              <tr><td>SORTING</td><td>Сортировка</td></tr>
+              <tr><td>SENT</td><td>Покинуло место приёма</td></tr>
+              <tr><td>ARRIVED</td><td>Прибыло в место вручения</td></tr>
+              <tr><td>DELIVERED_TO_SORTING</td><td>Прибыло в сортировочный центр</td></tr>
+              <tr><td>SORTED</td><td>Покинуло сортировочный центр</td></tr>
+              <tr><td>DELIVERED_TO_EXCHANGE_HUB</td><td>Прибыло в место международного обмена</td></tr>
+              <tr><td>PROCESSED_BY_EXCHANGE_HUB</td><td>Покинуло место международного обмена</td></tr>
+              <tr><td>DELIVERED_TO_HUB</td><td>Прибыло в место транзита</td></tr>
+              <tr><td>LEAVED_HUB</td><td>Покинуло место транзита</td></tr>
+              <tr><td>DELIVERED_TO_PO</td><td>Прибыло в почтомат</td></tr>
+              <tr><td>EXPIRED_PO_STORING</td><td>Истекает срок хранения в почтомате</td></tr>
+              <tr><td>FORWARDED</td><td>Переадресовано в почтомат</td></tr>
+              <tr><td>GET</td><td>Изъято из почтомата</td></tr>
+              <tr><td>ARRIVED_IN_RUSSIA</td><td>Прибыло на территорию РФ</td></tr>
+              <tr><td>ARRIVED_IN_PARCELS_CENTER</td><td>Прибыло в Центр выдачи посылок</td></tr>
+              <tr><td>GIVEN_TO_COURIER</td><td>Передано курьеру</td></tr>
+              <tr><td>GIVEN_FOR_REMOTE</td><td>Доставлено для вручения электронно</td></tr>
+              <tr><td>DELIVERED_HYBRID</td><td>Прибыло в ЦГП</td></tr>
+              <tr><td>GIVEN_TO_POSTMAN</td><td>Передано почтальону</td></tr>
+              <tr><td>GIVEN_FOR_BOXROOM</td><td>Передача в кладовую хранения</td></tr>
+              <tr><td>LEFT_POSTOFFICE</td><td>Покинуло место возврата/досыла</td></tr>
+              <tr><td>SPECIFY_ADDRESS</td><td>Уточнение адреса</td></tr>
+              <tr><td>EXPECTING_COURIER_DELIVERY</td><td>Ожидает курьерской доставки</td></tr>
+              <tr><td>PROLONG_STORAGE_DATE</td><td>Продление срока хранения</td></tr>
+              <tr><td>NOTIFICATION_SENT</td><td>Направлено извещение</td></tr>
+              <tr><td>NOTIFICATION_RECEIVED</td><td>Доставлено извещение</td></tr>
+              <tr><td>POCHTOMAT_ORDERED</td><td>Доставка в почтомат заказана</td></tr>
+              <tr><td>POSTMAN_ORDERED</td><td>Доставка почтальоном заказана</td></tr>
+              <tr><td>COURIER_ORDERED</td><td>Курьерская доставка заказана</td></tr>
+              <tr><td>IMPORTED</td><td>Импорт международной почты</td></tr>
+              <tr><td>EXPORTED</td><td>Экспорт международной почты</td></tr>
+              <tr><td>ACCEPTED_BY_CUSTOM</td><td>Принято таможней</td></tr>
+              <tr><td>FAILED_BY_TEMPORAL_ABSENCE_OF_RECEPIENT</td><td>Временное отсутствие адресата</td></tr>
+              <tr><td>FAILED_BY_DELAYING_REQUEST</td><td>Доставка отложена по просьбе адресата</td></tr>
+              <tr><td>FAILED_BY_UNFILLED_ADDRESS</td><td>Неполный адрес</td></tr>
+              <tr><td>FAILED_BY_INVALID_ADDRESS</td><td>Неправильный адрес</td></tr>
+              <tr><td>FAILED_BY_RECEPIENT_LEAVING</td><td>Адресат выбыл</td></tr>
+              <tr><td>FAILED_BY_RECEPINT_REJECT</td><td>Отказ от получения</td></tr>
+              <tr><td>UNOVERCAMING_FAIL</td><td>Обстоятельства непреодолимой силы</td></tr>
+              <tr><td>FAILED_WITH_ANOTHER_REASON</td><td>Иная</td></tr>
+              <tr><td>WAITING_RECEPIENT_IN_OFFICE</td><td>Адресат заберет отправление сам</td></tr>
+              <tr><td>RECEPIENT_NOT_FOUND</td><td>Нет адресата</td></tr>
+              <tr><td>TECHNICALLY_FAILED</td><td>По техническим причинам</td></tr>
+              <tr><td>FAILED_BY_EXPIRATION_TIME</td><td>v</td></tr>
+              <tr><td>REGISTERED</td><td>Регистрация отправки</td></tr>
+              <tr><td>CUSTOM_LEGALIZED</td><td>Выпущено таможней</td></tr>
+              <tr><td>LEGALIZED</td><td>Выпущено таможней</td></tr>
+              <tr><td>CANCELED_LEGLIZATION</td><td>Возвращено таможней</td></tr>
+              <tr><td>PROCESSED_BY_CUSTOM</td><td>Осмотрено таможней</td></tr>
+              <tr><td>REJECTED_BY_CUSTOM</td><td>Отказ в выпуске</td></tr>
+              <tr><td>PASSED_WITH_CUSTOM_NOTIFY</td><td>Направлено с таможенным уведомлением</td></tr>
+              <tr><td>PASSED_WITH_CUSTOM_TAX</td><td>Направлено с обязательной уплатой таможенных платежей</td></tr>
+              <tr><td>DELIGATED</td><td>Передача на временное хранение</td></tr>
+              <tr><td>DESTROYED</td><td>Уничтожение</td></tr>
+              <tr><td>ACCOUNTED</td><td>Передача вложения на баланс</td></tr>
+              <tr><td>LOSS_REGISTERED</td><td>Утрата зарегистрирована</td></tr>
+              <tr><td>CUSTOM_DUTY_RECEIVED</td><td>Таможенные платежи поступили</td></tr>
+              <tr><td>DM_REGISTERED</td><td>Регистрация</td></tr>
+              <tr><td>DM_DELIVERED</td><td>Доставка</td></tr>
+              <tr><td>DM_ABSENCE_POSTBOX</td><td>Недоставка</td></tr>
+              <tr><td>DM_ABSENCE_ADDRESS</td><td>Недоставка</td></tr>
+              <tr><td>DM_WRONG_POSTOFFICE_INDEX</td><td>Недоставка</td></tr>
+              <tr><td>DM_WRONG_ADDRESS</td><td>Недоставка</td></tr>
+              <tr><td>TEMPORARY_STORING_ARRIVED</td><td>Поступление на временное хранение</td></tr>
+              <tr><td>CUSTOM_STORING_PROLONGED</td><td>Продление срока выпуска таможней</td></tr>
+              <tr><td>CUSTOM_STORING_PROLONGED_1</td><td>Запрещенные вложение</td></tr>
+              <tr><td>CUSTOM_STORING_PROLONGED_2</td><td>Импортируемые вложения являются предметом ограничений - Несоответствующая/отсутствующая лицензия</td></tr>
+              <tr><td>CUSTOM_STORING_PROLONGED_3</td><td>Несоответствующий/отсутствующий сертификат о происхождении груза</td></tr>
+              <tr><td>CUSTOM_STORING_PROLONGED_4</td><td>Несоответствующая/отсутствующая таможенная декларация</td></tr>
+              <tr><td>CUSTOM_STORING_PROLONGED_5</td><td>Контакт с клиентом для запроса информации невозможен</td></tr>
+              <tr><td>CUSTOM_STORING_PROLONGED_6</td><td>Некомплектная поставка</td></tr>
+              <tr><td>CUSTOM_STORING_PROLONGED_7</td><td>Передано в таможенный орган</td></tr>
+              <tr><td>CUSTOM_STORING_PROLONGED_8</td><td>Экспортируемые вложения являются предметом ограничений - Несоответствующая/отсутствующая лицензия</td></tr>
+              <tr><td>CUSTOM_STORING_PROLONGED_9</td><td>Неполная/некорректная документация, ожидается дополнительная документация</td></tr>
+              <tr><td>OPENED</td><td>Вскрытие</td></tr>
+              <tr><td>CANCELED_BY_SENDER_DEFAULT</td><td>Отмена операции по требованию отправителя</td></tr>
+              <tr><td>CANCELED_BY_SENDER</td><td>Отмена операции по требованию отправителя</td></tr>
+              <tr><td>CANCELED_BY_OPERATOR</td><td>Отмена операции из-за ошибки оператора</td></tr>
+              <tr><td>ID_ASSIGNED</td><td>Присвоен идентификатор</td></tr>
+              <tr><td>ELECTRONIC_REGISTRATION_RECEIVED</td><td>Получена электронная регистрация</td></tr>
+              <tr><td>REGISTRATION_PASSAGE_IN_MMPO</td><td>Регистрация прохождения в ММПО</td></tr>
+              <tr><td>SRM_DISPATCH</td><td>Отправка SRM</td></tr>
+              <tr><td>TRANSPORT_ARRIVED</td><td>Транспорт прибыл</td></tr>
+              <tr><td>ACCEPTED</td><td>Бронирование подтверждено</td></tr>
+              <tr><td>ASSIGNED_TO_LOAD_PLAN</td><td>Включено в план погрузки</td></tr>
+              <tr><td>REMOVED_FROM_LOAD_PLAN</td><td>Исключено из плана погрузки</td></tr>
+              <tr><td>TRANSPORT_LEG_COMPLETED</td><td>Транспортный участок завершен</td></tr>
+              <tr><td>DELIVERED</td><td>Доставлено</td></tr>
+              <tr><td>MAIL_AT_DESTINATION</td><td>Почта в месте назначения</td></tr>
+              <tr><td>UPLIFTED</td><td>Погружено на борт</td></tr>
+              <tr><td>EN_ROUTE</td><td>В пути</td></tr>
+              <tr><td>MAIL_ARRIVED_AT_CARRIER_FACILITY</td><td>Почта поступила на склад перевозчика</td></tr>
+              <tr><td>TRANSFER</td><td>Перегрузка</td></tr>
+              <tr><td>HANDOVER_DELIVERED</td><td>Передано другому перевозчику</td></tr>
+              <tr><td>HANDOVER_RECEIVED</td><td>Получено от другого перевозчика</td></tr>
+              <tr><td>LOADED</td><td>Погружено</td></tr>
+              <tr><td>NOT_LOADED</td><td>Не погружено</td></tr>
+              <tr><td>OFFLOADED</td><td>Выгружено</td></tr>
+              <tr><td>RECEIVED</td><td>Принято к перевозке</td></tr>
+              <tr><td>RETURNED</td><td>Возвращено</td></tr>
+              <tr><td>APO_RECEIPT</td><td>Принято к перевозке</td></tr>
+              <tr><td>FORWARD_TO_CARRIER</td><td>Передано перевозчику</td></tr>
+              <tr><td>RECEIVED_DESIGNATED_OPERATOR</td><td>Получено назначенным оператором</td></tr>
+              <tr><td>PROCESSING_DESIGNATED_POSTAL_OPERATOR</td><td>Обработка назначенным оператором</td></tr>
+              <tr><td>ELECTRONIC_NOTIFICATION_UPLOADED</td><td>Электронное уведомление загружено</td></tr>
+              <tr><td>UNDELIVERABLE_SHIPMENT_TYPE</td><td>Не подлежащий доставке вид почтового отправления</td></tr>
+              <tr><td>EXCEEDING_WEIGHT_LIMIT</td><td>Превышение предельного веса, подлежащее доставке</td></tr>
+              <tr><td>EXCEEDING_OVERALL_DIMENSION</td><td>Превышение габаритных размеров, подлежащее доставке</td></tr>
+              <tr><td>DEFECTIVE_SHIPMENT</td><td>Дефектное почтовое отправление</td></tr>
+              <tr><td>CUSTOMS_NOTIFICATION_ENCLOSED</td><td>Наличие Таможенного уведомления</td></tr>
+              <tr><td>AGREEMENT_EXCHANGE_COD_SHIPMENT_NOT_ENCLOSED</td><td>Отсутствие Соглашения об обмене почтовыми отправлениями с наложенным платежом</td></tr>
+              <tr><td>RETURNED_SHIPMENT</td><td>Возвращенное почтовое отправление</td></tr>
+              <tr><td>EXCESS_COD_AMOUNT_CHARGED_AT_HOME</td><td>Превышение суммы наложенного платежа, подлежащей взиманию на дому</td></tr>
+              <tr><td>INCORRECT_DOCUMENTATION_OR_LACK_THEREOF</td><td>Неверно оформленные бланки или их отсутствие</td></tr>
+              <tr><td>INCLUDED_IN_TARIFF</td><td>Включена в тариф</td></tr>
+              <tr><td>CHARGEABLE</td><td>Платная</td></tr>
+              <tr><td>PREPAID</td><td>Предоплаченная</td></tr>
+              <tr><td>PRE_FORMALIZATION</td><td>Предварительное оформление</td></tr>
+              <tr><td>INCORRECT_UNREADABLE_INCOMPLETE_ADDRESS</td><td>Неправильный/нечитаемый/неполный адрес</td></tr>
+              <tr><td>AT_SENDER_REQUEST</td><td>По требованию отправителя</td></tr>
+              <tr><td>RETAINED_INCORRECT_DISPATCH</td><td>Засыл отправления</td></tr>
+              <tr><td>REGISTRATION</td><td>Регистрация</td></tr>
+              <tr><td>PRELIMINARY_DECISION</td><td>Предварительное решение "выпуск разрешен"</td></tr>
+              <tr><td>RETAINED_CUSTOM_WITHOUT_INSPECTION</td><td>Отказ в выпуске товаров. Требуется предъявление таможенному органу без осмотра</td></tr>
+              <tr><td>RETAINED_CUSTOM_WITH_INSPECTION</td><td>Отказ в выпуске товаров. Требуется предъявление таможенному органу с осмотром</td></tr>
+              <tr><td>REFUSAL_OF_REGISTRATION</td><td>Отказ в регистрации</td></tr>
+              <tr><td>GOODS_NOT_SHOWN</td><td>Отказ в выпуске. Товары не предъявлены</td></tr>
+              <tr><td>DATA_FROM_TRAIDING_PLAFORM_RECIVED</td><td>Данные от торговой площадки получены</td></tr>
+              <tr><td>RELEASED_BY_CUSTOMS</td><td>Выпуск разрешен</td></tr>
+              <tr><td>REJECTED_BY_CUSTOMS</td><td>Отказ в выпуске</td></tr>
+              <tr><td>PAYMENTS_PAID</td><td>Платежи уплачены</td></tr>
+              <tr><td>PAYMENT_AMOUNT_WITHHELD</td><td>Сумма платежа удержана УО</td></tr>
+              <tr><td>PAYMENT_AMOUNT_DEBITED</td><td>Сумма платежа списана ФТС</td></tr>
+              <tr><td>PAYMENT_AMOUNT_FOR_WITHHELD</td><td>Сумма платежа для удержания УО</td></tr>
+              <tr><td>PAYMENT_AMOUNT_WITHHELD_COMPLETELY</td><td>Сумма платежа удержана УО полностью</td></tr>
+              <tr><td>PAYMENT_AMOUNT_CALCULATED</td><td>Сумма платежа рассчитана УО</td></tr>
+              <tr><td>ADDRESSEE_NOT_AVAILABLE</td><td>Временное отсутствие адресата</td></tr>
+              <tr><td>ADDRESSEE_REQUESTED_LATE_DELIVERY</td><td>Доставка отложена по просьбе адресата</td></tr>
+              <tr><td>INCOMPLETE_ADDRESS</td><td>Неполный адрес</td></tr>
+              <tr><td>UNREADABLE_INCORRECT_INCOMPLETE_ADDRESS</td><td>Неправильный/нечитаемый/неполный адрес</td></tr>
+              <tr><td>SECOND_ATTEMPT_ADDRESSEE_MOVED</td><td>Адресат выбыл</td></tr>
+              <tr><td>ITEM_REFUSED_BY_ADDRESSEE</td><td>Адресат отказался от отправления</td></tr>
+              <tr><td>FORCE_MAJEURE</td><td>Форс-мажор/непредвиденные обстоятельства</td></tr>
+              <tr><td>OTHER</td><td>Иная</td></tr>
+              <tr><td>ADDRESSEE_REQUEST_OWN_PICK_UP</td><td>Адресат заберет отправление сам</td></tr>
+              <tr><td>ADDRESSEE_CANNOT_BE_LOCATED</td><td>Адресат не доступен</td></tr>
+              <tr><td>DUE_TO_TECHNICAL_DIFFICULTIES</td><td>Неудачная доставка</td></tr>
+              <tr><td>STORAGE_PERIOD_EXPIRED</td><td>Истек срок хранения в почтомате</td></tr>
+              <tr><td>SECOND_ATTEMPT_SENDER_REQUEST</td><td>По требованию отправителя</td></tr>
+              <tr><td>ITEM_DEMAGED_AND_OR_MISSING_CONTENS</td><td>Отправление повреждено и/или без вложения</td></tr>
+              <tr><td>AWAITING_PAYMENT</td><td>В ожидании оплаты сбора</td></tr>
+              <tr><td>MOVED_ADDRESSEE</td><td>Адресат переехал</td></tr>
+              <tr><td>SECOND_ATTEMPT_ADDRESSEE_HAS_P_O_BOX</td><td>У адресата есть абонентский ящик</td></tr>
+              <tr><td>SECOND_ATTEMPT_NO_HOME_DELIVERY</td><td>Нет доставки на дом</td></tr>
+              <tr><td>NOT_MEET_CUSTOMS_REQUIREMENTS</td><td>Не отвечает таможенным требованиям</td></tr>
+              <tr><td>SECOND_ATTEMPT_INCORRECT_DOCUMENTATION</td><td>Неполные/недостаточные/неверные документы</td></tr>
+              <tr><td>IMPOSSIBLE_CONTACT</td><td>Невозможно связаться с клиентом</td></tr>
+              <tr><td>SECOND_ATTEMPT_ADDRESSEE_ON_STRIKE</td><td>Адресат бастует</td></tr>
+              <tr><td>SECOND_ATTEMPT_PROHIBITED_ARTICLES</td><td>Запрещенные вложения – отправление не доставлено</td></tr>
+              <tr><td>IMPORTATION_RESTRICTED</td><td>Отказ в импорте – запрещенные вложения</td></tr>
+              <tr><td>DISPATCH_INCORRECT</td><td>Засыл отправления</td></tr>
+              <tr><td>ADDRESSEE_DECEASE</td><td>За смертью получателя</td></tr>
+              <tr><td>SECOND_ATTEMPT_LOCAL_HOLIDAY</td><td>Национальный праздник</td></tr>
+              <tr><td>ITEM_LOST</td><td>Утрата</td></tr>
+              <tr><td>DELIVERY_PERMITTED</td><td>Вручение разрешено</td></tr>
+              <tr><td>ACCEPTANCE_REJECTED</td><td>Отказ в приеме</td></tr>
+              <tr><td>ELECTRONIC_NOTIFICATION_REFUSED</td><td>Отказ от отправки электронного уведомления получателем</td></tr>
+              <tr><td>ID_ASSIGNMENT_CANCELLED</td><td>Присвоение идентификатора отменено</td></tr>
+              <tr><td>SHIPMENT_ALREADY_DELIVERED</td><td>Отправление уже вручено</td></tr>
+              <tr><td>REAPPLICATION</td><td>Заявка на продление срока хранения получена повторно</td></tr>
+              <tr><td>LATER_24_HOURS_BEFORE_COMPLETION</td><td>Заявка на продление срока хранения подана позже, чем за 24 часа окончания нормативного срока хранения</td></tr>
+              <tr><td>RECEIVABLES</td><td>Наличие дебиторской задолженности по корпоративному клиенту</td></tr>
+              <tr><td>COMPANY_BAN</td><td>Наличие запрета со стороны Компании дистанционной торговли (интернет-магазина) на продление срока хранения</td></tr>
+              <tr><td>DELIVERY_POINT_CLOSED</td><td>ПВЗ закрыт</td></tr>
+      </tbody>
+  </table>
+</article>

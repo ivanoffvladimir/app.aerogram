@@ -1,0 +1,159 @@
+<article class="article">
+    <h3>Тип последней операции из трекинга</h3>
+      <table>
+          <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+          </colgroup>
+          <thead>
+              <tr><th>Значение</th><th>Описание</th></tr>
+          </thead>
+          <tbody>
+              <tr> <td>UNKNOWN</td> <td>Тип операции не определен</td> </tr>
+              <tr> <td>ACCEPTING</td> <td>Прием</td> </tr>
+              <tr> <td>GIVING</td> <td>Вручение</td> </tr>
+              <tr> <td>RETURNING</td> <td>Возврат</td> </tr>
+              <tr> <td>DELIVERING</td> <td>Досылка почты</td> </tr>
+              <tr> <td>SKIPPING</td> <td>Невручение</td> </tr>
+              <tr> <td>STORING</td> <td>Хранение</td> </tr>
+              <tr> <td>HOLDING</td> <td>Временное хранение</td> </tr>
+              <tr> <td>PROCESSING</td> <td>Обработка</td> </tr>
+              <tr> <td>IMPORTING</td> <td>Импорт международной почты</td> </tr>
+              <tr> <td>EXPORTING</td> <td>Экспорт международной почты</td> </tr>
+              <tr> <td>CUSTOM_ACCEPTING</td> <td>Принято таможней</td> </tr>
+              <tr> <td>TRYING</td> <td>Неудачная попытка вручения</td> </tr>
+              <tr> <td>REGISTERING</td> <td>Регистрация отправки</td> </tr>
+              <tr> <td>CUSTOM_LEGALIZING</td> <td>Таможенное оформление</td> </tr>
+              <tr> <td>DELIGATING</td> <td>Передача на временное хранение</td> </tr>
+              <tr> <td>DESTROYING</td> <td>Уничтожение</td> </tr>
+              <tr> <td>ACCOUNTING</td> <td>Передача вложения на баланс</td> </tr>
+              <tr> <td>LOSS_REGISTRATION</td> <td>Регистрация утраты</td> </tr>
+              <tr> <td>CUSTOM_DUTY_RECEIVING</td> <td>Таможенные платежи поступили</td> </tr>
+              <tr> <td>DM_REGISTRATION</td> <td>Регистрация</td> </tr>
+              <tr> <td>DM_DELIVERING</td> <td>Доставка</td> </tr>
+              <tr> <td>DM_NON_DELIVERING</td> <td>Недоставка</td> </tr>
+              <tr> <td>TEMPORARY_STORING_ARRIVING</td> <td>Поступление на временное хранение</td> </tr>
+              <tr> <td>PROLONGATION_CUSTOM_STORING</td> <td>Продление срока выпуска таможней</td> </tr>
+              <tr> <td>OPENING</td> <td>Вскрытие</td> </tr>
+              <tr> <td>CANCELLATION</td> <td>Отмена</td> </tr>
+              <tr> <td>ID_ASSIGNMENT</td> <td>Присвоен идентификатор</td> </tr>
+          </tbody>
+      </table>
+    
+  <h3>Атрибут последней операции из трекинга</h3>
+  <table>
+      <colgroup>
+        <col class="col-6" />
+        <col class="col-18" />
+      </colgroup>
+      <thead>
+          <tr><th>Значение</th><th>Описание</th></tr>
+      </thead>
+      <tbody>
+          <tr> <td>UNKNOWN</td> <td>Неизвестный атрибут</td> </tr>
+          <tr> <td>FOREIGN_ACCEPTING</td> <td>Приём</td> </tr>
+          <tr> <td>SINGLE_ACCEPTING</td> <td>Принято в отделении связи</td> </tr>
+          <tr> <td>PARTIAL_ACCEPTING</td> <td>Принято в отделении связи</td> </tr>
+          <tr> <td>PARTIAL_ACCEPTING_REMOTE</td> <td>Электронное письмо принято</td> </tr>
+          <tr> <td>GIVING_RECIPIENT</td> <td>Получено адресатом</td> </tr>
+          <tr> <td>GIVING_SENDER</td> <td>Получено отправителем</td> </tr>
+          <tr> <td>GIVING_RECIPIENT_IN_PO</td> <td>Получено адресатом</td> </tr>
+          <tr> <td>GIVING_SENDER_IN_PO</td> <td>Получено отправителем</td> </tr>
+          <tr> <td>GIVING_COMMON</td> <td>Получено</td> </tr>
+          <tr> <td>GIVING_RECIPIENT_REMOTE</td> <td>Электронное письмо вручено</td> </tr>
+          <tr> <td>GIVING_RECIPIENT_POSTMAN</td> <td>Получено адресатом</td> </tr>
+          <tr> <td>GIVING_SENDER_POSTMAN</td> <td>Получено отправителем</td> </tr>
+          <tr> <td>GIVING_RECIPIENT_COURIER</td> <td>Получено адресатом</td> </tr>
+          <tr> <td>GIVING_RECIPIENT_CONTROL</td> <td>Получено адресатом</td> </tr>
+          <tr> <td>GIVING_RECIPIENT_CONTROL_POSTMAN</td> <td>Получено адресатом</td> </tr>
+          <tr> <td>GIVING_RECIPIENT_CONTROL_COURIER</td> <td>Получено адресатом</td> </tr>
+          <tr> <td>GIVING_SENDER_COURIER</td> <td>Получено отправителем</td> </tr>
+          <tr> <td>RETURNING_BY_EXPIRED_STORING</td> <td>Отправлено обратно отправителю</td> </tr>
+          <tr> <td>RETURNING_BY_SENDER_REQUEST</td> <td>Отправлено обратно отправителю</td> </tr>
+          <tr> <td>RETURNING_BY_RECEPIENT_ABSENCE</td> <td>Отправлено обратно отправителю</td> </tr>
+          <tr> <td>RETURNING_BY_RECEPIENT_REJECT</td> <td>Отправлено обратно отправителю</td> </tr>
+          <tr> <td>RETURNING_BY_RECEPIENT_DEATH</td> <td>Отправлено обратно отправителю</td> </tr>
+          <tr> <td>RETURNING_BY_UNREADABLE_ADDRESS</td> <td>Отправлено обратно отправителю</td> </tr>
+          <tr> <td>RETURNING_BY_CUSTOM</td> <td>Отправлено обратно отправителю</td> </tr>
+          <tr> <td>RETURNING_BY_UNKNOWN_RECEPIENT</td> <td>Отправлено обратно отправителю</td> </tr>
+          <tr> <td>RETURNING_BY_OTHER_REASONS</td> <td>Отправлено обратно отправителю</td> </tr>
+          <tr> <td>RETURNING_BY_WRONG_ADRESS</td> <td>Отправлено обратно отправителю</td> </tr>
+          <tr> <td>DELIVERING_BY_CLIENT_REQUEST</td> <td>Перенаправлено на другой адрес</td> </tr>
+          <tr> <td>DELIVERING_TO_NEW_ADDRESS</td> <td>Перенаправлено на новый адрес</td> </tr>
+          <tr> <td>DELIVERING_BY_ROUTER</td> <td>Перенаправлено на новый адрес</td> </tr>
+          <tr> <td>LOST</td> <td>Вручение не состоялось</td> </tr>
+          <tr> <td>CONFISCATED</td> <td>Вручение не состоялось</td> </tr>
+          <tr> <td>SKIPPING_BY_ERROR</td> <td>Вручение не состоялось</td> </tr>
+          <tr> <td>SKIPPING_BY_CUSTOM</td> <td>Вручение не состоялось</td> </tr>
+          <tr> <td>UNDELIVERED</td> <td>Вручение не состоялось</td> </tr>
+          <tr> <td>POSTE_RESTANTE_STORING</td> <td>Хранение</td> </tr>
+          <tr> <td>STORING_IN_BOX</td> <td>Хранение</td> </tr>
+          <tr> <td>TEMPORAL_STORING</td> <td>Хранение</td> </tr>
+          <tr> <td>ADDITIONAL_STORING</td> <td>Хранение</td> </tr>
+          <tr> <td>CUSTOM_HOLDING</td> <td>Передано в таможенный орган</td> </tr>
+          <tr> <td>CUSTOM_DUTY_RECEIVED</td> <td>Таможенные платежи поступили</td> </tr>
+          <tr> <td>UNASSIGNED</td> <td>Временное хранение</td> </tr>
+          <tr> <td>UNCLAIMED</td> <td>Временное хранение</td> </tr>
+          <tr> <td>PROHIBITED</td> <td>Временное хранение</td> </tr>
+          <tr> <td>SORTING</td> <td>Сортировка</td> </tr>
+          <tr> <td>SENT</td> <td>Покинуло место приема</td> </tr>
+          <tr> <td>ARRIVED</td> <td>Прибыло в место вручения</td> </tr>
+          <tr> <td>DELIVERED_TO_SORTING</td> <td>Прибыло в сортировочный центр</td> </tr>
+          <tr> <td>SORTED</td> <td>Покинуло сортировочный центр</td> </tr>
+          <tr> <td>DELIVERED_TO_EXCHANGE_HUB</td> <td>Прибыло в место международного обмена</td> </tr>
+          <tr> <td>PROCESSED_BY_EXCHANGE_HUB</td> <td>Покинуло место международного обмена</td> </tr>
+          <tr> <td>DELIVERED_TO_HUB</td> <td>Прибыло в место транзита</td> </tr>
+          <tr> <td>LEAVED_HUB</td> <td>Покинуло место транзита</td> </tr>
+          <tr> <td>DELIVERED_TO_PO</td> <td>Ожидает адресата в почтомате</td> </tr>
+          <tr> <td>DELIVERED_HYBRID</td> <td>Прибыло в центр гибридной печати</td> </tr>
+          <tr> <td>EXPIRED_PO_STORING</td> <td>Истекает срок хранения в почтомате</td> </tr>
+          <tr> <td>FORWARDED</td> <td>Переадресовано в почтомат</td> </tr>
+          <tr> <td>GET</td> <td>Изъято из почтомата</td> </tr>
+          <tr> <td>ARRIVED_IN_RUSSIA</td> <td>Прибыло на территорию России</td> </tr>
+          <tr> <td>ARRIVED_IN_PARCELS_CENTER</td> <td>Ожидает адресата в месте вручения</td> </tr>
+          <tr> <td>GIVEN_TO_COURIER</td> <td>Передано курьеру</td> </tr>
+          <tr> <td>GIVEN_FOR_REMOTE</td> <td>Электронное письмо доставлено</td> </tr>
+          <tr> <td>GIVEN_FOR_BOXROOM</td> <td>Передано в кладовую хранения</td> </tr>
+          <tr> <td>GIVEN_TO_POSTMAN</td> <td>Передано почтальону</td> </tr>
+          <tr> <td>COURIER_ORDERED</td> <td>Передано курьеру</td> </tr>
+          <tr> <td>IMPORTED</td> <td>Прошло регистрацию</td> </tr>
+          <tr> <td>EXPORTED</td> <td>Пересекло границу</td> </tr>
+          <tr> <td>ACCEPTED_BY_CUSTOM</td> <td>Принято таможней</td> </tr>
+          <tr> <td>FAILED_BY_TEMPORAL_ABSENCE_OF_RECEPIENT</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>FAILED_BY_DELAYING_REQUEST</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>FAILED_BY_UNFILLED_ADDRESS</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>FAILED_BY_INVALID_ADDRESS</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>FAILED_BY_RECEPIENT_LEAVING</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>FAILED_BY_RECEPINT_REJECT</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>UNOVERCAMING_FAIL</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>FAILED_WITH_ANOTHER_REASON</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>WAITING_RECEPIENT_IN_OFFICE</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>RECEPIENT_NOT_FOUND</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>TECHNICALLY_FAILED</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>FAILED_BY_EXPIRATION_TIME</td> <td>Неудачная попытка вручения</td> </tr>
+          <tr> <td>REGISTERED</td> <td>Регистрация отправки</td> </tr>
+          <tr> <td>LEGALIZED</td> <td>Выпущено таможней</td> </tr>
+          <tr> <td>CUSTOM_LEGALIZED</td> <td>Выпущено таможней</td> </tr>
+          <tr> <td>CANCELED_LEGLIZATION</td> <td>Возвращено таможней</td> </tr>
+          <tr> <td>PROCESSED_BY_CUSTOM</td> <td>Осмотрено таможней</td> </tr>
+          <tr> <td>REJECTED_BY_CUSTOM</td> <td>Отказано таможней в выпуске</td> </tr>
+          <tr> <td>PASSED_WITH_CUSTOM_NOTIFY</td> <td>Направлено с таможенным уведомлением</td> </tr>
+          <tr> <td>PASSED_WITH_CUSTOM_TAX</td> <td>Направлено с обязательной уплатой таможенных платежей</td> </tr>
+          <tr> <td>DELIGATED</td> <td>Передано на временное хранение</td> </tr>
+          <tr> <td>DESTROYED</td> <td>Уничтожение</td> </tr>
+          <tr> <td>ACCOUNTED</td> <td>Передано в собственность почты</td> </tr>
+          <tr> <td>LOSS_REGISTERED</td> <td>Зарегистрирована утрата</td> </tr>
+          <tr> <td>DM_REGISTERED</td> <td>Регистрация</td> </tr>
+          <tr> <td>DM_DELIVERED</td> <td>Доставка</td> </tr>
+          <tr> <td>DM_ABSENCE_POSTBOX</td> <td>Недоставка</td> </tr>
+          <tr> <td>Т</td> <td>Недоставка</td> </tr>
+          <tr> <td>DM_WRONG_POSTOFFICE_INDEX</td> <td>Недоставка</td> </tr>
+          <tr> <td>DM_WRONG_ADDRESS</td> <td>Недоставка</td> </tr>
+          <tr> <td>OPENED</td> <td>Срок хранения истек, отправление вскрыто</td> </tr>
+          <tr> <td>CANCELED_BY_SENDER_DEFAULT</td> <td>Предыдущая операция отменена по требованию отправителя</td> </tr>
+          <tr> <td>CANCELED_BY_SENDER</td> <td>Предыдущая операция отменена по требованию отправителя</td> </tr>
+          <tr> <td>CANCELED_BY_OPERATOR</td> <td>Предыдущая операция отменена</td> </tr>
+          <tr> <td>ID_ASSIGNED</td> <td>Зарегистрировано, еще не отправлено</td> </tr>
+      </tbody>
+  </table>
+</article>

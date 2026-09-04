@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:tns="http://fclient.russianpost.org" xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" version="1.0" targetNamespace="http://fclient.russianpost.org">
+
+<xs:element name="File" type="tns:file"/>
+
+<xs:complexType name="file">
+<xs:sequence>
+<xs:element name="Item" type="tns:item" maxOccurs="unbounded"/>
+</xs:sequence>
+<xs:attribute name="FileName" type="xs:string" use="required"/>
+<xs:attribute name="FileTypeID" type="xs:integer" use="required"/>
+<xs:attribute name="FileNumber" type="xs:positiveInteger" use="required"/>
+<xs:attribute name="SenderID" type="xs:positiveInteger"/>
+<xs:attribute name="RecipientID" type="xs:positiveInteger"/>
+<xs:attribute name="DatePreparation" type="xs:string" use="required"/>
+</xs:complexType>
+
+<xs:complexType name="item">
+<xs:sequence>
+<xs:element name="Operation" type="tns:operation" minOccurs="0" maxOccurs="unbounded"/>
+<xs:element name="Error" type="tns:error" minOccurs="0" maxOccurs="unbounded"/>
+</xs:sequence>
+<xs:attribute name="Barcode" type="xs:string" use="required"/>
+</xs:complexType>
+
+<xs:complexType name="operation">
+<xs:sequence/>
+<xs:attribute name="OperTypeID" type="xs:positiveInteger" use="required"/>
+<xs:attribute name="OperCtgID" type="xs:nonNegativeInteger" use="required"/>
+<xs:attribute name="OperName" type="xs:string" use="required"/>
+<xs:attribute name="DateOper" type="xs:string" use="required"/>
+<xs:attribute name="IndexOper" type="xs:string" use="required"/>
+</xs:complexType>
+
+<xs:complexType name="error">
+<xs:sequence/>
+<xs:attribute name="ErrorTypeID" type="xs:positiveInteger" use="required"/>
+<xs:attribute name="ErrorName" type="xs:string" use="required"/>
+</xs:complexType>
+</xs:schema>

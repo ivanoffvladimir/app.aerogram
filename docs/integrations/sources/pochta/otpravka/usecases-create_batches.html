@@ -1,0 +1,71 @@
+<h3>Формирование партий из новых заказов</h3>
+    <h4>Формируем партии из 3х заказов с разными типами отправления. В итоге формируется 3 партии - каждая соотвествующего типа:</h4>
+    curl -X POST --header "Content-Type: application/json" <br>
+    --header "Accept: application/json;charset=UTF-8" <br>
+    --header "Authorization: AccessToken 5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8" <br>
+    --header "X-User-Authorization: Basic bG9naW46cGFzc3dvcmQ=" <br>
+    -d "[1657697,1657662,1657698]" <br>
+    "{{exampleHost}}/1.0/user/shipment?sending-date=2016-08-22"<br>
+    <br>
+    Response body:<br>
+    <br>
+    {<br>
+    &nbsp;&nbsp;"batches": [<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"batch-name": "15",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"batch-status": "CREATED",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"batch-status-date": "2016-08-19T08:11:12.386Z",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"delivery-notice-payment-method": "PAID_RECIPIENT",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"list-number-date": "2016-08-22",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-category": "ORDINARY",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-category-text": "Обыкновенное",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-type": "POSTAL_PARCEL",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-type-text": "Посылка НЕСТАНДАРТНАЯ",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"payment-method": "CASHLESS",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"postoffice-code": "101000",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"postoffice-name": "ЦВПП 101000",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"shipment-count": 1,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"shipping-notice-type": "SIMPLE",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transport-type": "SURFACE"<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;},<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"batch-name": "16",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"batch-status": "CREATED",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"batch-status-date": "2016-08-19T08:11:12.387Z",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"delivery-notice-payment-method": "PAID_RECIPIENT",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"list-number-date": "2016-08-22",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-category": "WITH_DECLARED_VALUE_AND_CASH_ON_DELIVERY",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-category-text": "С ОЦ и НП",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-type": "POSTAL_PARCEL",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-type-text": "Посылка НЕСТАНДАРТНАЯ",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"payment-method": "CASHLESS",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"postoffice-code": "101000",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"postoffice-name": "ЦВПП 101000",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"shipment-count": 1,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"shipping-notice-type": "SIMPLE",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transport-type": "SURFACE"<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;},<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"batch-name": "17",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"batch-status": "CREATED",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"batch-status-date": "2016-08-19T08:11:12.382Z",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"delivery-notice-payment-method": "PAID_RECIPIENT",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"list-number-date": "2016-08-22",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-category": "WITH_DECLARED_VALUE",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-category-text": "С ОЦ",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-type": "POSTAL_PARCEL",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mail-type-text": "Посылка НЕСТАНДАРТНАЯ",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"payment-method": "CASHLESS",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"postoffice-code": "101000",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"postoffice-name": "ЦВПП 101000",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"shipment-count": 1,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"shipping-notice-type": "SIMPLE",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transport-type": "SURFACE"<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+    &nbsp;&nbsp;],<br>
+    &nbsp;&nbsp;"result-ids": [<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;1657697,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;1657662,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;1657698<br>
+    &nbsp;&nbsp;]<br>
+    }

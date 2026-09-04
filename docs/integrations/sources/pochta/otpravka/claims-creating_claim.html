@@ -1,0 +1,111 @@
+<article class="article">
+  <h3>Оформление заявления на дополнительную услугу</h3>
+  Создает заявление на предоставление дополнительной услуги к отправлению
+  <br/>
+  <br/>
+  Введите <a href="#/authorization-token" target="_blank">токен авторизации приложения</a>, <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a> и другие параметры, тогда значения заголовков и параметров будут сгенерированы автоматически.<br/>
+  <br/>
+  <table>
+    <tbody>
+      <tr>
+        <td width="25%">Токен авторизации</td>
+        <td>
+          <div class="input input__field-wrap">
+            <input id="token" type="text" name="token" ng-model="token" value="" class="input__field" size="51">
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td width="25%">Ключ авторизации</td>
+        <td>
+          <div class="input input__field-wrap">
+            <input id="key" type="text" name="key" ng-model="key" value="" class="input__field" size="51">
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <b>Параметры запроса</b>
+  <br/>
+  <table>
+    <tbody>
+      <tr>
+        <td width="25%">Локальный URL</td>
+        <td><b>/1.0/claims/createClaim</b></td>
+      </tr>
+      <tr>
+        <td width="25%">Тип</td>
+        <td><b>PUT</b></td>
+      </tr>
+    </tbody>
+  </table>
+  <b>Заголовки запроса</b>
+  <br/>
+  <table>
+    <tbody>
+      <tr>
+        <td width="30%"><b>Authorization</b></td>
+        <td><span ng-show="token"><b>AccessToken {{ token }}</b></span></td>
+      </tr>
+      <tr>
+        <td width="30%"><b>X-User-Authorization</b></td>
+        <td><span ng-show="key"><b>Basic {{ key }}</b></span></td>
+      </tr>
+      <tr>
+        <td><b>Content-Type</b></td>
+        <td><b>application/json;charset=UTF-8</b></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <b class="code-header">Тело запроса</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('body')">скопировать схему</a></span><br/>
+  <table>
+    <tbody>
+      <tr>
+        <td width="15%">
+          Структура
+        </td>
+        <td>
+          <div class="code">
+            <div class="code-body">
+              <div class="api-struct" tabindex="0"><span class="api-struct__description ">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"barcode": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>barcode</b> - Логические: true или false</span><span class="api-struct__tooltip-body">Идентификатор отправления</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"claimer": {</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>claimer</b> - Тип адреса возврата</span><span class="api-struct__tooltip-body">Информация о заявителе</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-2">"last-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>last-name</b> - Строка</span><span class="api-struct__tooltip-body">Фамилия заявителя</a></span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-2">"first-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>first-name</b> - Строка</span><span class="api-struct__tooltip-body">Имя заявителя</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-2">"middle-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>middle-name</b> - Строка</span><span class="api-struct__tooltip-body">Отчество заявителя</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"claim-type": "EARLY_RETURN"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>claim-type</b> - Строка</span><span class="api-struct__tooltip-body">Тип заявления, в настоящий момент для работы по API доступен только тип "EARLY_RETURN" - "Досрочный возврат". См. <a href='#/enums-claim-type' target='_blank'>тип заявления</a></a></span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"org-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>org-name</b> - Строка</span><span class="api-struct__tooltip-body">Наименование организации заявителя</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"org-inn": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>org-inn</b> - Строка</span><span class="api-struct__tooltip-body">ИНН организации заявителя</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"agreement-number": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>agreement-number</b> - Строка</span><span class="api-struct__tooltip-body">Номер договора между организацией заявителя и Почтой России</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description ">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <b class="code-header">Ответ на запрос</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('response')">скопировать схему</a></span><br/>
+  <table>
+    <tbody>
+      <tr>
+        <td width="15%">
+          Структура
+        </td>
+        <td>
+          <div class="code">
+            <div class="code-body">
+              <div class="api-struct" tabindex="0"><span class="api-struct__description ">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"code": "sring"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>code</b> - Строка</span><span class="api-struct__tooltip-body">Код ошибки. См <a href="#/enums-creating-claim-response-codes" target="_blank">коды ответа</a></span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"sub-code": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>sub-code</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Дополнительный код ошибки</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description col-offset-1">"desc": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>desc</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Описание ошибки</span></p></div>
+              <div class="api-struct" tabindex="0"><span class="api-struct__description">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</article>

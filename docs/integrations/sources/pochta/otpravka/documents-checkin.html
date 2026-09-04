@@ -1,0 +1,131 @@
+<article class="article"><h3>Подготовка и отправка электронной формы Ф103</h3>
+    Присваивает уникальную версию партии для дальнейшего приема этой партии сотрудниками ОПС.
+    Отправляет по e-mail электронную форму Ф103 в ОПС для регистрации.<br/>
+
+    <br/>
+    Введите <a href="#/authorization-token" target="_blank">токен авторизации приложения</a>,
+    <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a> и другие параметры,
+    тогда значения заголовков и параметров будут сгенерированы автоматически.<br/>
+    <br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Токен авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="token" type="text" name="token" ng-model="token" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%">Ключ авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="key" type="text" name="key" ng-model="key" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>name</b><br/>Наименование партии</td>
+            <td><div class="input input__field-wrap">
+                <input id="batch-name" type="text" name="batch-name" ng-model="batchName" value="" class="input__field" size="51" pattern="^[0-9]+$" >
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>useOnlineBalance</b><br/>(Опционально)<br />Признак использования онлайн баланса</td>
+            <td>
+                <label class="checkbox">
+                    <span class="checkbox__label">Использовать онлайн баланс</span>
+                    <input
+                            id="use-online-balance"
+                            type="checkbox"
+                            name="use-online-balance"
+                            ng-model="useOnlineBalance"
+                    >
+                    <span class="checkbox__checkbox"></span>
+                </label>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Параметры запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Локальный URL</td>
+            <td><b>/1.0/batch/<span ng-show="batchName">{{ batchName }}</span><span ng-show="!batchName">{name}</span>/checkin<span>{{ buildUrlParams({ useOnlineBalance: { value: useOnlineBalance } }) }}</span></b>
+            </td>
+        </tr>
+        <tr>
+            <td width="25%">Тип</td>
+            <td><b>POST</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Заголовки запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="30%"><b>Authorization</b></td>
+            <td><span ng-show="token"><b>AccessToken {{ token }}</b></span></td>
+        </tr>
+        <tr>
+            <td width="30%"><b>X-User-Authorization</b></td>
+            <td><span ng-show="key"><b>Basic {{ key }}</b></span></td>
+        </tr>
+        <tr>
+            <td><b>Content-Type</b></td>
+            <td><b>application/json;charset=UTF-8</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b class="code-header">Ответ на запрос</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('response')">скопировать схему</a></span><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="15%">
+                Структура
+            </td>
+            <td>
+                <div class="code">
+                    <div class="code-body">
+                        <div class="api-struct" tabindex="1"><span class="api-struct__description">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="2"><span class="api-struct__description col-offset-1">"error-code": "UNDEFINED"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>error-code</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body"><a href='#/enums-errors' target='_blank'>Код ошибки.</a></span></p></div>
+                        <div class="api-struct" tabindex="3"><span class="api-struct__description col-offset-1">"f103-sent": true</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>f103-sent</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Отослана ли электронная версия ф103/ф103п в ОПС?</span></p></div>
+                        <div class="api-struct" tabindex="4"><span class="api-struct__description">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a href="" ng-click="turn('examples')"><h3>Примеры кода для работы с API</h3></a>
+    <div ng-show="examples && examples.enable">
+        <a href="" ng-click="turn('python')"><h4>Python (3 версия)</h4></a>
+        <div ng-show="python && python.enable">
+            Необходимые модули:<br/>
+            <table>
+                <thead>
+                <tr>
+                    <th><b>Модуль</b></th>
+                    <th><b>Описание</b></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+                        requests
+                    </td>
+                    <td>
+                        <a href="https://requests.readthedocs.io" target="_blank">Документация</a> и <a href="https://requests.readthedocs.io/en/master/user/install" target="_blank">Инструкции по установке</a>
+                    </td>
+                </tr>
+
+                </tbody>
+            </table>
+            <ul>
+                <li><a href="#/documents-checkin_py" target="_blank">Пример кода</a></li>
+                <li><a href="#/documents-checkin_py_custom" target="_blank">Генератор кода</a></li>
+            </ul>
+        </div>
+    </div>
+</article>
+

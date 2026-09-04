@@ -1,0 +1,261 @@
+<article class="article"><h3>Поиск почтового отделения по индексу</h3>
+
+    Введите <a href="#/authorization-token" target="_blank">токен авторизации приложения</a> и <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a>, тогда значения заголовков будут сгенерированы автоматически.<br/>
+    <br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Токен авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="token" type="text" name="token" ng-model="token" value="" class="input__field" size="51" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%">Ключ авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="key" type="text" name="key" ng-model="key" value="" class="input__field" size="51" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>postal-code</b><br/>Индекс почтового отделения</td>
+            <td><div class="input input__field-wrap">
+                <input id="postalCode" type="text" name="postalCode" ng-model="postalCode" value="" class="input__field" size="51" pattern="^[0-9]{6}$" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>latitude</b><br/>Широта</td>
+            <td><div class="input input__field-wrap">
+                <input id="latitude" type="text" name="latitude" ng-model="latitude" value="" class="input__field" size="51" pattern="^[\-\+]?[0-9]+$" ng-change="change()" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>longitude</b><br/>Долгота</td>
+            <td><div class="input input__field-wrap">
+                <input id="longitude" type="text" name="longitude" ng-model="longitude" value="" class="input__field" size="51" pattern="^[\-\+]?[0-9]+$" ng-change="change()" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>current-date-time</b><br/>Текущее время в формате yyyy-MM-dd'T'HH:mm:ss (Опционально)</td>
+            <td><div class="input input__field-wrap">
+                <input id="currentDateTime" type="text" name="currentDateTime" ng-model="currentDateTime" value="" class="input__field" size="51" pattern="^((19|20)\d\d)-(0?[1-9]|1[012])-(0?[1-9]|[12][0-9]|3[01])(T)((0|1)[0-9]|(2)[0-3]):([0-5][0-9]):([0-5][0-9])$" ng-change="change()" />
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>filter-by-office-type</b><br/>Фильтр по типам объектов в ответе. true: ГОПС, СОПС, ПОЧТОМАТ. false: все. Значение по-умолчанию - true.</td>
+            <td>
+                <dropdown ng-model="filterByOfficeType" name="filterByOfficeTypeItem" list="filterByOfficeTypeItems" text-property="text" model-property="code" ng-change="change()"></dropdown>
+            </td>
+        </tr>
+        <tr>
+            <td width="25%"><b>ufps-postal-code</b><br/>true: добавлять в ответ индекс УФПС для найдённого отделения, false: не добавлять. Значение по-умолчанию: false.</td>
+            <td>
+                <dropdown ng-model="ufpsPostalCode" name="ufpsPostalCodeItem" list="ufpsPostalCodeItems" text-property="text" model-property="code" ng-change="change()"></dropdown>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Параметры запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Локальный URL</td>
+            <td><b>/postoffice/1.0/<span ng-show="postalCode">{{ postalCode }}</span><span ng-show="!postalCode">{postal-code}</span>{{ url }}</b>
+            </td>
+        </tr>
+        <tr>
+            <td width="25%">Тип</td>
+            <td><b>GET</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Заголовки запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="30%"><b>Authorization</b></td>
+            <td><span ng-show="token"><b>AccessToken {{ token }}</b></span></td>
+        </tr>
+        <tr>
+            <td width="30%"><b>X-User-Authorization</b></td>
+            <td><span ng-show="key"><b>Basic {{ key }}</b></span></td>
+        </tr>
+        <tr>
+            <td><b>Content-Type</b></td>
+            <td><b>application/json;charset=UTF-8</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b class="code-header">Ответ на запрос</b> <span class="code-desc">Нажмите на элемент структуры, чтобы увидеть описание<a href="" class="code-desc__copy" ng-click="copySchema('response')">скопировать схему</a></span><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="15%">
+                Структура
+            </td>
+            <td>
+                <div class="code">
+                    <div class="code-body">
+                        <div class="api-struct" tabindex="1"><span class="api-struct__description">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="2"><span class="api-struct__description col-offset-1">"address-source": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>address-source</b> - Строка</span><span class="api-struct__tooltip-body">Адрес отделения</span></p></div>
+                        <div class="api-struct" tabindex="3"><span class="api-struct__description col-offset-1">"current-day-working-hours": {</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>current-day-working-hours</b> - Время работы (Опционально)</span><span class="api-struct__tooltip-body">Рабочие часы в текущее время</span></p></div>
+                        <div class="api-struct" tabindex="4"><span class="api-struct__description col-offset-2">"lunches": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>lunches</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Перерывы</span></p></div>
+                        <div class="api-struct" tabindex="5"><span class="api-struct__description col-offset-3">{}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="6"><span class="api-struct__description col-offset-2">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="7"><span class="api-struct__description col-offset-2">"weekday-id": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-id</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Номер дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="8"><span class="api-struct__description col-offset-2">"weekday-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Наименование дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="9"><span class="api-struct__description col-offset-1">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="10"><span class="api-struct__description col-offset-1">"distance": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>distance</b> - Число (Опционально)</span><span class="api-struct__tooltip-body">Расстояние до отделения</span></p></div>
+                        <div class="api-struct" tabindex="11"><span class="api-struct__description col-offset-1">"district": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>district</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Округ</span></p></div>
+                        <div class="api-struct" tabindex="12"><span class="api-struct__description col-offset-1">"holidays": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>holidays</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Выходные</span></p></div>
+                        <div class="api-struct" tabindex="13"><span class="api-struct__description col-offset-2">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="14"><span class="api-struct__description col-offset-3">"date": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>date</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Дата</span></p></div>
+                        <div class="api-struct" tabindex="15"><span class="api-struct__description col-offset-3">"schedule": {</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>schedule</b> - Время работы (Опционально)</span><span class="api-struct__tooltip-body">Рабочий день</span></p></div>
+                        <div class="api-struct" tabindex="16"><span class="api-struct__description col-offset-4">"lunches": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>lunches</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Перерывы</span></p></div>
+                        <div class="api-struct" tabindex="17"><span class="api-struct__description col-offset-5">{}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="18"><span class="api-struct__description col-offset-4">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="19"><span class="api-struct__description col-offset-4">"weekday-id": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-id</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Номер дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="20"><span class="api-struct__description col-offset-4">"weekday-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Наименование дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="21"><span class="api-struct__description col-offset-3">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="22"><span class="api-struct__description col-offset-2">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="23"><span class="api-struct__description col-offset-1">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="24"><span class="api-struct__description col-offset-1">"is-closed": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>is-closed</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак 'закрыто'</span></p></div>
+                        <div class="api-struct" tabindex="25"><span class="api-struct__description col-offset-1">"is-private-category": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>is-private-category</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак внутреннего отделения</span></p></div>
+                        <div class="api-struct" tabindex="26"><span class="api-struct__description col-offset-1">"is-temporary-closed": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>is-temporary-closed</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак 'временно закрыто'</span></p></div>
+                        <div class="api-struct" tabindex="27"><span class="api-struct__description col-offset-1">"latitude": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>latitude</b> - Число</span><span class="api-struct__tooltip-body">Широта</span></p></div>
+                        <div class="api-struct" tabindex="28"><span class="api-struct__description col-offset-1">"longitude": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>longitude</b> - Число</span><span class="api-struct__tooltip-body">Долгота</span></p></div>
+                        <div class="api-struct" tabindex="29"><span class="api-struct__description col-offset-1">"nearest-office-postalcode": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>nearest-office-postalcode</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Индекс ближайшего почтового отделения</span></p></div>
+                        <div class="api-struct" tabindex="30"><span class="api-struct__description col-offset-1">"nearest-postoffice": {</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>nearest-postoffice</b> - Ближайшее почтовое отделение (Опционально)</span><span class="api-struct__tooltip-body">Ближайшее почтовое отделение</span></p></div>
+                        <div class="api-struct" tabindex="31"><span class="api-struct__description col-offset-2">"address-source": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>address-source</b> - Строка</span><span class="api-struct__tooltip-body">Адрес отделения</span></p></div>
+                        <div class="api-struct" tabindex="32"><span class="api-struct__description col-offset-2">"current-day-working-hours": {</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>current-day-working-hours</b> - Время работы (Опционально)</span><span class="api-struct__tooltip-body">Рабочие часы в текущее время</span></p></div>
+                        <div class="api-struct" tabindex="33"><span class="api-struct__description col-offset-3">"lunches": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>lunches</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Перерывы</span></p></div>
+                        <div class="api-struct" tabindex="34"><span class="api-struct__description col-offset-4">{}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="35"><span class="api-struct__description col-offset-3">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="36"><span class="api-struct__description col-offset-3">"weekday-id": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-id</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Номер дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="37"><span class="api-struct__description col-offset-3">"weekday-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Наименование дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="38"><span class="api-struct__description col-offset-2">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="39"><span class="api-struct__description col-offset-2">"distance": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>distance</b> - Число (Опционально)</span><span class="api-struct__tooltip-body">Расстояние до отделения</span></p></div>
+                        <div class="api-struct" tabindex="40"><span class="api-struct__description col-offset-2">"district": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>district</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Округ</span></p></div>
+                        <div class="api-struct" tabindex="41"><span class="api-struct__description col-offset-2">"holidays": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>holidays</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Выходные</span></p></div>
+                        <div class="api-struct" tabindex="42"><span class="api-struct__description col-offset-3">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="43"><span class="api-struct__description col-offset-4">"date": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>date</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Дата</span></p></div>
+                        <div class="api-struct" tabindex="44"><span class="api-struct__description col-offset-4">"schedule": {</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>schedule</b> - Время работы (Опционально)</span><span class="api-struct__tooltip-body">Рабочий день</span></p></div>
+                        <div class="api-struct" tabindex="45"><span class="api-struct__description col-offset-5">"lunches": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>lunches</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Перерывы</span></p></div>
+                        <div class="api-struct" tabindex="46"><span class="api-struct__description col-offset-6">{}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="47"><span class="api-struct__description col-offset-5">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="48"><span class="api-struct__description col-offset-5">"weekday-id": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-id</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Номер дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="49"><span class="api-struct__description col-offset-5">"weekday-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Наименование дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="50"><span class="api-struct__description col-offset-4">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="51"><span class="api-struct__description col-offset-3">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="52"><span class="api-struct__description col-offset-2">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="53"><span class="api-struct__description col-offset-2">"is-closed": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>is-closed</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак 'закрыто'</span></p></div>
+                        <div class="api-struct" tabindex="54"><span class="api-struct__description col-offset-2">"is-private-category": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>is-private-category</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак внутреннего отделения</span></p></div>
+                        <div class="api-struct" tabindex="55"><span class="api-struct__description col-offset-2">"is-temporary-closed": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>is-temporary-closed</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак 'временно закрыто'</span></p></div>
+                        <div class="api-struct" tabindex="56"><span class="api-struct__description col-offset-2">"latitude": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>latitude</b> - Число</span><span class="api-struct__tooltip-body">Широта</span></p></div>
+                        <div class="api-struct" tabindex="57"><span class="api-struct__description col-offset-2">"longitude": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>longitude</b> - Число</span><span class="api-struct__tooltip-body">Долгота</span></p></div>
+                        <div class="api-struct" tabindex="58"><span class="api-struct__description col-offset-2">"nearest-office-postalcode": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>nearest-office-postalcode</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Индекс ближайшего почтового отделения</span></p></div>
+                        <div class="api-struct" tabindex="59"><span class="api-struct__description col-offset-2">"next-day-working-hours": {</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>next-day-working-hours</b> - Время работы (Опционально)</span><span class="api-struct__tooltip-body">Рабочие часы в следующий рабочий день</span></p></div>
+                        <div class="api-struct" tabindex="60"><span class="api-struct__description col-offset-3">"lunches": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>lunches</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Перерывы</span></p></div>
+                        <div class="api-struct" tabindex="61"><span class="api-struct__description col-offset-4">{}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="62"><span class="api-struct__description col-offset-3">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="63"><span class="api-struct__description col-offset-3">"weekday-id": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-id</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Номер дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="64"><span class="api-struct__description col-offset-3">"weekday-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Наименование дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="65"><span class="api-struct__description col-offset-2">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="66"><span class="api-struct__description col-offset-2">"postal-code": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>postal-code</b> - Строка</span><span class="api-struct__tooltip-body">Индекс почтового отделения</span></p></div>
+                        <div class="api-struct" tabindex="67"><span class="api-struct__description col-offset-2">"prescribed": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>prescribed</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Предписанный</span></p></div>
+                        <div class="api-struct" tabindex="68"><span class="api-struct__description col-offset-2">"region": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>region</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Область, край</span></p></div>
+                        <div class="api-struct" tabindex="69"><span class="api-struct__description col-offset-2">"settlement": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>settlement</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Поселение</span></p></div>
+                        <div class="api-struct" tabindex="70"><span class="api-struct__description col-offset-2">"temporary-closed-reason": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>temporary-closed-reason</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Причина 'временно закрыто'</span></p></div>
+                        <div class="api-struct" tabindex="71"><span class="api-struct__description col-offset-2">"type-code": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>type-code</b> - Строка</span><span class="api-struct__tooltip-body">Тип отделения</span></p></div>
+                        <div class="api-struct" tabindex="72"><span class="api-struct__description col-offset-2">"type-id": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>type-id</b> - Целое число</span><span class="api-struct__tooltip-body">Идентификатор типа отделения</span></p></div>
+                        <div class="api-struct" tabindex="73"><span class="api-struct__description col-offset-2">"working-hours": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>working-hours</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Рабочие часы</span></p></div>
+                        <div class="api-struct" tabindex="74"><span class="api-struct__description col-offset-3">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="75"><span class="api-struct__description col-offset-4">"lunches": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>lunches</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Перерывы</span></p></div>
+                        <div class="api-struct" tabindex="76"><span class="api-struct__description col-offset-5">{}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="77"><span class="api-struct__description col-offset-4">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="78"><span class="api-struct__description col-offset-4">"weekday-id": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-id</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Номер дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="79"><span class="api-struct__description col-offset-4">"weekday-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Наименование дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="80"><span class="api-struct__description col-offset-3">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="81"><span class="api-struct__description col-offset-2">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="82"><span class="api-struct__description col-offset-2">"works-on-saturdays": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>works-on-saturdays</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак работы в субботу</span></p></div>
+                        <div class="api-struct" tabindex="83"><span class="api-struct__description col-offset-2">"works-on-sundays": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>works-on-sundays</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак работы в воскресенье</span></p></div>
+                        <div class="api-struct" tabindex="84"><span class="api-struct__description col-offset-1">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="85"><span class="api-struct__description col-offset-1">"next-day-working-hours": {</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>next-day-working-hours</b> - Время работы (Опционально)</span><span class="api-struct__tooltip-body">Рабочие часы в следующий рабочий день</span></p></div>
+                        <div class="api-struct" tabindex="86"><span class="api-struct__description col-offset-2">"lunches": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>lunches</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Перерывы</span></p></div>
+                        <div class="api-struct" tabindex="87"><span class="api-struct__description col-offset-3">{}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="88"><span class="api-struct__description col-offset-2">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="89"><span class="api-struct__description col-offset-2">"weekday-id": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-id</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Номер дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="90"><span class="api-struct__description col-offset-2">"weekday-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Наименование дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="91"><span class="api-struct__description col-offset-1">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="92"><span class="api-struct__description col-offset-1">"phones": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>phones</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Телефоны</span></p></div>
+                        <div class="api-struct" tabindex="93"><span class="api-struct__description col-offset-2">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="94"><span class="api-struct__description col-offset-3">"is-fax": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>is-fax</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Fax признак</span></p></div>
+                        <div class="api-struct" tabindex="95"><span class="api-struct__description col-offset-3">"phone-number": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>phone-number</b> - Строка</span><span class="api-struct__tooltip-body">Номер телефона</span></p></div>
+                        <div class="api-struct" tabindex="96"><span class="api-struct__description col-offset-3">"phone-town-code": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>phone-town-code</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Код города</span></p></div>
+                        <div class="api-struct" tabindex="97"><span class="api-struct__description col-offset-3">"phone-type-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>phone-type-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Тип телефонного номера</span></p></div>
+                        <div class="api-struct" tabindex="98"><span class="api-struct__description col-offset-2">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="99"><span class="api-struct__description col-offset-1">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="100"><span class="api-struct__description col-offset-1">"postal-code": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>postal-code</b> - Строка</span><span class="api-struct__tooltip-body">Индекс почтового отделения</span></p></div>
+                        <div class="api-struct" tabindex="101"><span class="api-struct__description col-offset-1">"prescribed": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>prescribed</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Предписанный</span></p></div>
+                        <div class="api-struct" tabindex="102"><span class="api-struct__description col-offset-1">"region": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>region</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Область, край</span></p></div>
+                        <div class="api-struct" tabindex="103"><span class="api-struct__description col-offset-1">"service-groups": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>service-groups</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Группы сервисов</span></p></div>
+                        <div class="api-struct" tabindex="104"><span class="api-struct__description col-offset-2">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct"><span class=" col-offset-3">"group-id": 0</span></div>
+                        <div class="api-struct" tabindex="105"><span class="api-struct__description col-offset-3">"group-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>group-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Наименование группы (для Многоместных отправлений см. <a href='https://otpravka.pochta.ru/help/#/details/170' target='_blank'>ММО</a>)</span></p></div>
+                        <div class="api-struct" tabindex="106"><span class="api-struct__description col-offset-2">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="107"><span class="api-struct__description col-offset-1">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="108"><span class="api-struct__description col-offset-1">"settlement": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>settlement</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Поселение</span></p></div>
+                        <div class="api-struct" tabindex="109"><span class="api-struct__description col-offset-1">"temporary-closed-reason": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>temporary-closed-reason</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Причина 'временно закрыто'</span></p></div>
+                        <div class="api-struct" tabindex="110"><span class="api-struct__description col-offset-1">"type-code": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>type-code</b> - Строка</span><span class="api-struct__tooltip-body">Тип отделения</span></p></div>
+                        <div class="api-struct" tabindex="111"><span class="api-struct__description col-offset-1">"type-id": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>type-id</b> - Целое число</span><span class="api-struct__tooltip-body">Идентификатор типа отделения</span></p></div>
+                        <div class="api-struct" tabindex="112"><span class="api-struct__description col-offset-1">"ufps-code": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>ufps-code</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Код ЮФПС</span></p></div>
+                        <div class="api-struct" tabindex="113"><span class="api-struct__description col-offset-1">"working-hours": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>working-hours</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Рабочие часы</span></p></div>
+                        <div class="api-struct" tabindex="114"><span class="api-struct__description col-offset-2">{</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="115"><span class="api-struct__description col-offset-3">"lunches": [</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>lunches</b> - Массив (Опционально)</span><span class="api-struct__tooltip-body">Перерывы</span></p></div>
+                        <div class="api-struct" tabindex="116"><span class="api-struct__description col-offset-4">{}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>{</b> - Символ</span><span class="api-struct__tooltip-body">Начало структуры</span></p></div>
+                        <div class="api-struct" tabindex="117"><span class="api-struct__description col-offset-3">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="118"><span class="api-struct__description col-offset-3">"weekday-id": 0</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-id</b> - Целое число (Опционально)</span><span class="api-struct__tooltip-body">Номер дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="119"><span class="api-struct__description col-offset-3">"weekday-name": "string"</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>weekday-name</b> - Строка (Опционально)</span><span class="api-struct__tooltip-body">Наименование дня в неделе</span></p></div>
+                        <div class="api-struct" tabindex="120"><span class="api-struct__description col-offset-2">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+                        <div class="api-struct" tabindex="121"><span class="api-struct__description col-offset-1">]</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>]</b> - Символ</span><span class="api-struct__tooltip-body">Окончание группы</span></p></div>
+                        <div class="api-struct" tabindex="122"><span class="api-struct__description col-offset-1">"works-on-saturdays": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>works-on-saturdays</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак работы в субботу</span></p></div>
+                        <div class="api-struct" tabindex="123"><span class="api-struct__description col-offset-1">"works-on-sundays": false</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>works-on-sundays</b> - Логические: true или false (Опционально)</span><span class="api-struct__tooltip-body">Признак работы в воскресенье</span></p></div>
+                        <div class="api-struct" tabindex="124"><span class="api-struct__description">}</span><p class="api-struct__tooltip"><span class="api-struct__tooltip-header"><b>}</b> - Символ</span><span class="api-struct__tooltip-body">Окончание структуры</span></p></div>
+
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a ng-click="turn('examples')"><h3>Примеры кода для работы с API</h3></a>
+    <div ng-show="examples && examples.enable">
+        <a ng-click="turn('python')"><h4>Python (3 версия)</h4></a>
+        <div ng-show="python && python.enable">
+            Необходимые модули:<br/>
+            <table>
+                <thead>
+                <tr>
+                    <th><b>Модуль</b></th>
+                    <th><b>Описание</b></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+                        requests
+                    </td>
+                    <td>
+                        <a href="https://requests.readthedocs.io" target="_blank">Документация</a> и <a href="https://requests.readthedocs.io/en/master/user/install" target="_blank">Инструкции по установке</a>
+                    </td>
+                </tr>
+
+                </tbody>
+            </table>
+            <ul>
+                <li><a href="#/services-postoffice_py" target="_blank">Пример кода</a></li>
+                <li><a href="#/services-postoffice_py_custom" target="_blank">Генератор кода</a></li>
+            </ul>
+        </div>
+    </div>
+</article>

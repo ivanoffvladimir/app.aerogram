@@ -1,0 +1,128 @@
+<article class="article"><h3>Закрытие пользовательской сессии для формирования партий и добавления отправлений</h3>
+    Закрывает пользовательскую сессию (добавление и удаление ШПИ заказов блокируется), запускает фоновый процесс формирования партий из заказов или добавления заказов в существующую партию.<br/>
+
+    <br/>
+    Введите <a href="#/authorization-token" target="_blank">токен авторизации приложения</a> и <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a>, тогда значения заголовков будут сгенерированы автоматически.<br/>
+    <br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Токен авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="token" type="text" name="token" ng-model="token" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%">Ключ авторизации</td>
+            <td><div class="input input__field-wrap">
+                <input id="key" type="text" name="key" ng-model="key" value="" class="input__field" size="51">
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%">Идентификатор пользовательской сессии</td>
+            <td><div class="input input__field-wrap">
+                <input id="sessionUuid" type="text" name="sessionUuid" ng-model="sessionUuid" value="" class="input__field" size="36">
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>sending-date</b> (Опционально)<br/>Дата сдачи в почтовое отделение (yyyy-MM-dd)</td>
+            <td><div class="input input__field-wrap">
+                <input id="sending-date" type="text" name="sending-date" ng-model="sendingDate" value="" class="input__field" size="51" pattern="^((19|20)\d\d)-(0?[1-9]|1[012])-(0?[1-9]|[12][0-9]|3[01])$" >
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>timezone-offset</b> (Опционально)<br/>Смещение даты сдачи от UTC в секундах</td>
+            <td><div class="input input__field-wrap">
+                <input id="timezone-offset" type="text" name="timezone-offset" ng-model="timezoneOffset" value="" class="input__field" size="51" pattern="^\d+$" >
+            </div></td>
+        </tr>
+        <tr>
+            <td width="25%"><b>use-online-balance</b><br/>(Опционально)<br />Признак использования онлайн баланса</td>
+            <td>
+                <label class="checkbox">
+                    <span class="checkbox__label">Использовать онлайн баланс</span>
+                    <input
+                            id="use-online-balance"
+                            type="checkbox"
+                            name="use-online-balance"
+                            ng-model="useOnlineBalance"
+                    >
+                    <span class="checkbox__checkbox"></span>
+                </label>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Параметры запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="25%">Локальный URL</td>
+            <td><b>/1.0/user-session/{{ sessionUuid }}/close-session{{
+                buildUrlParams({
+                    sendingDate: { value: sendingDate, prefix: 'sending-date' },
+                    timezoneOffset: { value: timezoneOffset, prefix: 'timezone-offset' },
+                    useOnlineBalance: { value: useOnlineBalance, prefix: 'use-online-balance' }
+                })
+                }}
+            </b></td>
+        </tr>
+        <tr>
+            <td width="25%">Тип</td>
+            <td><b>POST</b></td>
+        </tr>
+        </tbody>
+    </table>
+    <b>Заголовки запроса</b><br/>
+    <table>
+        <tbody>
+        <tr>
+            <td width="30%"><b>Authorization</b></td>
+            <td><span ng-show="token"><b>AccessToken {{ token }}</b></span></td>
+        </tr>
+        <tr>
+            <td width="30%"><b>X-User-Authorization</b></td>
+            <td><span ng-show="key"><b>Basic {{ key }}</b></span></td>
+        </tr>
+        <tr>
+            <td><b>Content-Type</b></td>
+            <td><b>application/json;charset=UTF-8</b></td>
+        </tr>
+        </tbody>
+    </table>
+
+
+    <b class="code-header">Ответ на запрос</b>
+    В успешном случае ответ 200 OK с пустым телом.
+
+    <!--     <a href="" ng-click="turn('examples')"><h3>Примеры кода для работы с API</h3></a>
+       <div ng-show="examples && examples.enable">
+            <a href="" ng-click="turn('python')"><h4>Python (3 версия)</h4></a>
+            <div ng-show="python && python.enable">
+                Необходимые модули:<br/>
+                <table>
+                    <thead>
+                    <tr>
+                        <th><b>Модуль</b></th>
+                        <th><b>Описание</b></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>
+                            requests
+                        </td>
+                        <td>
+                            <a href="https://requests.readthedocs.io" target="_blank">Документация</a> и <a href="https://requests.readthedocs.io/en/master/user/install" target="_blank">Инструкции по установке</a>
+                        </td>
+                    </tr>
+
+                    </tbody>
+                </table>
+                <ul>
+                    <li><a href="#/sessions-close_session_py" target="_blank">Пример кода</a></li>
+                    <li><a href="#/sessions-close_session_py_custom" target="_blank">Генератор кода</a></li>
+                </ul>
+            </div>
+        </div> -->
+</article>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:tns="http://fclient.russianpost.org/postserver" xmlns:ns1="http://fclient.russianpost.org" xmlns:xs="http://www.w3.org/2001/XMLSchema" version="1.0" targetNamespace="http://fclient.russianpost.org/postserver">
+
+<xs:import namespace="http://fclient.russianpost.org" schemaLocation="https://tracking.russianpost.ru/fc?xsd=2"/>
+
+<xs:element name="LanguageData">
+<xs:complexType>
+<xs:sequence>
+<xs:element name="Language" maxOccurs="unbounded">
+<xs:complexType>
+<xs:sequence/>
+<xs:attribute name="name" type="xs:string"/>
+<xs:attribute name="code" type="xs:string"/>
+</xs:complexType>
+</xs:element>
+</xs:sequence>
+</xs:complexType>
+</xs:element>
+
+<xs:element name="answerByTicketRequest" type="tns:answerByTicketRequest"/>
+
+<xs:element name="answerByTicketResponse" type="tns:answerByTicketResponse"/>
+
+<xs:element name="ticketRequest" type="tns:ticketRequest"/>
+
+<xs:element name="ticketResponse" type="tns:ticketResponse"/>
+
+<xs:complexType name="ticketRequest">
+<xs:sequence>
+<xs:element name="request" type="ns1:file"/>
+<xs:element name="login" type="xs:string"/>
+<xs:element name="password" type="xs:string"/>
+<xs:element name="language" type="xs:string" default="RUS" minOccurs="0"/>
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="answerByTicketRequest">
+<xs:sequence>
+<xs:element name="ticket" type="xs:string"/>
+<xs:element name="login" type="xs:string"/>
+<xs:element name="password" type="xs:string"/>
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="answerByTicketResponse">
+<xs:sequence>
+<xs:element name="value" type="ns1:file" minOccurs="0"/>
+<xs:element name="error" type="ns1:error" minOccurs="0"/>
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="ticketResponse">
+<xs:sequence>
+<xs:element name="value" type="xs:string" minOccurs="0"/>
+<xs:element name="error" type="ns1:error" minOccurs="0"/>
+</xs:sequence>
+</xs:complexType>
+</xs:schema>

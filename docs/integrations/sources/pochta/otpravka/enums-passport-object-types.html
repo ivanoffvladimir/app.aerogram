@@ -1,0 +1,18 @@
+<article class="article">
+    <h3>Тип объекта в паспорте ОПС</h3>
+    <table>
+        <colgroup>
+            <col class="col-6" />
+            <col class="col-18" />
+        </colgroup>
+        <thead>
+            <tr><th>Значение</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+            <tr ng-repeat="type in objectTypes" ng-if="type.value">
+                <td>{{type.value}}</td>
+                <td>{{type.text}}</td>
+            </tr>
+        </tbody>
+    </table>
+</article>
