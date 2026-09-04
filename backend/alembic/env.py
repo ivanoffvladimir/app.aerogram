@@ -15,11 +15,11 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from aerogram.config import get_settings
-
-# Импорт моделей нужен ради заполнения Base.metadata — без него autogenerate
-# сочтёт, что таблиц нет, и сгенерирует пустую миграцию.
+# Импорты ``... import models`` нужны ради заполнения Base.metadata — без них
+# autogenerate сочтёт, что таблиц нет, и сгенерирует пустую миграцию. Отдельным
+# блоком они не стоят: порядок здесь алфавитный, его держит ruff.
 from aerogram.bulk import models as bulk_models  # noqa: F401
+from aerogram.config import get_settings
 from aerogram.core import models as core_models  # noqa: F401
 from aerogram.db import Base
 from aerogram.directories import models as directories_models  # noqa: F401
