@@ -167,8 +167,9 @@ PRODUCTS: Final[dict[str, PochtaProduct]] = {
 }
 
 #: Что считаем, если вызывающий не назвал продуктов. Две штуки, а не все
-#: двадцать два вида РПО: суточная квота Почты привязана к токену
-#: приложения, и её величина до получения доступов неизвестна.
+#: двадцать два вида РПО: у Почты есть суточная квота вызовов, и её величина
+#: до получения доступов неизвестна — читается только вызовом
+#: `/1.0/settings/limit` под боевым ключом.
 DEFAULT_PRODUCTS: Final[tuple[str, ...]] = ("POSTAL_PARCEL:SURFACE", "EMS:EXPRESS")
 
 
@@ -293,12 +294,20 @@ def total_price(body: dict[str, Any]) -> Money | None:
     rate = _as_minor(body.get("total-rate"))
     if rate is None:
         return None
-    vat = _as_minor(body.get("total-vat")) or 0
+    raw_vat = body.get("total-vat")
+    vat = _as_minor(raw_vat)
+    if vat is None and raw_vat is not None:
+        # Поле пришло, но прочитать его нечем. Отсутствующий налог — ноль,
+        # непрочитанный — не ноль: подставив ноль, мы занизили бы цену ровно
+        # на его величину, а занижение заставляет Decision Engine
+        # рекомендовать Почту там, где она дороже.
+        log.warning("pochta.total_vat_unparsable", value_type=type(raw_vat).__name__)
+        return None
     reading = vat_reading(body)
     log.info("pochta.vat_reading", reading=reading, has_vat=bool(vat))
     if reading == "included":
         return Money(rate, POCHTA_CURRENCY)
-    return Money(rate + vat, POCHTA_CURRENCY)
+    return Money(rate + (vat or 0), POCHTA_CURRENCY)
 
 
 def _as_minor(value: object) -> int | None:

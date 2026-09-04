@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import base64
 from typing import Any, Final
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -174,9 +175,16 @@ class PochtaClient:
         Заданный побеждает всегда — в том числе в песочнице: у тенанта
         может быть свой стенд. Боевой режим без адреса — отказ, потому что
         боевого адреса Почта в документации не публикует.
+
+        Адрес **проверяется**, а не берётся как есть. В каждый запрос уходит
+        токен приложения и ключ пользователя, то есть настройка учётной
+        записи решает, кому достанутся эти секреты. Поэтому только `https`
+        (документация: «При работе с API… используйте HTTPS соединение!»),
+        только с хостом и без встроенных учётных данных: `https://кто-то@чужой/`
+        выглядит как адрес перевозчика, а ведёт куда угодно.
         """
         if base_url and base_url.strip():
-            return base_url.strip().rstrip("/")
+            return PochtaClient._validated_base_url(base_url.strip())
         if is_sandbox:
             return SANDBOX_BASE_URL
         raise CarrierValidationError(
@@ -184,6 +192,32 @@ class PochtaClient:
             "учётной записи: перевозчик не публикует его в документации",
             carrier_code=POCHTA_CODE,
         )
+
+    @staticmethod
+    def _validated_base_url(value: str) -> str:
+        """Разобрать и проверить адрес API из настроек учётной записи."""
+        parsed = urlsplit(value)
+        if parsed.scheme != "https":
+            raise CarrierValidationError(
+                "Адрес API Почты России должен начинаться с https://: по открытому "
+                "соединению уходят токен приложения и ключ пользователя",
+                carrier_code=POCHTA_CODE,
+            )
+        if not parsed.hostname:
+            raise CarrierValidationError(
+                "В адресе API Почты России не указан хост", carrier_code=POCHTA_CODE
+            )
+        if parsed.username or parsed.password:
+            raise CarrierValidationError(
+                "Адрес API Почты России не должен содержать логин и пароль",
+                carrier_code=POCHTA_CODE,
+            )
+        if parsed.query or parsed.fragment:
+            raise CarrierValidationError(
+                "Адрес API Почты России не должен содержать параметров запроса",
+                carrier_code=POCHTA_CODE,
+            )
+        return value.rstrip("/")
 
     async def aclose(self) -> None:
         await self._http.aclose()

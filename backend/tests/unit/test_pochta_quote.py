@@ -18,8 +18,15 @@ from pathlib import Path
 import httpx
 import pytest
 
-from aerogram.carriers.base import CarrierAccount, Party, Place, QuoteRequest
-from aerogram.carriers.pochta.adapter import PochtaAdapter
+from aerogram.carriers import registry
+from aerogram.carriers.base import (
+    CarrierAccount,
+    CarrierAdapter,
+    Party,
+    Place,
+    QuoteRequest,
+)
+from aerogram.carriers.pochta.adapter import POCHTA_CODE, PochtaAdapter
 from aerogram.carriers.pochta.client import SANDBOX_BASE_URL, PochtaClient, pochta_error, user_key
 from aerogram.carriers.pochta.mapping import (
     DEFAULT_PRODUCTS,
@@ -39,8 +46,14 @@ from aerogram.carriers.pochta.quotes import (
     parse_tariff,
     products_for,
 )
+from aerogram.main import _register_carriers
 from aerogram.shared.enums import CargoType, PriceSource
-from aerogram.shared.errors import CarrierAuthError, CarrierError, CarrierValidationError
+from aerogram.shared.errors import (
+    CarrierAuthError,
+    CarrierError,
+    CarrierTimeout,
+    CarrierValidationError,
+)
 from aerogram.shared.money import Money
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "pochta"
@@ -250,6 +263,18 @@ class TestPayload:
         assert payload["with-order-of-notice"] is False
         assert payload["with-simple-notice"] is False
 
+    def test_units_reach_the_body_as_the_carrier_declares_them(self) -> None:
+        # Проверяются значения, а не наличие ключей: перепутанная единица
+        # проходит любую проверку на ключи и стоит тысячекратной ошибки.
+        payload = build_tariff_payload(_request(), PRODUCTS["POSTAL_PARCEL:SURFACE"])
+        assert payload["mass"] == 1234  # 1,234 кг в целых граммах
+        assert payload["dimension"] == {"length": 30, "width": 20, "height": 15}
+        assert payload["transport-type"] == "SURFACE"
+        assert payload["mail-type"] == "POSTAL_PARCEL"
+        assert build_tariff_payload(_request(), PRODUCTS["EMS:EXPRESS"])["transport-type"] == (
+            "EXPRESS"
+        )
+
     def test_indexes_go_as_strings_both_ways(self) -> None:
         # Ведущий ноль значим, поэтому индекс — строка, а не число.
         payload = build_tariff_payload(_request(), PRODUCTS["POSTAL_PARCEL:SURFACE"])
@@ -354,6 +379,30 @@ class TestParse:
         assert quote is not None
         assert (quote.transit_days_min, quote.transit_days_max) == (3, 3)
         assert quote.promised_delivery_date is not None
+
+    def test_only_min_days_is_a_point_too(self) -> None:
+        body = {"total-rate": 1000, "total-vat": 220, "delivery-time": {"min-days": 5}}
+        quote = parse_tariff(body, PRODUCTS["EMS:EXPRESS"], price_source=PriceSource.AEROGRAM)
+        assert quote is not None
+        assert (quote.transit_days_min, quote.transit_days_max) == (5, 5)
+
+    def test_an_inverted_range_collapses_to_the_maximum(self) -> None:
+        # Вилка «от 9 до 3» — не вилка. Взять из неё минимум значило бы
+        # обещать срок, которого перевозчик не называл.
+        body = {
+            "total-rate": 1000,
+            "total-vat": 220,
+            "delivery-time": {"min-days": 9, "max-days": 3},
+        }
+        quote = parse_tariff(body, PRODUCTS["EMS:EXPRESS"], price_source=PriceSource.AEROGRAM)
+        assert quote is not None
+        assert (quote.transit_days_min, quote.transit_days_max) == (3, 3)
+
+    def test_unparsable_total_vat_is_not_zero(self) -> None:
+        # Отсутствующий налог — ноль, непрочитанный — нет: подставив ноль,
+        # мы занизили бы цену ровно на его величину.
+        assert total_price({"total-rate": 10_000, "total-vat": "пусто"}) is None
+        assert total_price({"total-rate": 10_000}) == Money(10_000, "RUB")
 
     def test_answer_without_price_is_not_an_offer(self) -> None:
         assert (
@@ -544,3 +593,197 @@ class TestAdapter:
 
         quotes = await _adapter(handler).quote(_request(), _account())
         assert [q.service_code for q in quotes] == ["POSTAL_PARCEL:SURFACE"]
+
+
+class TestDefaultClient:
+    """Боевая сборка клиента: то, что в тестах обычно подменяется.
+
+    Подменяя фабрику во всех остальных тестах, легко не заметить, что
+    настоящая сборка не работает вовсе: у неё свои проверки и свой разбор
+    учётной записи.
+    """
+
+    @staticmethod
+    def _acc(**overrides: object) -> CarrierAccount:
+        defaults: dict[str, object] = {
+            "account_id": "acc-1",
+            "carrier_code": "pochta",
+            "mode": "own_contract",
+            "credentials": {"token": "t", "user_key": "k"},
+        }
+        defaults.update(overrides)
+        return CarrierAccount(**defaults)  # type: ignore[arg-type]
+
+    def test_the_configured_address_is_used(self) -> None:
+        client = PochtaAdapter._default_client(
+            self._acc(is_sandbox=False, settings={"base_url": "https://api.example/"})
+        )
+        assert client.base_url == "https://api.example"
+
+    def test_production_without_an_address_is_refused(self) -> None:
+        with pytest.raises(CarrierValidationError):
+            PochtaAdapter._default_client(self._acc(is_sandbox=False))
+
+    def test_the_pair_replaces_the_ready_key(self) -> None:
+        client = PochtaAdapter._default_client(
+            self._acc(credentials={"token": "t", "login": "login", "password": "password"})
+        )
+        assert client.base_url == SANDBOX_BASE_URL
+
+    def test_a_missing_token_is_refused(self) -> None:
+        with pytest.raises(CarrierValidationError):
+            PochtaAdapter._default_client(self._acc(credentials={"user_key": "k"}))
+
+    def test_a_token_alone_is_refused(self) -> None:
+        # Ключ пользователя не собрать ни из чего: расчёт упал бы на первом
+        # вызове, то есть ошибка нашлась бы у клиента, а не в кабинете.
+        with pytest.raises(CarrierValidationError):
+            PochtaAdapter._default_client(self._acc(credentials={"token": "t"}))
+
+
+class TestBaseUrlIsChecked:
+    """Настройка учётной записи решает, кому достанутся секреты тенанта."""
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://api.example",  # открытое соединение
+            "https://someone:secret@api.example",  # встроенные учётные данные
+            "https:///1.0",  # без хоста
+            "https://api.example/?to=evil",  # параметры запроса
+        ],
+    )
+    def test_a_dangerous_address_is_refused(self, url: str) -> None:
+        with pytest.raises(CarrierValidationError):
+            PochtaClient(token="t", user_auth_key="k", base_url=url, is_sandbox=False)
+
+    def test_a_good_address_passes(self) -> None:
+        client = PochtaClient(
+            token="t", user_auth_key="k", base_url="https://api.example/1.0/", is_sandbox=False
+        )
+        assert client.base_url == "https://api.example/1.0"
+
+
+class TestSecretsDoNotLeak:
+    """Страж: секреты не попадают в снимок вызова.
+
+    Снимок уходит в `carrier_raw_calls` и живёт 30 суток. Такой тест дешевле
+    любого ревью, потому что срабатывает у того, кто добавит заголовки
+    в снимок, не подумав.
+    """
+
+    @pytest.mark.anyio
+    async def test_neither_token_nor_key_reach_the_raw_call(self) -> None:
+        seen: list[object] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=load("tariff_ok"))
+
+        async def on_raw_call(call: object) -> None:
+            seen.append(call)
+
+        client = PochtaClient(
+            token="secret-token",
+            user_auth_key="secret-key",
+            http_client=httpx.AsyncClient(
+                transport=httpx.MockTransport(handler), base_url=SANDBOX_BASE_URL
+            ),
+        )
+        await client.post(TARIFF_PATH, {"mass": 1}, operation="quote", on_raw_call=on_raw_call)
+        assert seen
+        dumped = repr(seen[0])
+        assert "secret-token" not in dumped
+        assert "secret-key" not in dumped
+
+
+class TestCapabilities:
+    """Возможности объявлены по источнику, а не по удобству."""
+
+    def test_what_the_carrier_cannot_do(self) -> None:
+        caps = PochtaAdapter.capabilities
+        # Отмены нет ни в одном из методов справки (ADR-0020, решение 4).
+        assert caps.supports_cancel is False
+        # Ни приёма события, ни подписки на него в справке нет.
+        assert caps.supports_webhooks is False
+        # Метода подачи заявки на курьера в API «Отправка» нет.
+        assert caps.supports_pickup_request is False
+
+    def test_what_it_can(self) -> None:
+        caps = PochtaAdapter.capabilities
+        # Объявленная ценность — категория РПО плюс declared-value.
+        assert caps.supports_insurance is True
+        # Одно РПО — одно место: в теле расчёта одна mass и один dimension.
+        assert caps.max_places == 1
+        # Флаг означает «платформа не досчитывает объёмный вес». Почта
+        # тарифицирует по фактической массе, и подмена веса объёмным
+        # отправила бы ей массу, которой не существует.
+        assert caps.computes_volumetric_weight is True
+
+    def test_the_adapter_satisfies_the_protocol(self) -> None:
+        assert isinstance(PochtaAdapter(), CarrierAdapter)
+
+    def test_it_is_registered_under_its_own_code(self) -> None:
+        # Иначе домен не найдёт перевозчика через реестр, а import-linter
+        # промолчит: контракт запрещает прямой импорт, а не забытую запись.
+        registry._reset_for_tests()
+        _register_carriers()
+        assert POCHTA_CODE in registry.available_codes()
+        assert registry.get_adapter(POCHTA_CODE).name == "Почта России"
+
+
+class TestClientFailures:
+    """Сбойные ветки транспорта: ни одна не должна дать 500."""
+
+    @staticmethod
+    def _client(handler: object) -> PochtaClient:
+        return PochtaClient(
+            token="t",
+            user_auth_key="k",
+            http_client=httpx.AsyncClient(
+                transport=httpx.MockTransport(handler),  # type: ignore[arg-type]
+                base_url=SANDBOX_BASE_URL,
+            ),
+        )
+
+    @pytest.mark.anyio
+    async def test_html_instead_of_json(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=b"<html>502 Bad Gateway</html>")
+
+        with pytest.raises(CarrierError):
+            await self._client(handler).post(TARIFF_PATH, {}, operation="quote")
+
+    @pytest.mark.anyio
+    async def test_empty_body(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=b"")
+
+        with pytest.raises(CarrierError):
+            await self._client(handler).post(TARIFF_PATH, {}, operation="quote")
+
+    @pytest.mark.anyio
+    async def test_a_list_of_errors_at_the_top_level(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=[{"error-code": "EMPTY_MAIL_TYPE"}])
+
+        with pytest.raises(CarrierError) as exc:
+            await self._client(handler).post(TARIFF_PATH, {}, operation="quote")
+        assert "EMPTY_MAIL_TYPE" in str(exc.value)
+
+    @pytest.mark.anyio
+    async def test_a_bare_list_is_not_a_quote(self) -> None:
+        # Список без ошибок телом расчёта быть не может: выдать его за успех
+        # значило бы вернуть предложение без цены.
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=[])
+
+        with pytest.raises(CarrierError):
+            await self._client(handler).post(TARIFF_PATH, {}, operation="quote")
+
+    @pytest.mark.anyio
+    async def test_a_timeout_is_a_carrier_timeout(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ReadTimeout("too slow")
+
+        with pytest.raises(CarrierTimeout):
+            await self._client(handler).post(TARIFF_PATH, {}, operation="quote")
