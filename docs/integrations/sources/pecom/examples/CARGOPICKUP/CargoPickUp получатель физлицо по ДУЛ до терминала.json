@@ -1,0 +1,70 @@
+﻿{
+    "common": {
+        "type": "3",
+        "applicationDate": "2024-03-28",
+        "description": "Автотовары",
+        "weight": 56.8,
+        "volume": 1.92,
+        "positionsCount": 1,
+        "width": 0.5,
+        "length": 0.5,
+        "height": 0.94,
+        "isFragile": false,
+        "isGlass": false,
+        "isLiquid": false,
+        "isOtherType": false,
+        "isOpenCar": false,
+        "isSideLoad": false,
+        "whoRegisterApplication": 1,
+        "responsiblePerson": "Петр Иванов"
+    },
+    "services": {
+        "isHP": false,
+        "isSealing": false,
+        "isStrapping": false,
+        "isDocumentsReturn": false,
+        "isLoading": false,
+        "isInsurance": true,
+        "isInsurancePrice": 15000
+    },
+    "sender": {
+        "inn": "7716542310",
+        "title": "OOO \"Заливные луга\"",
+        "person": "Иван",
+        "personPhones": [{
+                    "phone": "+74957776644", 
+                    "additional": "123"
+                }],
+        "addressOffice": "Россия, г. Самара, проспект Ленина, д. 2",
+        "addressStock": "Россия, г. Самара, проспект Ленина, д. 2 (Заявка тестовая. Не приезжать!)"
+    },
+    "receiver": {
+        "title": "Петров Антон Сергеевич",
+        "person": "Петров Антон Сергеевич",
+        "personPhones": [{
+                    "phone": "+74742776644", 
+                    "additional": "123"
+                }],
+        "isCityDeliveryNeeded": false,
+        "warehouseId": "36cf9b60-a415-11dc-a911-000a5e19ccb4",
+                 "identityCard":
+               {
+              "type":  10,
+              "series":   "1234",
+              "number":   "456789",
+              "date":   "2015-01-01"  
+        }
+    },
+    "payments": {
+        "pickUp": {
+            "type": 1
+        },
+        "moving": {
+            "type": 1
+        },
+        "insurance": {
+            "type": 1
+        }
+
+    }
+}

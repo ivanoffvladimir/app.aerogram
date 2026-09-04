@@ -1,0 +1,22 @@
+﻿{
+    "isInsurance": true,
+    "isInsurancePrice": 150000,
+    "plannedDateTime": "2024-03-07T10:00:00",
+    "types": [3],
+    "isPickUp": true,
+    "isDelivery": true,
+    "pickup": {
+        "address": "Россия, г. Москва, Сормовский проезд, д. 7Ак2"
+    },
+    "delivery": {
+        "address": "Россия, г. Санкт-Петербург, ул.Якорная, д. 2"
+    },
+    "cargos": [
+        {
+            "length": 0.54,
+            "width": 0.42,
+            "height": 0.16,
+            "weight": 46.32
+        }
+    ]
+}

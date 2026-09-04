@@ -1,0 +1,94 @@
+﻿{
+    "common": {
+    "orderType": 3,
+    "callToScheduleCar": true,
+    "plannedDate": "2024-07-29"
+    },
+    "pickUpDetails": { 
+        "addressStockComment": "позвонить за час", 
+        "periodTimeFrom": "14:00:00", 
+        "periodTimeTo": "18:00:00", 
+        "isLoading": true, 
+        "floor": 8,
+        "isElevator": true,
+        "carryingDistance": 50
+  },
+    "sender": {
+        "addressStock":"Россия, г. Москва, ул. Неглинная, д.2А",
+        "legalForm": 1,
+        "inn": "7716542310",
+        "fs": "ООО",
+        "title": "Заливные луга",
+        "personPhones": [{
+                    "phone": "+74956651112", 
+                    "additional": "100"
+                }],
+        "person": "Иван"
+    },
+    "cargos": [{
+            "common": {
+                "type": 3,
+                "positionsCount": 2,
+                "decription": "Одежда",
+                "weight": 32,
+                "length":0.5,
+                "volume": 0.3
+            },
+            "receiver": {
+                "legalForm": 1,
+                "inn": "7707083893",                
+                "fs": "ООО",
+                "title": "Ромашка",
+                "addressStock": "Россия, г. Россошь, ул. Кленовая, д. 10",
+                "comment":"звонить до 12:00", 
+                "personPhones": [{
+                    "phone": "+79809991199", 
+                    "additional": ""
+                }],
+                "person": "Ирина"
+            },
+            "services": {
+                "transporting": {
+                    "payer": {
+                        "type": 2
+                    }
+                },
+                "pickUp": { 
+                    "payer": {                     
+                       "type": 2
+                    }
+                },
+                "delivery": {
+                    "enabled": true,
+                    "isLoading": true, 
+                    "floor": 3, 
+                    "isElevator": false,
+                    "carryingDistance": 15,
+                    "payer": {
+                        "type": 2
+                    }
+                },
+                "hardPacking": {
+                    "enabled": false
+                },
+                "insurance": {
+                    "enabled": true,
+                    "cost": 55740,
+                    "payer": {
+                        "type": 2
+                    }
+                },
+                "sealing": {
+                    "enabled": false
+                },
+                "strapping": {
+                    "enabled": false
+                },
+                "documentsReturning": {
+                    "enabled": false
+                }
+            }
+        }
+    ]
+}
+

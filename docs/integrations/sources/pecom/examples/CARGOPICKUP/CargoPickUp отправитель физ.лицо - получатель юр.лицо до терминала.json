@@ -1,0 +1,67 @@
+﻿{
+    "common": {
+        "type": "3",
+        "applicationDate": "2024-03-28",
+        "description": "Автотовары",
+        "weight": 56.8,
+        "volume": 1.92,
+        "positionsCount": 1,
+        "width": 0.5,
+        "length": 0.5,
+        "height": 0.94,
+        "isOpenCar": false,
+        "isSideLoad": false,
+        "whoRegisterApplication": 1,
+        "responsiblePerson": "Петр Иванов"
+    },
+    "services": {
+        "isHP": false,
+        "isSealing": false,
+        "isStrapping": false,
+        "isDocumentsReturn": false,
+        "isLoading": false,
+        "isInsurance": true,
+        "isInsurancePrice": 50000
+    },
+    "sender": {
+        "title": "Алексей Иванович Иванов",
+        "person": "Алексей Иванович",
+        "personPhones": [{
+                    "phone": "+74742776644", 
+                    "additional": "123"
+                }],
+        "addressOffice": "Россия, г. Смоленск, проспект Ленина, д. 2",
+        "addressStock": "Россия, г. Смоленск, проспект Ленина, д. 2",
+        "identityCard": {
+            "type": 10,
+            "series": "1234",
+            "number": "56789",
+            "date": "1985-01-01"
+        }
+    },
+    "receiver": {
+        "warehouseId":"36cf9b5e-a415-11dc-a911-000a5e19ccb4",
+        "inn": "7707083893",
+        "title": "ООО Ромашка",
+        "person": "Антон ",
+        "personPhones": [{
+                    "phone": "+74742776644", 
+                    "additional": "123"
+                },
+                {
+                    "phone": "+79101002030"
+                }],
+        "isCityDeliveryNeeded": false
+    },
+    "payments": {
+        "pickUp": {
+            "type": 1
+        },
+        "moving": {
+            "type": 1
+        },
+        "insurance": {
+            "type": 1
+        }
+    }
+}

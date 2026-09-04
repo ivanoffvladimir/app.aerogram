@@ -1,0 +1,65 @@
+﻿{
+    "common": {
+        "type": "3",
+        "applicationDate": "2024-03-28",
+        "description": "Автотовары",
+        "weight": 56.8,
+        "volume": 1.92,
+        "positionsCount": 1,
+        "width": 0.5,
+        "length": 0.5,
+        "height": 0.94,
+        "isFragile": false,
+        "isGlass": false,
+        "isLiquid": false,
+        "isOtherType": false,
+        "isOpenCar": false,
+        "isSideLoad": false,
+        "whoRegisterApplication": 1,
+        "responsiblePerson": "Петр Иванов"
+    },
+    "services": {
+        "isHP": false,
+        "isSealing": false,
+        "isStrapping": false,
+        "isDocumentsReturn": false,
+        "isLoading": false,
+        "isInsurance": true,
+        "isInsurancePrice": 50
+    },
+    "sender": {
+        "inn": "5754201195",
+        "title": "OOO \"МТК РОСБЕРГ ЦЕНТР\"",
+        "person": "Алексей",
+        "personPhones": [{
+                    "phone": "+79807776644", 
+                    "additional": "123"
+                }],
+        "addressOffice": "Россия, г. Самара, проспект Ленина, д.2",
+        "addressStock": "Россия, г. Самара, проспект Ленина, д. 2 (Заявка тестовая. Не приезжать!)"
+     },
+    "receiver": {
+        "title": "Петров Антон",
+        "person": "Петров Антон",
+        "personPhones": [{
+                    "phone": "+794957776621"
+                }],
+        "isCityDeliveryNeeded": true,
+        "isCityDeliveryNeededAddress":"Россошь, Кленовая улица, 10",
+        "identityCard":{"type": 0}
+        },
+    "payments": {
+        "pickUp": {
+            "type": 1
+        },
+        "moving": {
+            "type": 1
+        },
+        "insurance": {
+            "type": 1
+        },
+        "delivery": {
+            "type": 2
+          }
+    }
+}

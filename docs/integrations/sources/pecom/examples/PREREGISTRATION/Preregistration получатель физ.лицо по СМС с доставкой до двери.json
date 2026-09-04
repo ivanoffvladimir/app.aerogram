@@ -1,0 +1,79 @@
+﻿{
+    "sender": {
+        "warehouseId":"a678333f-2a2a-11e9-80ce-00155d713b38",
+        "legalForm": 1,
+        "inn": "7716542310",
+        "fs": "ООО",
+        "title": "Заливные луга",
+        "personPhones": [{
+                    "phone": "+74956651112", 
+                    "additional": "100"
+                },{
+                    "phone": "+74956652232", 
+                    "additional": "300"
+                }],
+        "person": "Иван"
+    },
+    "cargos": [{
+            "common": {
+                "type": 3,
+                "positionsCount": 5,
+                "decription": "Мебель",
+                "weight": 21.5,
+                "length":0.8,
+                "height": 0.5, 
+                "width":  0.25,
+                "volume": 0.1
+            },
+           "receiver": {
+                "addressStock": "Россия, г. Россошь, ул. Кленовая, д. 10",
+                "legalForm": 3, 
+                "individual": {
+					"lastName": "Иванов",
+                    "firstName": "Н",
+                    "patronymic": "В"
+                },
+                "identityCard": {
+                    "typeGuid": "b87bc99c-c4c2-11e7-80c9-00155d668927"
+                },
+				"personPhones": [{
+                    "phone": "+79999991155"
+                }],
+                "person": "Николай"
+            },
+            "services": {
+                "transporting": {
+                    "payer": {
+                        "type": 1
+                    }
+                },
+                "delivery": {
+                    "enabled": true,
+                    "payer": {
+                        "type": 1
+                    }
+                }, 
+                "hardPacking": {
+                    "enabled":  true
+                },
+                "insurance": {
+                    "enabled": true,
+                    "cost": 5740,
+                    "payer": {
+                        "type": 1
+                    }
+                },
+                "sealing": {
+                    "enabled": false
+                },
+                "strapping": {
+                    "enabled": false
+                },
+                "documentsReturning": {
+                    "enabled": false
+                }
+            }
+        }
+    ]
+}
+

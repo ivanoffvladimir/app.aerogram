@@ -1,0 +1,14 @@
+{
+    "senderWarehouseId": "a678333f-2a2a-11e9-80ce-00155d713b38",
+    "receiverWarehouseId": "36cf9b60-a415-11dc-a911-000a5e19ccb4",
+    "plannedDateTime": "2024-03-28T10:00:00",
+    "isInsurance": true,
+    "isInsurancePrice": 15000,
+    "types": [3],
+    "cargos": [{
+            "maxSize": 1.32,
+            "weight": 46.32,
+            "volume": 0.41
+        }
+    ]
+}

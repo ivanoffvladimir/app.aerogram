@@ -1,0 +1,87 @@
+﻿{
+    "common": {
+    "orderType": 4,
+    "callToScheduleCar": true,
+    "plannedDate": "2024-07-29"
+    },
+    "pickUpDetails": { 
+        "addressStockComment": "позвонить за час", 
+        "periodTimeFrom": "09:00:00", 
+        "periodTimeTo": "18:00:00"
+  },
+    "sender": {
+        "addressStock":"Россия, г. Москва, ул. Неглинная, д.2А",
+        "legalForm": 1,
+        "inn": "7716542310",
+        "fs": "ООО",
+        "title": "Заливные луга",
+        "personPhones": [{
+                    "phone": "+74956651112", 
+                    "additional": "100"
+                }],
+        "person": "Иван"
+    },
+    "cargos": [{
+            "common": {
+                "type": 3,
+                "positionsCount": 2,
+                "decription": "Одежда",
+                "weight": 14.5,
+                "length":0.8,
+                "height": 0.5, 
+                "width":  0.25,
+                "volume": 0.1
+            },
+            "receiver": {
+                "warehouseId":"36cf9b5e-a415-11dc-a911-000a5e19ccb4",
+                "legalForm": 1,
+                "inn": "7707083893",                
+                "fs": "ООО",
+                "title": "Ромашка",
+                "personPhones": [{
+                    "phone": "+79809991199", 
+                    "additional": ""
+                }],
+                "person": "Ирина"
+            },
+            "services": {
+                "transporting": {
+                    "payer": {
+                        "type": 2
+                    }
+                },
+                "pickUp": { 
+                    "payer": {                     
+                       "type": 2
+                    }
+                },
+                "delivery": {
+                    "enabled": false,
+                    "payer": {
+                        "type": 2
+                    }
+                },
+                "hardPacking": {
+                    "enabled": false
+                },
+                "insurance": {
+                    "enabled": true,
+                    "cost": 55740,
+                    "payer": {
+                        "type": 2
+                    }
+                },
+                "sealing": {
+                    "enabled": false
+                },
+                "strapping": {
+                    "enabled": false
+                },
+                "documentsReturning": {
+                    "enabled": false
+                }
+            }
+        }
+    ]
+}
+

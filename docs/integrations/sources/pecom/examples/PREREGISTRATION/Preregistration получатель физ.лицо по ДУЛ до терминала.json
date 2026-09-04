@@ -1,0 +1,85 @@
+﻿{
+    "sender": {
+        "warehouseId":"a678333f-2a2a-11e9-80ce-00155d713b38",
+        "legalForm": 1,
+        "inn": "7716542310",
+        "fs": "ООО",
+        "title": "Заливные луга",
+        "personPhones": [{
+                    "phone": "+74956651112", 
+                    "additional": "100"
+                }],
+        "person": "Иван"
+    },
+    "cargos": [{
+            "common": {
+                "type": 3,
+                "accompanyingDocuments":"true",
+                "positionsCount": 5,
+                "decription": "Мебель",
+                "weight": 214.5,
+                "length":0.8,
+                "height": 0.5, 
+                "width":  0.25,
+                "volume": 0.1
+            },
+           "receiver": {
+                "warehouseId":"983a6b3a-e334-11ed-80d0-00155d66894c",
+                "legalForm": 3, 
+                "individual": {
+					"lastName": "Ирэна",
+                    "firstName": "Омарова",
+                    "patronymic": ""
+                },
+                "identityCard": {
+                    "typeGuid": "89431422-c653-11e4-8078-d89d67243b58",
+                    "series": "VA",
+                    "number": "06632998",
+                    "date": "21.02.2016",
+                    "note": "",
+					"taxpayerID": "950202350071",
+                    "taxpayerCountryCode": "398"
+
+                },
+				"personPhones": [{
+                    "phone": "+79999991155", 
+                    "additional": ""
+                }],
+                "person": "Ирэна"
+            },
+            "services": {
+                "transporting": {
+                    "payer": {
+                        "type": 2
+                    }
+                },
+                "delivery": {
+                    "enabled": false
+                }, 
+                "hardPacking": {
+                    "enabled":  true,
+                    "payer": {
+                        "type": 2
+                    }
+                },
+                "insurance": {
+                    "enabled": true,
+                    "cost": 55740,
+                    "payer": {
+                        "type": 2
+                    }
+                },
+                "sealing": {
+                    "enabled": false
+                },
+                "strapping": {
+                    "enabled": false
+                },
+                "documentsReturning": {
+                    "enabled": false
+                }
+            }
+        }
+    ]
+}
+
