@@ -1,7 +1,8 @@
 """Адаптер Деловых Линий.
 
-Стадия 1: авторизация и расчёт. Остальные методы объявлены и честно
-сообщают, что ещё не реализованы, вместо того чтобы молча возвращать пустоту.
+Стадии 1–2: авторизация, расчёт, оформление, поиск заказа, трекинг
+и печатные формы. Разбор входящего вебхука не реализован намеренно —
+см. ниже, это не пропуск, а отсутствие источника.
 
 Написан по **официальной OpenAPI 3.0.3 перевозчика** — планка ADR-0020.
 Спека лежит в репозитории (`docs/integrations/sources/dellin/schema.yaml`),
@@ -49,6 +50,21 @@ from aerogram.carriers.base import (
     WebhookUpdate,
 )
 from aerogram.carriers.dellin.client import DellinClient, dellin_error
+from aerogram.carriers.dellin.orders import (
+    ORDERS_PATH,
+    PRINTABLE_PATH,
+    REQUEST_PATH,
+    STATUSES_HISTORY_PATH,
+    create_payload,
+    orders_payload,
+    parse_created,
+    parse_order,
+    parse_printable,
+    parse_statuses,
+    printable_payload,
+    statuses_payload,
+    waybill_uid,
+)
 from aerogram.carriers.dellin.quotes import (
     CALCULATOR_PATH,
     ContractPriceError,
@@ -179,22 +195,121 @@ class DellinAdapter:
             log.warning("dellin.quote_unparsable", delivery_type=delivery_type, reason=str(exc))
             return None
 
-    # --- Ещё не реализовано ----------------------------------------------
+    # --- Оформление -------------------------------------------------------
 
     async def create(self, req: ShipmentRequest, acc: CarrierAccount) -> ShipmentResult:
-        raise CarrierNotConfigured(
-            "Оформление заказа у Деловых Линий ещё не реализовано", carrier_code=DELLIN_CODE
-        )
+        """Оформить заявку на перевозку.
 
-    async def label(self, ext_id: str, fmt: LabelFormat, acc: CarrierAccount) -> LabelResult:
-        raise CarrierNotConfigured(
-            "Печатные формы Деловых Линий ещё не реализованы", carrier_code=DELLIN_CODE
-        )
+        Возвращает ``is_pending``: перевозчик отдаёт номер заявки, а номер
+        заказа появляется после её обработки. Наш собственный номер уходит
+        в ``cargoCode`` и ``orderNumber``, чтобы заказ потом можно было найти
+        сверкой «призраков» (FR-2.5).
+        """
+        freight_uid = req.extras.get("freight_uid")
+        if not isinstance(freight_uid, str) or not freight_uid:
+            # Умолчание здесь было бы хуже отказа: перевозчик посчитает
+            # и повезёт не тот характер груза.
+            raise CarrierValidationError(
+                "Для оформления у Деловых Линий нужен характер груза (freight_uid) "
+                "из справочника перевозчика «Характер груза»",
+                field="freight_uid",
+                carrier_code=DELLIN_CODE,
+            )
+
+        client = self._client_factory(acc)
+        try:
+            body = await self._call(
+                client, REQUEST_PATH, create_payload(req, freight_uid=freight_uid), "create"
+            )
+            try:
+                return parse_created(body, number=req.number)
+            except ValueError as exc:
+                raise CarrierError(str(exc), carrier_code=DELLIN_CODE) from exc
+        finally:
+            await client.aclose()
+
+    async def find_by_number(self, number: str, acc: CarrierAccount) -> ShipmentResult | None:
+        """Найти заказ по нашему внутреннему номеру.
+
+        Журнал заказов принимает ``orderNumber`` — «внутренний номер заказа
+        клиента», — и это делает сверку «призраков» возможной без хранения
+        чужих идентификаторов.
+        """
+        client = self._client_factory(acc)
+        try:
+            body = await self._call(client, ORDERS_PATH, orders_payload(number=number), "find")
+            return parse_order(body)
+        finally:
+            await client.aclose()
 
     async def track(self, ext_id: str, acc: CarrierAccount) -> list[RawEvent]:
-        raise CarrierNotConfigured(
-            "Трекинг Деловых Линий ещё не реализован", carrier_code=DELLIN_CODE
+        """История статусов заказа."""
+        client = self._client_factory(acc)
+        try:
+            body = await self._call(
+                client, STATUSES_HISTORY_PATH, statuses_payload((ext_id,)), "track"
+            )
+            return parse_statuses(body)
+        finally:
+            await client.aclose()
+
+    async def label(self, ext_id: str, fmt: LabelFormat, acc: CarrierAccount) -> LabelResult:
+        """Накладная в PDF.
+
+        Два вызова, а не один: печатная форма запрашивается по UID накладной,
+        а он лежит в журнале заказов. Пока заявка не обработана, накладной
+        не существует — тогда возвращается ``is_pending`` без содержимого,
+        как того требует контракт (FR-4.5).
+        """
+        if fmt is not LabelFormat.PDF_A4:
+            raise CarrierValidationError(
+                f"Деловые Линии отдают накладную только в PDF, запрошен {fmt.value}",
+                field="format",
+                carrier_code=DELLIN_CODE,
+            )
+
+        client = self._client_factory(acc)
+        try:
+            orders = await self._call(
+                client, ORDERS_PATH, orders_payload(doc_ids=(ext_id,)), "label"
+            )
+            doc_uid = waybill_uid(orders)
+            if doc_uid is None:
+                log.info("dellin.waybill_not_ready", external_id=ext_id)
+                return LabelResult(format=LabelFormat.PDF_A4, content=None, is_pending=True)
+
+            body = await self._call(client, PRINTABLE_PATH, printable_payload(doc_uid), "label")
+            content = parse_printable(body)
+            if content is None:
+                return LabelResult(
+                    format=LabelFormat.PDF_A4,
+                    content=None,
+                    is_pending=True,
+                    external_ref=doc_uid,
+                )
+            return LabelResult(
+                format=LabelFormat.PDF_A4, content=content, is_pending=False, external_ref=doc_uid
+            )
+        finally:
+            await client.aclose()
+
+    async def _call(
+        self, client: DellinClient, path: str, payload: dict[str, Any], operation: str
+    ) -> dict[str, Any]:
+        """Вызов с проверкой конверта ошибок.
+
+        Ошибка перевозчика никогда не даёт 500: она становится
+        ``CarrierError`` с текстом, который можно показать оператору.
+        """
+        body = await client.post(
+            path, payload, operation=operation, with_session=client.can_authorize
         )
+        message = dellin_error(body)
+        if message:
+            raise CarrierError(message, carrier_code=DELLIN_CODE)
+        return body
+
+    # --- Ещё не реализовано ----------------------------------------------
 
     async def cancel(self, ext_id: str, acc: CarrierAccount) -> CancelResult:
         raise CarrierNotConfigured(
@@ -204,23 +319,25 @@ class DellinAdapter:
             carrier_code=DELLIN_CODE,
         )
 
-    async def find_by_number(self, number: str, acc: CarrierAccount) -> ShipmentResult | None:
-        raise CarrierNotConfigured(
-            "Поиск заказа Деловых Линий по номеру ещё не реализован", carrier_code=DELLIN_CODE
-        )
-
     async def fetch_refs(self, acc: CarrierAccount) -> RefCatalog:
         raise CarrierNotConfigured(
             "Выгрузка справочников Деловых Линий ещё не реализована", carrier_code=DELLIN_CODE
         )
 
     def parse_webhook(self, payload: dict[str, object]) -> list[WebhookUpdate]:
-        """Разбор вебхука появится вместе с трекингом.
+        """Разбор входящего вебхука невозможен: источника нет.
+
+        Это не пропуск. В официальной спеке описаны восемь методов
+        ``/v1/webhooks/*`` — но все они про **управление подпиской**:
+        создать, изменить, удалить, посмотреть список событий. Формы тела,
+        которое перевозчик присылает нам, в спецификации нет ни одной схемой.
+        Планка ADR-0020 запрещает додумывать её по догадке.
 
         Пустой список, а не исключение: приёмник вебхуков не должен падать
-        на перевозчике, чей разбор ещё не написан.
+        из-за перевозчика, чей формат события неизвестен. Событие при этом
+        не теряется — трекинг работает опросом ``track``.
         """
-        log.warning("dellin.webhook_ignored", keys=sorted(payload)[:10])
+        log.warning("dellin.webhook_shape_unknown", keys=sorted(payload)[:10])
         return []
 
     def verify_webhook(self, payload: bytes, headers: dict[str, str], secret: str) -> bool:

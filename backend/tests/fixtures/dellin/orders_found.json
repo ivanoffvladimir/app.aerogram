@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "status": 200,
+    "generated_at": "2026-09-04 05:40:00"
+  },
+  "orders": [
+    {
+      "orderId": "400275691",
+      "orderNumber": "AG-2026-000123",
+      "orderedAt": "2026-09-01 08:36:27",
+      "state": "inway",
+      "stateName": "Груз в пути",
+      "stateDate": "2026-09-02",
+      "totalSum": "1680",
+      "orderDates": {
+        "pickup": "2026-09-01",
+        "derrivalToAddress": "2026-09-05",
+        "giveoutFromOspReceiver": "2026-09-04 00:00:00"
+      },
+      "documents": [
+        {
+          "id": 1,
+          "uid": "0xad339ac31247666145816f2aeb4935ab",
+          "type": "shipping",
+          "createDate": "2026-09-01",
+          "state": "actual"
+        },
+        {
+          "id": 2,
+          "uid": "0xbb00000000000000000000000000000b",
+          "type": "request",
+          "createDate": "2026-09-01",
+          "state": "actual"
+        }
+      ]
+    }
+  ]
+}

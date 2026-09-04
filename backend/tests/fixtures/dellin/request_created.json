@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "status": 200,
+    "generated_at": "2026-09-04 05:40:00"
+  },
+  "data": {
+    "state": "created",
+    "requestID": 400275691,
+    "barcode": "1345678",
+    "information": [
+      "Заявка принята"
+    ]
+  }
+}

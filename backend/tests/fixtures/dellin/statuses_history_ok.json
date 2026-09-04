@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "status": 200,
+    "generated_at": "2026-09-04 05:40:00"
+  },
+  "data": {
+    "statusHistory": {
+      "400267443": [
+        {
+          "number": "400267443",
+          "state": "waiting",
+          "stateName": "Ожидает сдачи на терминал",
+          "stateDate": "2023-01-12T15:52:40+03:00",
+          "detailedStatus": "waiting",
+          "detailedStatusRus": null,
+          "detailedStatusDate": "2023-01-12T15:52:40+03:00"
+        },
+        {
+          "number": "400267443",
+          "state": "inway",
+          "stateName": "Груз в пути",
+          "stateDate": "2023-01-25T11:10:44+03:00",
+          "detailedStatus": "inway",
+          "detailedStatusRus": null,
+          "detailedStatusDate": "2023-01-25T11:10:44+03:00"
+        }
+      ]
+    }
+  }
+}
