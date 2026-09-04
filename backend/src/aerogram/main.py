@@ -68,9 +68,11 @@ def _register_carriers() -> None:
     СДЭК → Major Express → Деловые Линии → ПЭК → Почта России → Яндекс.
     """
     from aerogram.carriers.cdek import CdekAdapter
+    from aerogram.carriers.dellin import DellinAdapter
 
-    if CdekAdapter.code not in registry.available_codes():
-        registry.register(CdekAdapter())
+    for adapter_cls in (CdekAdapter, DellinAdapter):
+        if adapter_cls.code not in registry.available_codes():
+            registry.register(adapter_cls())
 
 
 def create_app() -> FastAPI:

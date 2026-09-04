@@ -1,0 +1,178 @@
+{
+  "metadata": {
+    "status": 200,
+    "generated_at": "2019-11-25 08:16:47"
+  },
+  "data": {
+    "derival": {
+      "terminal": "Санкт-Петербург",
+      "price": 475,
+      "contractPrice": false,
+      "servicePrice": 475,
+      "premiumDetails": [],
+      "terminals": [],
+      "handling": {
+        "price": 0,
+        "contractPrice": false,
+        "premium": 0,
+        "discount": 0,
+        "premiumDetails": [],
+        "discountDetails": []
+      }
+    },
+    "intercity": {
+      "price": null,
+      "contractPrice": true,
+      "premium": 0,
+      "discount": 0,
+      "premiumDetails": [],
+      "discountDetails": []
+    },
+    "small": {
+      "price": 540,
+      "contractPrice": false,
+      "premium": 0,
+      "discount": 0,
+      "premiumDetails": [],
+      "discountDetails": []
+    },
+    "air": {
+      "price": 540,
+      "contractPrice": false,
+      "premium": 0,
+      "discount": 0,
+      "premiumDetails": [],
+      "discountDetails": []
+    },
+    "express": {
+      "price": 540,
+      "contractPrice": false,
+      "premium": 0,
+      "discount": 0,
+      "premiumDetails": [],
+      "discountDetails": []
+    },
+    "letter": {
+      "price": 540,
+      "contractPrice": false,
+      "premium": 0,
+      "discount": 0,
+      "premiumDetails": [],
+      "discountDetails": []
+    },
+    "arrival": {
+      "terminal": "Чита",
+      "price": 0,
+      "contractPrice": false,
+      "premiumDetails": [
+        {
+          "name": "Экспедирование до клиента график доставки",
+          "value": 2000,
+          "date": null,
+          "announcement": false,
+          "public": true
+        }
+      ],
+      "terminals": [
+        {
+          "id": "104",
+          "name": "Чита",
+          "address": "Чита, Сухая Падь ул., 3",
+          "streetCode": "7500000100008350000000000",
+          "price": 0,
+          "contractPrice": false,
+          "default": true,
+          "express": false,
+          "isPVZ": false
+        }
+      ]
+    },
+    "price": null,
+    "priceMinimal": "auto",
+    "packages": {},
+    "orderDates": {
+      "pickup": "2019-11-26",
+      "senderAddressTime": null,
+      "senderTerminalTime": null,
+      "arrivalToOspSender": null,
+      "derrivalFromOspSender": "2019-11-26",
+      "arrivalToOspReceiver": null,
+      "arrivalToAirport": "2019-11-28",
+      "arrivalToAirportMax": "2019-11-29",
+      "giveoutFromOspReceiver": "2019-11-28 00:00:00",
+      "giveoutFromOspReceiverMax": "2019-11-29 00:00:00",
+      "derrivalFromOspReceiver": null,
+      "createTo": null,
+      "derrivalToAddress": null,
+      "derivalToAddressMax": null
+    },
+    "deliveryTerm": 0,
+    "accompanyingDocuments": {
+      "send": {
+        "price": 200,
+        "contractPrice": false,
+        "premium": 0,
+        "discount": 0,
+        "premiumDetails": [],
+        "discountDetails": []
+      },
+      "return": {
+        "price": 200,
+        "contractPrice": false,
+        "premium": 0,
+        "discount": 0,
+        "premiumDetails": [],
+        "discountDetails": []
+      }
+    },
+    "insurance": 250,
+    "insuranceComponents": {
+      "cargoInsurance": 200,
+      "termInsurance": 50
+    },
+    "notify": {
+      "price": 15,
+      "contractPrice": false,
+      "premium": 0,
+      "discount": 0,
+      "premiumDetails": [],
+      "discountDetails": []
+    },
+    "simpleShippingAvailable": true,
+    "availableDeliveryTypes": {
+      "auto": 480,
+      "small": 549,
+      "avia": 4230,
+      "express": 620,
+      "letter": null
+    },
+    "foundAddresses": [
+      {
+        "field": "delivery.derival.address",
+        "source": "199106, Россия, Санкт-Петербург, Санкт-Петербург, Кожевенная линия, дом 40",
+        "result": "199106, Россия, г Санкт-Петербург, линия Кожевенная, дом 40"
+      },
+      {
+        "field": "delivery.arrival.address",
+        "source": "Москва, Юности, 5",
+        "result": "Россия, Московская обл, г Москва, ул Юности, д 5"
+      },
+      {
+        "field": "payment.paymentCitySearch",
+        "source": "Москва",
+        "result": "Россия, Московская обл, г Москва"
+      }
+    ],
+    "information": [
+      "После оформления заказа наш специалист свяжется с Вами для утверждения стоимости"
+    ],
+    "handlingMech": {
+      "price": 320.0,
+      "contractPrice": false,
+      "premium": 0,
+      "discount": 0,
+      "premiumDetails": [],
+      "discountDetails": []
+    }
+  }
+}

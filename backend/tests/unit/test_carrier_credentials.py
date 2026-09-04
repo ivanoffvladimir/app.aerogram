@@ -56,4 +56,4 @@ class TestMissingFields:
     def test_an_unknown_carrier_reports_nothing(self) -> None:
         """Пустой список у неизвестного — «нечем проверить», а не «всё в порядке»:
         требовать поля, состава которых мы не знаем, вредно."""
-        assert missing_fields("dellin", {}) == []
+        assert missing_fields("pecom", {}) == []

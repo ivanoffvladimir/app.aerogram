@@ -1,0 +1,18 @@
+{
+  "MetaData": {
+    "status": 400,
+    "detail": "abc",
+    "generated_at": "2025-03-22 23:36:01"
+  },
+  "errors": [
+    {
+      "code": 110003,
+      "title": "Отсутствует обязательный параметр",
+      "detail": "Это поле обязательно.",
+      "link": "https://dev.dellin.ru/api/errors/#error_110003",
+      "fields": [
+        "login"
+      ]
+    }
+  ]
+}

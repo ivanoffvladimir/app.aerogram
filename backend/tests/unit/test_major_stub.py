@@ -123,7 +123,20 @@ class TestCredentialSchemas:
         """
         assert schema_for("pecom") is None
         assert missing_fields("pecom", {}) == []
-        assert set(PENDING_CARRIERS) == {"dellin", "pecom", "pochta", "yandex"}
+        assert set(PENDING_CARRIERS) == {"pecom", "pochta", "yandex"}
+
+    def test_dellin_is_declared_now_that_its_adapter_exists(self) -> None:
+        """Состав доступов объявляется вместе с адаптером, в том же коммите.
+
+        У Деловых Линий он сверен по официальной OpenAPI (ADR-0020): ключ
+        приложения обязателен, вход в кабинет — нет, потому что без него
+        расчёт возвращает публичный тариф, а не падает.
+        """
+        schema = schema_for("dellin")
+        assert schema is not None
+        assert "dellin" not in PENDING_CARRIERS
+        assert missing_fields("dellin", {}) == ["appkey"]
+        assert missing_fields("dellin", {"appkey": "k"}) == []
 
     def test_declared_and_pending_sets_do_not_overlap(self) -> None:
         assert not set(CREDENTIAL_SCHEMAS) & PENDING_CARRIERS
