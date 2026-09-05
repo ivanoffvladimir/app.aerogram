@@ -75,3 +75,15 @@
   text-align: center;
   color: var(--text-muted);
 }
+
+/* Основание оценки: читается наравне со скором, поэтому не приглушено.
+   Приглушив его, экран снова начал бы выдавать платформенную оценку
+   за собственную статистику клиента. */
+.basis {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  white-space: nowrap;
+}

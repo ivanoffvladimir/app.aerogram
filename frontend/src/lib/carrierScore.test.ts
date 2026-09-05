@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { CarrierAnalytics } from '@/api/client'
-import { COMPONENTS, byScore, confidenceText, scoreText } from './carrierScore'
+import {
+  BASIS_LABELS,
+  COMPONENTS,
+  basisText,
+  byScore,
+  confidenceText,
+  scoreText,
+} from './carrierScore'
 
 function row(overrides: Partial<CarrierAnalytics> = {}): CarrierAnalytics {
   return {
@@ -9,6 +16,8 @@ function row(overrides: Partial<CarrierAnalytics> = {}): CarrierAnalytics {
     carrier_name: 'СДЭК',
     score: 84,
     confidence: 'high',
+    basis: 'own',
+    platform_sample_size: null,
     scope_type: 'global',
     scope_key: '',
     sample_size: 120,
@@ -21,7 +30,7 @@ function row(overrides: Partial<CarrierAnalytics> = {}): CarrierAnalytics {
       price_index: 0.5,
       data_quality: 0.8,
     },
-    formula_version: 'score-1.0.0',
+    formula_version: 'score-2.0.0',
     calculated_at: null,
     ...overrides,
   }
@@ -42,7 +51,7 @@ describe('scoreText', () => {
 describe('confidenceText', () => {
   it('называет размер выборки рядом с доверием', () => {
     expect(confidenceText(row({ confidence: 'low', sample_size: 12 }))).toBe(
-      'низкое, выборка 12',
+      'низкое, ваша выборка 12',
     )
   })
 
@@ -96,5 +105,52 @@ describe('COMPONENTS', () => {
     // ради которой экран и существует (FR-7.5).
     const keys = Object.keys(row().components).sort()
     expect(COMPONENTS.map((c) => c.key).sort()).toEqual(keys)
+  })
+})
+
+describe('основание оценки', () => {
+  it('оценку платформы не выдаёт за собственную статистику клиента', () => {
+    // Без этой подписи «87» у нового клиента читается как вывод из его
+    // собственного опыта, которого ещё не было.
+    const fresh = row({ basis: 'platform', sample_size: 0, platform_sample_size: 900 })
+    expect(BASIS_LABELS[fresh.basis]).toBe('по платформе')
+    expect(basisText(fresh)).toBe('900 отправлений платформы, ваших пока нет')
+  })
+
+  it('смешанное основание называет обе выборки', () => {
+    const mixed = row({ basis: 'mixed', sample_size: 40, platform_sample_size: 900 })
+    expect(basisText(mixed)).toBe('40 ваших и 900 по платформе')
+  })
+
+  it('без платформенной базы говорит только о своих', () => {
+    expect(basisText(row({ basis: 'own', sample_size: 120 }))).toBe('120 ваших отправлений')
+  })
+
+  it('отсутствие данных где бы то ни было названо прямо', () => {
+    const none = row({ basis: 'none', score: null, confidence: 'insufficient', sample_size: 0 })
+    expect(basisText(none)).toBe('данных нет ни у вас, ни на платформе')
+  })
+
+  it('у каждого основания есть русская подпись', () => {
+    for (const basis of ['platform', 'mixed', 'own', 'none'] as const) {
+      expect(BASIS_LABELS[basis]).toBeTruthy()
+    }
+  })
+
+  it('число клиентов платформы наружу не попадает', () => {
+    // Сколько компаний возит этим перевозчиком — сведение о клиентской базе
+    // платформы, а не о перевозчике.
+    const text = basisText(
+      row({ basis: 'platform', sample_size: 0, platform_sample_size: 900 }),
+    )
+    expect(text).not.toMatch(/клиент|компан/i)
+  })
+})
+
+describe('доверие', () => {
+  it('считается по своей выборке, а не по платформенной', () => {
+    // Платформенная база делает оценку возможной, но не делает её более вашей.
+    const fresh = row({ basis: 'platform', confidence: 'low', sample_size: 0 })
+    expect(confidenceText(fresh)).toBe('низкое, ваша выборка 0')
   })
 })

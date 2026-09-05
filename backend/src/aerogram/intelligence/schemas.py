@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from aerogram.shared.enums import ScoreConfidence, ScoreScope
+from aerogram.shared.enums import ScoreBasis, ScoreConfidence, ScoreScope
 
 __all__ = ["CarrierAnalyticsOut", "ScoreComponentsOut"]
 
@@ -31,7 +31,8 @@ class CarrierAnalyticsOut(BaseModel):
 
     ``score is None`` при ``confidence = insufficient`` — это не ошибка,
     а обязательное поведение (FR-7.3): интерфейс показывает «недостаточно
-    данных», а не число.
+    данных», а не число. С появлением платформенной базы (ADR-0026) такое
+    сочетание означает, что перевозчиком не возил ещё никто на платформе.
     """
 
     carrier_id: UUID
@@ -39,6 +40,15 @@ class CarrierAnalyticsOut(BaseModel):
     carrier_name: str
     score: int | None
     confidence: ScoreConfidence
+    #: На чьих данных стоит число: платформенных, своих или обоих (ADR-0026).
+    #: Показывается рядом со скором обязательно: оценка платформы и оценка
+    #: по своим отправлениям — разные утверждения, и клиент вправе знать,
+    #: какое из них перед ним.
+    basis: ScoreBasis = ScoreBasis.NONE
+    #: Размер платформенной выборки под числом. ``None`` — базы не было.
+    #: Числа клиентов здесь нет намеренно: сколько компаний возит этим
+    #: перевозчиком — сведение о клиентской базе платформы, а не о нём.
+    platform_sample_size: int | None = None
     #: Разрез, из которого взято значение. Показывается пользователю:
     #: глобальный скор и скор по направлению — разные утверждения.
     scope_type: ScoreScope | None = None

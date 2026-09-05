@@ -343,7 +343,8 @@ export interface ShipmentExceptionsPage {
  *
  * `score === null` при `confidence === 'insufficient'` — это не ошибка,
  * а обязательное поведение (FR-7.3): показывается «недостаточно данных»,
- * а не число.
+ * а не число. С появлением платформенной базы это означает, что
+ * перевозчиком не возил ещё никто на платформе.
  */
 export interface CarrierAnalytics {
   carrier_id: string
@@ -351,6 +352,14 @@ export interface CarrierAnalytics {
   carrier_name: string
   score: number | null
   confidence: 'high' | 'medium' | 'low' | 'insufficient'
+  /**
+   * На чьих данных стоит число (ADR-0026). `platform` — своих отправлений
+   * ещё не было и показана оценка платформы; `mixed` — свои есть и притянуты
+   * к ней; `own` — платформенной базы нет; `none` — оценки нет вовсе.
+   */
+  basis: 'platform' | 'mixed' | 'own' | 'none'
+  /** Размер платформенной выборки под числом. `null` — базы не было. */
+  platform_sample_size: number | null
   scope_type: 'global' | 'direction' | 'direction_weight' | null
   scope_key: string
   sample_size: number

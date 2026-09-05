@@ -15,19 +15,20 @@ from uuid import UUID
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from aerogram.carriers import registry
 from aerogram.db import session_scope
 from aerogram.directories.models import Carrier
-from aerogram.intelligence.models import CarrierScoreSnapshot
-from aerogram.intelligence.score import FORMULA_VERSION
+from aerogram.intelligence.models import CarrierPlatformBaseline, CarrierScoreSnapshot
+from aerogram.intelligence.score import FORMULA_VERSION, MIN_PLATFORM_SAMPLE
 from aerogram.intelligence.service import ScoreService
 from aerogram.shared.enums import ScoreConfidence, ScoreScope, ShipmentStatus
 from aerogram.shared.ids import uuid7
 from aerogram.shipments.models import Shipment
 from aerogram.tracking.models import DeliveryOutcome, ShipmentEvent
-from tests.conftest import login
+from tests.conftest import login, make_tenant, make_user
 from tests.integration.conftest import RATE_REQUEST, FakeCarrier
 
 pytestmark = pytest.mark.asyncio
@@ -435,3 +436,250 @@ class TestTheScoreReachesTheQuote:
             ).scalar_one()
 
         assert stored == recorded, "снимок расчёта пересчитали задним числом"
+
+
+@pytest.fixture
+async def four_tenants(
+    seeded_tenants: tuple[UUID, UUID], database_url: str
+) -> tuple[UUID, UUID, UUID, UUID]:
+    """Четыре клиента: троих хватает на порог обезличенности, четвёртый новый.
+
+    Именно четвёртый и есть предмет проверки: он ещё не отправлял ничего
+    и обязан увидеть оценку перевозчиков с первого дня.
+    """
+    tenant_a, tenant_b = seeded_tenants
+    engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    tenant_c, tenant_d = uuid7(), uuid7()
+    async with factory() as db, db.begin():
+        db.add_all([make_tenant(tenant_c, "Третий"), make_tenant(tenant_d, "Новичок")])
+        await db.flush()
+        for tenant_id, email in ((tenant_c, "c@example.com"), (tenant_d, "d@example.com")):
+            await db.execute(
+                text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant_id)}
+            )
+            db.add(make_user(tenant_id, email))
+            await db.flush()
+    await engine.dispose()
+    return tenant_a, tenant_b, tenant_c, tenant_d
+
+
+async def build_baseline(tenants: tuple[UUID, ...]) -> list[CarrierPlatformBaseline]:
+    """Собрать свод так, как это делает фоновая задача: обходом тенантов.
+
+    Наблюдения читаются под каждым тенантом отдельно (RLS никуда не делась),
+    складываются в приложении и записываются одной транзакцией.
+    """
+    per_tenant = []
+    for tenant_id in tenants:
+        async with session_scope(tenant_id) as session:
+            per_tenant.append(await ScoreService(session).observations(PERIOD_START, PERIOD_END))
+    async with session_scope() as session:
+        return await ScoreService(session).save_baselines(PERIOD_START, PERIOD_END, per_tenant)
+
+
+class TestPlatformBaselineIsBuiltAcrossTenants:
+    """Свод собирается обходом тенантов и только при трёх клиентах (ADR-0026)."""
+
+    async def test_three_tenants_make_a_baseline(
+        self, carriers: tuple[UUID, UUID], four_tenants: tuple[UUID, UUID, UUID, UUID]
+    ) -> None:
+        good, _ = carriers
+        a, b, c, _ = four_tenants
+        for tenant_id in (a, b, c):
+            await seed_shipments(tenant_id, good, count=20, on_time=18)
+
+        saved = await build_baseline((a, b, c))
+
+        assert len(saved) == 1
+        assert saved[0].carrier_id == good
+        assert saved[0].tenants_count == 3
+        assert saved[0].sample_size == 60
+
+    async def test_two_tenants_make_no_baseline(
+        self, carriers: tuple[UUID, UUID], four_tenants: tuple[UUID, UUID, UUID, UUID]
+    ) -> None:
+        """Свод по двум клиентам это статистика каждого из них, выданная
+        второму: он вычитает свои числа и получает чужие почти точно."""
+        good, _ = carriers
+        a, b, _, _ = four_tenants
+        for tenant_id in (a, b):
+            await seed_shipments(tenant_id, good, count=100, on_time=90)
+
+        assert await build_baseline((a, b)) == []
+
+    async def test_too_few_shipments_make_no_baseline(
+        self, carriers: tuple[UUID, UUID], four_tenants: tuple[UUID, UUID, UUID, UUID]
+    ) -> None:
+        """Три клиента по три отправления — анонимно, но ничего не значит."""
+        good, _ = carriers
+        a, b, c, _ = four_tenants
+        for tenant_id in (a, b, c):
+            await seed_shipments(tenant_id, good, count=3, on_time=3)
+
+        assert await build_baseline((a, b, c)) == []
+
+    async def test_the_database_refuses_an_identifying_row(
+        self, carriers: tuple[UUID, UUID], database_url: str
+    ) -> None:
+        """Второй рубеж: даже мимо кода такую строку записать нельзя.
+
+        Порог живёт и в приложении, и в ограничении таблицы. Это не
+        дублирование: приложение можно обойти новым кодом, ограничение —
+        только миграцией, которую увидит ревью.
+        """
+        good, _ = carriers
+        engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            with pytest.raises(IntegrityError):
+                async with factory() as db, db.begin():
+                    db.add(
+                        CarrierPlatformBaseline(
+                            id=uuid7(),
+                            carrier_id=good,
+                            period_start=PERIOD_START,
+                            period_end=PERIOD_END,
+                            tenants_count=2,
+                            sample_size=1000,
+                            formula_version=FORMULA_VERSION,
+                        )
+                    )
+        finally:
+            await engine.dispose()
+
+    async def test_the_baseline_carries_neither_tenant_nor_price(
+        self, session: AsyncSession
+    ) -> None:
+        """Состав таблицы, а не значения: колонка, добавленная «на будущее»,
+        утечёт ровно тогда, когда её кто-нибудь заполнит."""
+        columns = {
+            row[0]
+            for row in (
+                await session.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'carrier_platform_baselines'"
+                    )
+                )
+            ).all()
+        }
+        assert "tenant_id" not in columns
+        assert not [name for name in columns if "price" in name or "cost" in name]
+
+
+class TestANewClientSeesTheScore:
+    """Ради этого свод и существует (решение человека от 5 сентября 2026)."""
+
+    async def test_a_score_exists_before_the_first_shipment(
+        self,
+        client: AsyncClient,
+        carriers: tuple[UUID, UUID],
+        four_tenants: tuple[UUID, UUID, UUID, UUID],
+    ) -> None:
+        good, _ = carriers
+        a, b, c, newcomer = four_tenants
+        for tenant_id in (a, b, c):
+            await seed_shipments(tenant_id, good, count=20, on_time=18)
+        await build_baseline((a, b, c))
+        await recalculate(newcomer)
+
+        headers = await login(client, "d@example.com")
+        rows = (await client.get("/v1/analytics/carriers", headers=headers)).json()
+
+        row = by_code(rows, "good")
+        assert row["score"] is not None
+        assert row["basis"] == "platform"
+        # Своих отправлений нет ни одного, и это видно рядом с числом.
+        assert row["sample_size"] == 0
+        assert row["platform_sample_size"] == 60
+
+    async def test_the_baseline_ranks_carriers_for_a_new_client(
+        self,
+        client: AsyncClient,
+        carriers: tuple[UUID, UUID],
+        four_tenants: tuple[UUID, UUID, UUID, UUID],
+    ) -> None:
+        """Главное требование: рейтинг существует с первого дня.
+
+        Приор, общий на всех перевозчиков, дал бы здесь одинаковые числа,
+        и выбирать новому клиенту было бы не из чего.
+        """
+        good, bad = carriers
+        a, b, c, newcomer = four_tenants
+        for tenant_id in (a, b, c):
+            await seed_shipments(tenant_id, good, count=20, on_time=20)
+            await seed_shipments(tenant_id, bad, count=20, on_time=2, incidents=10, batch="b")
+        await build_baseline((a, b, c))
+        await recalculate(newcomer)
+
+        headers = await login(client, "d@example.com")
+        rows = (await client.get("/v1/analytics/carriers", headers=headers)).json()
+
+        assert by_code(rows, "good")["score"] > by_code(rows, "bad")["score"]
+
+    async def test_own_experience_moves_the_number_away_from_the_platform(
+        self,
+        client: AsyncClient,
+        carriers: tuple[UUID, UUID],
+        four_tenants: tuple[UUID, UUID, UUID, UUID],
+    ) -> None:
+        """Свой опыт вытесняет платформенный, а не игнорируется.
+
+        Клиент, у которого перевозчик срывает срок, обязан увидеть это
+        у себя, даже если у остальных тот же перевозчик возит хорошо.
+        """
+        good, _ = carriers
+        a, b, c, newcomer = four_tenants
+        for tenant_id in (a, b, c):
+            await seed_shipments(tenant_id, good, count=20, on_time=20)
+        await build_baseline((a, b, c))
+
+        await recalculate(newcomer)
+        headers = await login(client, "d@example.com")
+        before = by_code(
+            (await client.get("/v1/analytics/carriers", headers=headers)).json(), "good"
+        )
+
+        await seed_shipments(newcomer, good, count=60, on_time=0, batch="own")
+        await recalculate(newcomer)
+        after = by_code(
+            (await client.get("/v1/analytics/carriers", headers=headers)).json(), "good"
+        )
+
+        assert after["score"] < before["score"]
+        assert after["basis"] == "mixed"
+        assert after["sample_size"] == 60
+
+    async def test_a_carrier_nobody_ships_with_still_has_no_score(
+        self,
+        client: AsyncClient,
+        carriers: tuple[UUID, UUID],
+        four_tenants: tuple[UUID, UUID, UUID, UUID],
+    ) -> None:
+        """Свод не выдумывает: перевозчик без отправлений у кого бы то ни было
+        остаётся без числа, а не получает середину шкалы."""
+        good, _ = carriers
+        a, b, c, newcomer = four_tenants
+        for tenant_id in (a, b, c):
+            await seed_shipments(tenant_id, good, count=20, on_time=18)
+        await build_baseline((a, b, c))
+        await recalculate(newcomer)
+
+        headers = await login(client, "d@example.com")
+        rows = (await client.get("/v1/analytics/carriers", headers=headers)).json()
+
+        assert by_code(rows, "bad")["score"] is None
+        assert by_code(rows, "bad")["basis"] == "none"
+        assert by_code(rows, "bad")["confidence"] == "insufficient"
+
+    async def test_the_platform_sample_is_at_least_the_threshold(
+        self, carriers: tuple[UUID, UUID], four_tenants: tuple[UUID, UUID, UUID, UUID]
+    ) -> None:
+        good, _ = carriers
+        a, b, c, _ = four_tenants
+        for tenant_id in (a, b, c):
+            await seed_shipments(tenant_id, good, count=20, on_time=18)
+
+        saved = await build_baseline((a, b, c))
+        assert saved[0].sample_size >= MIN_PLATFORM_SAMPLE

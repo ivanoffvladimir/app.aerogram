@@ -36,6 +36,7 @@ from aerogram.core.service import decrypt_credentials
 from aerogram.db import session_scope
 from aerogram.directories.repository import CarrierRepository
 from aerogram.directories.service import RefSyncService
+from aerogram.intelligence.repository import Observations
 from aerogram.intelligence.service import ScoreService
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import TenantStatus
@@ -219,8 +220,8 @@ async def _score_tenant(tenant_id: UUID) -> int:
     """Пересчитать скор по наблюдениям тенанта (FR-7.1).
 
     Снапшот принадлежит тенанту (ADR-0017), поэтому пересчёт одного больше
-    не затирает снапшот другого. Свод по платформе из раздела 10.2 этим
-    не решается и остаётся открытым — см. docs/status.md.
+    не затирает снапшот другого. Наблюдения при этом притягиваются
+    к платформенной базе своего перевозчика — её собирает шаг ниже.
     """
     today = utcnow().date()
     async with session_scope(tenant_id) as session:
@@ -228,6 +229,43 @@ async def _score_tenant(tenant_id: UUID) -> int:
             today - timedelta(days=SCORE_PERIOD_DAYS), today, tenant_id=tenant_id
         )
         return len(snapshots)
+
+
+async def _platform_baseline() -> int:
+    """Свод Carrier Score по всем клиентам платформы (ADR-0026).
+
+    Обход тенантов, а не запрос поверх них: таблица ``tenants``
+    платформенная и RLS на неё не распространяется (ADR-0015), поэтому
+    роль с ``BYPASSRLS`` не нужна — а заводить её ради свода нельзя, она
+    сняла бы единственную защиту, которую не обойти забытым ``WHERE``.
+
+    Наблюдения читаются под каждым тенантом отдельно, складываются
+    в приложении и записываются одной транзакцией. Свод, не набравший
+    порога обезличенности, не записывается вовсе.
+
+    Считаются ВСЕ тенанты, а не только активные: приостановленный клиент
+    не перестаёт быть источником уже случившихся доставок, и выкидывать
+    его наблюдения значило бы менять оценку перевозчика по причине,
+    к перевозчику не относящейся.
+    """
+    today = utcnow().date()
+    period_start = today - timedelta(days=SCORE_PERIOD_DAYS)
+    per_tenant: list[list[Observations]] = []
+    for tenant_id in await _all_tenants():
+        try:
+            async with session_scope(tenant_id) as session:
+                per_tenant.append(await ScoreService(session).observations(period_start, today))
+        except Exception as exc:
+            # Один недоступный тенант не должен ронять свод: без него он
+            # менее точен, но остаётся правдой о тех, кто попал в выборку.
+            log.error(
+                "platform_baseline.tenant_failed",
+                tenant_id=str(tenant_id),
+                error_type=type(exc).__name__,
+            )
+    async with session_scope() as session:
+        saved = await ScoreService(session).save_baselines(period_start, today, per_tenant)
+        return len(saved)
 
 
 # ``app.task`` для mypy нетипизирован: Celery не поставляет аннотаций, а пакет
@@ -251,10 +289,26 @@ def deliver_webhooks() -> dict[str, int]:
     return asyncio.run(_for_each_tenant("deliver_webhooks", _webhooks_tenant))
 
 
+async def _recalculate_score() -> dict[str, int]:
+    """Свод по платформе, затем скор каждого тенанта на нём.
+
+    Порядок важен: обратный дал бы клиентам скор на вчерашней базе. Свод,
+    упавший целиком, не отменяет пересчёт — тенанты посчитаются на прошлой
+    базе, и это лучше, чем сутки без обновления скора вовсе.
+    """
+    try:
+        baselines = await _platform_baseline()
+    except Exception as exc:
+        baselines = 0
+        log.error("platform_baseline.failed", error_type=type(exc).__name__)
+    result = await _for_each_tenant("recalculate_carrier_score", _score_tenant)
+    return {**result, "platform_baselines": baselines}
+
+
 @app.task(name="aerogram.worker.tasks.recalculate_carrier_score")  # type: ignore[untyped-decorator]
 def recalculate_carrier_score() -> dict[str, int]:
     """Ежесуточный пересчёт Carrier Score."""
-    return asyncio.run(_for_each_tenant("recalculate_carrier_score", _score_tenant))
+    return asyncio.run(_recalculate_score())
 
 
 @app.task(name="aerogram.worker.tasks.sync_carrier_references")  # type: ignore[untyped-decorator]

@@ -6,8 +6,10 @@ import { useEffect } from 'react'
 import { request, tokens, type ApiError, type CarrierAnalytics } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
 import {
+  BASIS_LABELS,
   COMPONENTS,
   SCOPE_LABELS,
+  basisText,
   byScore,
   confidenceText,
   scoreText,
@@ -42,9 +44,16 @@ export default function CarrierScorePage() {
     <AppShell>
       <h1>Carrier Score</h1>
       <p className={styles.hint}>
-        Скор считается <b>по вашим отправлениям</b>, а не по платформе целиком: у другого
-        клиента с теми же перевозчиками он будет другим. Число само по себе ничего не значит —
-        рядом стоит его расшифровка и то, на скольких отправлениях оно посчитано.
+        Оценка перевозчика есть <b>до вашего первого отправления</b>: она опирается на общую
+        статистику доставок по платформе. По мере того как накапливаются ваши собственные
+        отправления, число плавно смещается к вашему опыту — у клиента, которого этот перевозчик
+        подводит, скор будет ниже, чем у остальных. Рядом с числом всегда написано, на чьих
+        данных оно стоит.
+      </p>
+      <p className={styles.hint}>
+        В общую статистику входят только показатели качества услуги: срок, срывы, инциденты и
+        полнота трекинга. <b>Тарифы в неё не входят</b> — цена сравнивается только внутри вашей
+        компании.
       </p>
 
       {analytics.isError && (
@@ -59,6 +68,7 @@ export default function CarrierScorePage() {
             <tr>
               <th>Перевозчик</th>
               <th>Скор</th>
+              <th>Основание</th>
               <th>Доверие</th>
               {COMPONENTS.map((component) => (
                 <th key={component.key}>{component.label}</th>
@@ -75,6 +85,10 @@ export default function CarrierScorePage() {
                   <span className={`${styles.score} ${CONFIDENCE_CLASS[row.confidence] ?? ''}`}>
                     {scoreText(row)}
                   </span>
+                </td>
+                <td>
+                  <span className={styles.basis}>{BASIS_LABELS[row.basis]}</span>
+                  <div className={styles.muted}>{basisText(row)}</div>
                 </td>
                 <td className={styles.muted}>{confidenceText(row)}</td>
                 {COMPONENTS.map((component) => {

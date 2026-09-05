@@ -13,7 +13,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from aerogram.intelligence.models import CarrierScoreSnapshot
+from aerogram.intelligence.models import CarrierPlatformBaseline, CarrierScoreSnapshot
 from aerogram.shared.enums import ScoreScope, ShipmentStatus
 from aerogram.shipments.models import Shipment
 from aerogram.tracking.models import DeliveryOutcome, ShipmentEvent
@@ -56,8 +56,9 @@ class ScoreRepository:
         Отменённое говорит, поэтому оно в выборке есть.
 
         Видимость определяется RLS: под ролью приложения это наблюдения
-        одного тенанта. Платформенный свод по всем тенантам сразу требует
-        отдельного решения по доступу — см. docs/status.md.
+        одного тенанта. Платформенный свод собирается из этих же наблюдений
+        обходом тенантов в фоновой задаче — новых прав для него не нужно
+        (ADR-0015, ADR-0026).
         """
         events = (
             select(ShipmentEvent.shipment_id, func.count().label("n"))
@@ -161,6 +162,59 @@ class ScoreRepository:
             latest.setdefault(snapshot.carrier_id, snapshot)
         return latest
 
+    async def latest_baselines(self) -> dict[UUID, CarrierPlatformBaseline]:
+        """Самая свежая платформенная база каждого перевозчика.
+
+        Таблица без RLS намеренно (ADR-0026): свод описывает перевозчика,
+        а не клиента, и одинаков для всех. Обезличенность держат ограничения
+        самой таблицы, а не видимость строки.
+        """
+        stmt = select(CarrierPlatformBaseline).order_by(
+            CarrierPlatformBaseline.carrier_id,
+            CarrierPlatformBaseline.period_end.desc(),
+            CarrierPlatformBaseline.calculated_at.desc(),
+        )
+        latest: dict[UUID, CarrierPlatformBaseline] = {}
+        for row in (await self._session.execute(stmt)).scalars():
+            # Порядок уже задан, поэтому первый встреченный и есть самый свежий.
+            latest.setdefault(row.carrier_id, row)
+        return latest
+
+    async def upsert_baseline(self, baseline: CarrierPlatformBaseline) -> CarrierPlatformBaseline:
+        """Записать свод, заменив пересчёт того же периода и той же версии.
+
+        Версия формулы в ключе по той же причине, что и у снапшота: смена
+        методики создаёт свод рядом со старым, а не переписывает историю.
+        """
+        existing = (
+            (
+                await self._session.execute(
+                    select(CarrierPlatformBaseline).where(
+                        CarrierPlatformBaseline.carrier_id == baseline.carrier_id,
+                        CarrierPlatformBaseline.period_start == baseline.period_start,
+                        CarrierPlatformBaseline.period_end == baseline.period_end,
+                        CarrierPlatformBaseline.formula_version == baseline.formula_version,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if existing is None:
+            self._session.add(baseline)
+            return baseline
+
+        for field in (
+            "tenants_count",
+            "sample_size",
+            "on_time_rate",
+            "reliability",
+            "incident_free",
+            "data_quality",
+        ):
+            setattr(existing, field, getattr(baseline, field))
+        return existing
+
     async def upsert(self, snapshot: CarrierScoreSnapshot) -> CarrierScoreSnapshot:
         """Записать снапшот, заменив пересчёт того же периода и той же версии.
 
@@ -197,6 +251,8 @@ class ScoreRepository:
             "data_quality",
             "score",
             "confidence",
+            "basis",
+            "platform_sample_size",
         ):
             setattr(existing, field, getattr(snapshot, field))
         return existing

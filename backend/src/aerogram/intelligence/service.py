@@ -2,6 +2,21 @@
 
 Модуль работает на чтение домена и пишет только собственные снапшоты
 (CLAUDE.md §4, пункт 4). К перевозчикам он не обращается вовсе.
+
+Пересчёт двухшаговый (ADR-0026), и порядок шагов важен.
+
+**Сначала свод по платформе.** Фоновая задача обходит тенантов, складывает
+их счётчики по каждому перевозчику и записывает базу — но только там, где
+свод обезличен: не меньше трёх клиентов и тридцати отправлений. Обход
+тенантов новых прав не требует (ADR-0015).
+
+**Потом скор каждого тенанта.** Его наблюдения притягиваются к базе своего
+перевозчика. Клиент, который этим перевозчиком ещё не возил, видит оценку
+платформы; по мере накопления собственных отправлений число плавно
+смещается к его собственному опыту.
+
+Обратный порядок дал бы клиентам скор на вчерашней базе — не ошибка, но
+лишние сутки задержки на каждое изменение.
 """
 
 from __future__ import annotations
@@ -13,7 +28,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aerogram.directories.repository import CarrierRepository
-from aerogram.intelligence.models import CarrierScoreSnapshot
+from aerogram.intelligence.models import CarrierPlatformBaseline, CarrierScoreSnapshot
+from aerogram.intelligence.platform import PlatformTotals, accumulate, prior_from_totals
 from aerogram.intelligence.repository import Observations, ScoreRepository
 from aerogram.intelligence.schemas import CarrierAnalyticsOut, ScoreComponentsOut
 from aerogram.intelligence.score import (
@@ -22,7 +38,7 @@ from aerogram.intelligence.score import (
     PlatformPrior,
     score_from,
 )
-from aerogram.shared.enums import ScoreConfidence, ScoreScope
+from aerogram.shared.enums import ScoreBasis, ScoreConfidence, ScoreScope
 from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
 
@@ -90,14 +106,25 @@ class ScoreService:
         запись с чужим тенантом не пройдёт ``WITH CHECK``.
         """
         observations = await self._scores.observations(period_start, period_end)
-        prior = _prior_from(observations)
+        baselines = await self._scores.latest_baselines()
         medians = [o.median_cost_minor for o in observations if o.median_cost_minor is not None]
         market_median = sorted(medians)[len(medians) // 2] if medians else None
 
+        # Перевозчик, по которому у тенанта нет ни одного завершённого
+        # отправления, наблюдений не даёт вовсе — а оценка платформы у него
+        # есть. Пропустить его значило бы оставить клиента без числа ровно
+        # там, где база и нужна: до первой отправки.
+        seen = {o.carrier_id for o in observations}
+        rows: list[Observations] = [
+            *observations,
+            *(_empty(carrier_id) for carrier_id in baselines if carrier_id not in seen),
+        ]
+
         snapshots: list[CarrierScoreSnapshot] = []
-        for observed in observations:
+        for observed in rows:
             components = _components(observed, market_median)
-            score, confidence = score_from(components, observed.finalized, prior)
+            baseline = baselines.get(observed.carrier_id)
+            result = score_from(components, observed.finalized, _prior_of(baseline))
             snapshots.append(
                 await self._scores.upsert(
                     CarrierScoreSnapshot(
@@ -114,8 +141,12 @@ class ScoreService:
                         incident_rate=_rate(observed.with_incident, observed.finalized),
                         price_index=components.price_index,
                         data_quality=components.data_quality,
-                        score=score,
-                        confidence=confidence,
+                        score=result.score,
+                        confidence=result.confidence,
+                        basis=result.basis,
+                        platform_sample_size=(
+                            baseline.sample_size if baseline is not None else None
+                        ),
                         formula_version=FORMULA_VERSION,
                     )
                 )
@@ -129,6 +160,44 @@ class ScoreService:
             period_end=period_end.isoformat(),
         )
         return snapshots
+
+    async def observations(self, period_start: date, period_end: date) -> list[Observations]:
+        """Наблюдения тенанта за период — сырьё для платформенного свода.
+
+        Отдельный метод, а не прямой вызов репозитория из воркера: SQL живёт
+        в репозитории, а модуль наружу отдаёт свои DTO (CLAUDE.md §4, п. 6).
+        """
+        return await self._scores.observations(period_start, period_end)
+
+    async def save_baselines(
+        self, period_start: date, period_end: date, per_tenant: list[list[Observations]]
+    ) -> list[CarrierPlatformBaseline]:
+        """Сложить наблюдения тенантов и записать обезличенный свод.
+
+        Записывается **только то, что прошло порог**: свод по одному-двум
+        клиентам не сохраняется вовсе, а не прячется при показе. Строки,
+        указывающей на конкретного клиента, не должно существовать даже
+        в таблице — то же самое требуют ограничения самой таблицы, и это
+        не дублирование, а два независимых рубежа (ADR-0026).
+        """
+        saved: list[CarrierPlatformBaseline] = []
+        skipped = 0
+        for totals in accumulate(per_tenant):
+            if not totals.is_publishable:
+                skipped += 1
+                continue
+            saved.append(
+                await self._scores.upsert_baseline(_baseline(totals, period_start, period_end))
+            )
+        await self._session.flush()
+        log.info(
+            "intelligence.platform_baselines",
+            saved=len(saved),
+            skipped_below_threshold=skipped,
+            period_start=period_start.isoformat(),
+            period_end=period_end.isoformat(),
+        )
+        return saved
 
     async def analytics(self) -> list[CarrierAnalyticsOut]:
         """Скор по всем подключённым перевозчикам.
@@ -148,6 +217,7 @@ class ScoreService:
                         carrier_name=carrier.name,
                         score=None,
                         confidence=ScoreConfidence.INSUFFICIENT,
+                        basis=ScoreBasis.NONE,
                     )
                 )
                 continue
@@ -158,6 +228,8 @@ class ScoreService:
                     carrier_name=carrier.name,
                     score=snapshot.score,
                     confidence=snapshot.confidence,
+                    basis=ScoreBasis(snapshot.basis),
+                    platform_sample_size=snapshot.platform_sample_size,
                     scope_type=ScoreScope(snapshot.scope_type),
                     scope_key=snapshot.scope_key,
                     sample_size=snapshot.sample_size,
@@ -212,36 +284,66 @@ def _components(observed: Observations, market_median: int | None) -> Components
     )
 
 
-def _prior_from(observations: list[Observations]) -> PlatformPrior:
-    """Среднее по платформе — то, к чему притягивается малая выборка.
+def _prior_of(baseline: CarrierPlatformBaseline | None) -> PlatformPrior | None:
+    """Платформенная база перевозчика → приор формулы.
 
-    Считается по всем перевозчикам сразу и по суммарным счётчикам, а не как
-    среднее долей: иначе перевозчик с тремя отправлениями влиял бы на приор
-    так же, как перевозчик с тремя тысячами.
+    ``None`` означает, что свода по этому перевозчику нет: слишком мало
+    клиентов или отправлений. Тогда скор считается только по собственной
+    выборке, а при её нехватке не считается вовсе.
+
+    Прежняя версия брала приор из наблюдений САМОГО ТЕНАНТА, усреднённых
+    по всем перевозчикам. Это было двумя ошибками сразу: платформенным
+    он не был (запрос идёт под RLS), а общий на всех перевозчиков приор
+    при малой выборке сводил их к одному числу — рейтинга не получалось.
     """
-    if not observations:
-        return PlatformPrior()
-
-    finalized = sum(o.finalized for o in observations)
-    with_deadline = sum(o.with_deadline for o in observations)
+    if baseline is None:
+        return None
     defaults = PlatformPrior()
     return PlatformPrior(
-        on_time=_rate(sum(o.on_time for o in observations), with_deadline) or defaults.on_time,
+        on_time=baseline.on_time_rate if baseline.on_time_rate is not None else defaults.on_time,
         reliability=(
-            Decimal(1) - (_rate(sum(o.broken for o in observations), finalized) or Decimal(0))
-            if finalized
-            else defaults.reliability
+            baseline.reliability if baseline.reliability is not None else defaults.reliability
         ),
         incident_free=(
-            Decimal(1)
-            - (_rate(sum(o.with_incident for o in observations), finalized) or Decimal(0))
-            if finalized
-            else defaults.incident_free
+            baseline.incident_free if baseline.incident_free is not None else defaults.incident_free
         ),
-        # Медиана по определению делит выборку пополам, поэтому приор цены —
-        # ровно середина шкалы, а не среднее индексов.
+        # Денег в своде нет: индекс цены считается только внутри тенанта.
         price_index=defaults.price_index,
         data_quality=(
-            _rate(sum(o.transparent for o in observations), finalized) or defaults.data_quality
+            baseline.data_quality if baseline.data_quality is not None else defaults.data_quality
         ),
+    )
+
+
+def _baseline(
+    totals: PlatformTotals, period_start: date, period_end: date
+) -> CarrierPlatformBaseline:
+    """Свод → строка платформенной базы."""
+    prior = prior_from_totals(totals)
+    return CarrierPlatformBaseline(
+        id=uuid7(),
+        carrier_id=totals.carrier_id,
+        period_start=period_start,
+        period_end=period_end,
+        tenants_count=totals.tenants,
+        sample_size=totals.finalized,
+        on_time_rate=prior.on_time,
+        reliability=prior.reliability,
+        incident_free=prior.incident_free,
+        data_quality=prior.data_quality,
+        formula_version=FORMULA_VERSION,
+    )
+
+
+def _empty(carrier_id: UUID) -> Observations:
+    """Пустые наблюдения: перевозчик подключён, но клиент им ещё не возил."""
+    return Observations(
+        carrier_id=carrier_id,
+        finalized=0,
+        with_deadline=0,
+        on_time=0,
+        broken=0,
+        with_incident=0,
+        transparent=0,
+        median_cost_minor=None,
     )

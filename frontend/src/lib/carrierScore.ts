@@ -1,6 +1,12 @@
 /**
  * Показ Carrier Score: подписи, порядок и правило «не показывать число».
  *
+ * Скор существует у перевозчика с первого дня работы клиента: он опирается
+ * на платформенную базу и по мере накопления собственных отправлений
+ * смещается к его личному опыту (ADR-0026). Поэтому рядом с числом всегда
+ * стоит основание — иначе «87» у нового клиента читается как вывод из его
+ * собственной статистики, которой ещё нет.
+ *
  * Скор — непрозрачное число, пока рядом нет расшифровки (FR-7.5), поэтому
  * экран показывает составляющие и версию формулы. **Весов здесь нет
  * намеренно**: они живут на сервере (`intelligence/score.py`), и копия
@@ -11,12 +17,28 @@
 import type { CarrierAnalytics } from '@/api/client'
 
 type Confidence = CarrierAnalytics['confidence']
+type Basis = CarrierAnalytics['basis']
 
 export const CONFIDENCE_LABELS: Record<Confidence, string> = {
   high: 'высокое',
   medium: 'среднее',
   low: 'низкое',
   insufficient: 'недостаточно данных',
+}
+
+/**
+ * На чьих данных стоит число (ADR-0026).
+ *
+ * Подпись обязательна рядом со скором: оценка платформы и оценка по своим
+ * отправлениям — разные утверждения, и клиент вправе знать, какое из них
+ * перед ним. Без этого «87» у нового клиента выглядит как вывод из его
+ * собственного опыта, которого не было.
+ */
+export const BASIS_LABELS: Record<Basis, string> = {
+  platform: 'по платформе',
+  mixed: 'ваши + платформа',
+  own: 'по вашим отправлениям',
+  none: '—',
 }
 
 export const SCOPE_LABELS: Record<string, string> = {
@@ -51,7 +73,12 @@ export function scoreText(row: CarrierAnalytics): string {
   return row.score === null ? 'нет оценки' : String(row.score)
 }
 
-/** Насколько скору можно верить, словами и с размером выборки. */
+/** Насколько скору можно верить, словами и с размером выборки.
+ *
+ * Выборка здесь всегда СВОЯ: доверие отвечает на вопрос «насколько это
+ * про нас», и платформенная база его не повышает — она посчитана по чужим
+ * договорам и чужим направлениям. Её размер показывается отдельно.
+ */
 export function confidenceText(row: CarrierAnalytics): string {
   const label = CONFIDENCE_LABELS[row.confidence]
   if (row.confidence === 'insufficient') {
@@ -59,7 +86,21 @@ export function confidenceText(row: CarrierAnalytics): string {
       ? `${label}: ${row.sample_size} отправлений`
       : `${label}: отправлений ещё не было`
   }
-  return `${label}, выборка ${row.sample_size}`
+  return `${label}, ваша выборка ${row.sample_size}`
+}
+
+/**
+ * Пояснение под основанием: на скольких отправлениях стоит число.
+ *
+ * Числа клиентов платформы здесь нет и не будет: сколько компаний возит
+ * этим перевозчиком — сведение о клиентской базе платформы, а не о нём.
+ */
+export function basisText(row: CarrierAnalytics): string {
+  if (row.basis === 'none') return 'данных нет ни у вас, ни на платформе'
+  if (row.basis === 'own') return `${row.sample_size} ваших отправлений`
+  const platform = row.platform_sample_size ?? 0
+  if (row.basis === 'platform') return `${platform} отправлений платформы, ваших пока нет`
+  return `${row.sample_size} ваших и ${platform} по платформе`
 }
 
 /**
