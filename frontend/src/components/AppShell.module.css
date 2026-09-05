@@ -75,3 +75,13 @@
   border-radius: var(--radius);
   padding: 6px 12px;
 }
+
+.profile {
+  margin-right: 16px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.profile:hover {
+  color: var(--accent);
+}

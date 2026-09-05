@@ -55,6 +55,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
       <div>
         <div className={styles.topbar}>
+          <Link href="/profile" className={styles.profile}>
+            Профиль
+          </Link>
           <button
             type="button"
             className={styles.logout}
