@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { ApiError, MfaSetup } from '@/api/client'
+import { QrCode } from './QrCode'
 import styles from './MfaSettings.module.css'
 
 interface Props {
@@ -25,10 +26,11 @@ export function groupSecret(secret: string): string {
 /**
  * Подключение и отключение второго фактора.
  *
- * QR-кода здесь нет намеренно: рисовать его нечем без новой зависимости,
- * а новая зависимость — решение человека (CLAUDE.md §2). Секрет показан
- * для ручного ввода — его принимает любое приложение-аутентификатор, —
- * а ссылка `otpauth://` на телефоне открывает приложение напрямую.
+ * Три способа положить секрет в телефон, все рядом: QR-код для камеры
+ * (ADR-0024), ключ для ручного ввода — его принимает любое
+ * приложение-аутентификатор, — и ссылка `otpauth://`, которая на самом
+ * телефоне открывает приложение напрямую. Ни один не вместо другого:
+ * камера бывает не у всех, а ключ работает везде.
  */
 export function MfaSettings({ enabled, pending, onSetup, onEnable, onDisable }: Props) {
   const [setup, setSetup] = useState<MfaSetup | null>(null)
@@ -114,6 +116,10 @@ export function MfaSettings({ enabled, pending, onSetup, onEnable, onDisable }: 
             Секрет показывается один раз. Сохраните его в приложении до того, как закроете
             страницу: повторно сервер его не покажет.
           </p>
+          <div className={styles.qr}>
+            <QrCode value={setup.otpauth_url} label="QR-код для приложения-аутентификатора" />
+            <span className={styles.hint}>Наведите камеру приложения-аутентификатора.</span>
+          </div>
           <dl className={styles.secret}>
             <dt>Ключ для ручного ввода</dt>
             <dd>

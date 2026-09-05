@@ -53,3 +53,16 @@
   color: var(--danger, #c0392b);
   margin: 8px 0 0;
 }
+
+.qr {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.qr svg {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
