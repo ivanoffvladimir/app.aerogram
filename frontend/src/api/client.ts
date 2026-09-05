@@ -109,6 +109,82 @@ export interface Summary {
 }
 
 /**
+ * Состояние сверки одного отправления.
+ *
+ * Пять значений, а не «сошлось / не сошлось»: три из них означают, что
+ * сравнивать нечего. Свести их к «сошлось» значило бы показать
+ * «расхождений нет» там, где счетов не приходило вовсе.
+ */
+export type ReconciliationState =
+  | 'awaiting'
+  | 'no_quote'
+  | 'matched'
+  | 'overcharged'
+  | 'undercharged'
+
+/** Одно отправление в сверке. `difference` — факт минус котировка. */
+export interface CostLine {
+  shipment_id: string
+  number: string
+  created_at: string
+  carrier_id: string | null
+  carrier_name: string | null
+  /** Статус в терминах контракта, как и в карточке отправления: один
+   *  и тот же словарь подписей на обоих экранах. */
+  status: Shipment['status']
+  state: ReconciliationState
+  quoted: Money | null
+  actual: Money | null
+  difference: Money | null
+  difference_percent: number | null
+}
+
+/**
+ * Итог по валюте. `quoted_reconciled` — котировка ТЕХ ЖЕ отправлений,
+ * по которым пришёл счёт; разность считается от неё, а не от полного плана,
+ * иначе неоплаченные отправления выглядят экономией.
+ */
+export interface CurrencyTotals {
+  currency: string
+  shipments: number
+  quoted: Money
+  quoted_reconciled: Money
+  actual: Money
+  difference: Money
+  difference_percent: number | null
+  awaiting: number
+  no_quote: number
+  matched: number
+  overcharged: number
+  undercharged: number
+}
+
+/** Итог по перевозчику: только по отправлениям, где есть что сверять. */
+export interface CarrierTotals {
+  carrier_id: string | null
+  carrier_name: string | null
+  currency: string
+  reconciled: number
+  quoted: Money
+  actual: Money
+  difference: Money
+  difference_percent: number | null
+}
+
+/**
+ * Сверка расчёта и счетов. Пути в контракте нет — экран /invoices есть
+ * в ТЗ фронта как P2, — поэтому тип написан руками по `billing/schemas.py`.
+ */
+export interface Reconciliation {
+  days: number
+  since: string
+  currencies: CurrencyTotals[]
+  carriers: CarrierTotals[]
+  items: CostLine[]
+  total: number
+}
+
+/**
  * Ключ машинного доступа. Значения ключа здесь нет и быть не может:
  * в базе лежит только хеш, и восстановить его нельзя (FR-10.2).
  */

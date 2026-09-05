@@ -110,6 +110,11 @@ CABINET_ONLY: frozenset[tuple[str, str]] = frozenset(
         ("PATCH", "/v1/counterparties/{counterparty_id}/addresses/{address_id}"),
         ("GET", "/v1/admin/city-mappings"),
         ("POST", "/v1/admin/city-mappings/{item_id}/confirm"),
+        # Сверка расчёта и счетов закрыта не «на всякий случай», а вслед
+        # за проверкой роли: путь требует владельца или логиста, а у ключа
+        # роль машинного клиента. Область здесь была бы обещанием, которое
+        # всё равно упирается в 403, — а таблица не должна обещать лишнего.
+        ("GET", "/v1/billing/reconciliation"),
     }
 )
 

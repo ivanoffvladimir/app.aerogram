@@ -15,6 +15,7 @@ const AVAILABLE = [
   { href: '/tracking', label: 'Разбор' },
   { href: '/carriers', label: 'Перевозчики' },
   { href: '/carrier-score', label: 'Carrier Score' },
+  { href: '/invoices', label: 'Расходы и счета' },
   { href: '/counterparties', label: 'Адресная книга' },
   { href: '/users', label: 'Пользователи' },
   { href: '/integrations', label: 'Интеграции' },
