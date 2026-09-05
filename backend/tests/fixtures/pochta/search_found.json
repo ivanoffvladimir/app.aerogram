@@ -1,0 +1,20 @@
+[
+  {
+    "id": 4815162342,
+    "order-num": "AG-2026-000123",
+    "barcode": "80098765432109",
+    "index-to": 690000,
+    "mail-type": "POSTAL_PARCEL",
+    "mail-category": "ORDINARY",
+    "mass": 1234,
+    "customs-declaration": {
+      "items": [
+        {
+          "code": "6109100000",
+          "description": "Футболка хлопковая",
+          "count": 2
+        }
+      ]
+    }
+  }
+]

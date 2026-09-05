@@ -1,0 +1,15 @@
+{
+  "errors": [
+    {
+      "error-codes": [
+        {
+          "code": "ILLEGAL_INDEX_TO",
+          "description": "Почтовый индекс некорректен",
+          "position": 0
+        }
+      ],
+      "position": 0
+    }
+  ],
+  "orders": []
+}

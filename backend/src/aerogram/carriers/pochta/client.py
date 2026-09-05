@@ -38,6 +38,7 @@
 from __future__ import annotations
 
 import base64
+from collections.abc import Mapping
 from typing import Any, Final
 from urllib.parse import urlsplit
 
@@ -251,25 +252,87 @@ class PochtaClient:
         )
         return self._body(response)
 
+    async def put(
+        self,
+        path: str,
+        payload: Any,
+        *,
+        operation: str,
+        on_raw_call: Any = None,
+    ) -> Any:
+        """``PUT`` метода API. Тело и ответ бывают массивами, а не словарями.
+
+        Создание заказов принимает **массив** заказов и отвечает объектом,
+        поэтому разбор конверта ошибок общий, а форму проверяет вызывающий.
+        """
+        response = await self._http.request(
+            "PUT",
+            path,
+            operation=operation,
+            json=payload,
+            headers=self._auth_headers,
+            on_raw_call=on_raw_call,
+        )
+        return self._payload(response)
+
+    async def get_bytes(self, path: str, *, operation: str) -> bytes:
+        """``GET``, возвращающий файл как есть.
+
+        Печатная форма приходит PDF-ом, и разбирать её как JSON нечем.
+        Ошибку при этом пропустить нельзя: она приходит тем же путём,
+        но телом JSON, — поэтому тип содержимого проверяется.
+        """
+        response = await self._http.request(
+            "GET", path, operation=operation, headers=self._auth_headers
+        )
+        if "json" in response.headers.get("content-type", "").lower():
+            message = pochta_error(response.json())
+            raise CarrierError(message or "Почта России не вернула файл", carrier_code=POCHTA_CODE)
+        return response.content
+
     async def get(
         self,
         path: str,
         *,
         operation: str,
+        params: Mapping[str, Any] | None = None,
         on_raw_call: Any = None,
     ) -> dict[str, Any]:
         """``GET`` метода API с разбором конверта ошибок."""
+        body = await self.get_json(
+            path, operation=operation, params=params, on_raw_call=on_raw_call
+        )
+        if not isinstance(body, dict):
+            raise CarrierError("Неожиданный формат ответа Почты России", carrier_code=POCHTA_CODE)
+        return body
+
+    async def get_json(
+        self,
+        path: str,
+        *,
+        operation: str,
+        params: Mapping[str, Any] | None = None,
+        on_raw_call: Any = None,
+    ) -> Any:
+        """``GET``, форму ответа не навязывающий: поиск отвечает массивом."""
         response = await self._http.request(
             "GET",
             path,
             operation=operation,
+            params=params,
             headers=self._auth_headers,
             on_raw_call=on_raw_call,
         )
-        return self._body(response)
+        return self._payload(response)
 
     @staticmethod
-    def _body(response: httpx.Response) -> dict[str, Any]:
+    def _payload(response: httpx.Response) -> Any:
+        """Разобранный JSON с проверкой конверта ошибок, формы не навязывая.
+
+        Часть методов отвечает массивом: поиск заказов — списком найденных,
+        создание — объектом со списками. Требовать словарь здесь значило бы
+        объявить сбоем законный ответ.
+        """
         try:
             body = response.json()
         except ValueError as exc:
@@ -277,6 +340,11 @@ class PochtaClient:
         message = pochta_error(body)
         if message:
             raise CarrierError(message, carrier_code=POCHTA_CODE)
+        return body
+
+    @classmethod
+    def _body(cls, response: httpx.Response) -> dict[str, Any]:
+        body = cls._payload(response)
         if not isinstance(body, dict):
             raise CarrierError("Неожиданный формат ответа Почты России", carrier_code=POCHTA_CODE)
         return body

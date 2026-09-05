@@ -1,7 +1,8 @@
 """Адаптер Почты России.
 
-Стадия 1: авторизация и расчёт. Оформление, трекинг и печатные формы —
-стадия 2; каждый метод объявлен и честно отказывает с причиной, а не молчит.
+Расчёт, оформление, сверка «призраков» и печатная форма Ф7п. Трекинг
+и отмена не реализованы, и каждый из них честно отказывает с причиной,
+а не молчит: причины разные и обе не в нашей власти.
 
 Написан по **официальной документации перевозчика** — планка ADR-0020.
 Машинная спецификация у Почты есть только на трекинг (два WSDL, которые она
@@ -9,7 +10,7 @@
 API Онлайн-сервиса «Отправка», по одной на метод. Все они выкачаны
 в `docs/integrations/sources/pochta/`, и каждое поле сверено с текстом.
 
-Четыре решения, следующие прямо из источника.
+Решения, следующие прямо из источника.
 
 **Боевого адреса API в документации нет.** Все страницы дают только
 «Локальный URL» вида `/1.0/tariff`; полный адрес встречается ровно в одном
@@ -24,19 +25,34 @@ API Онлайн-сервиса «Отправка», по одной на ме�
 **ШПИ выдаёт уже создание заказа — но только версии 2.0.** `PUT
 /2.0/user/backlog` возвращает `orders[].barcode` — «ШПИ отправления», тогда
 как версия 1.0 отдаёт лишь внутренние идентификаторы, и справка сама зовёт
-её «Создание заказа без ШПИ». Это снимает вопрос, который стоял открытым,
-но не делает оформление близким: отправлением заказ становится, пройдя
-партию, сессию и печатные формы.
+её «Создание заказа без ШПИ».
+
+**Стадия 2 — оформление, сверка и печатная форма.** Заказ создаётся,
+ищется по нашему же номеру (`order-num` → `GET /1.0/backlog/search`,
+сверка «призраков» FR-2.5) и печатается формой Ф7п. Партия, сессия и сдача
+в отделение остаются за кадром: это уже документооборот отправителя,
+а не создание отправления, и наш контракт его не описывает.
+
+**Оформлению нужен разобранный адрес, а домен его не носит.** Почте
+обязательны `region-to`, `street-to`, `house-to` и фамилия с именем
+получателя порознь, тогда как `Party` несёт адрес одной строкой и ФИО
+не несёт вовсе. Разбирать строку регулярным выражением нельзя: ошибка
+разбора отправляет груз к другому дому, и молча. Поэтому части берутся
+из `extras`, а без них оформление отказывает до вызова перевозчика —
+и сегодня отказывает всегда, потому что `extras` домен не заполняет.
+Чем донести эти поля, решает человек: это правка `carriers/base.py`
+(CLAUDE.md §7, пункт 3).
 
 **Отмены нет вовсе.** Ни в одном из 117 методов нет отмены отправления:
 у «Отправки» есть удаление заказа из черновиков до формирования партии,
 что нашим синхронным `CancelResult` не описывается. Это и есть
 `supports_cancel = False` из решения 4 ADR-0020, подтверждённое чтением.
 
-**Вебхуков нет.** Ни приёма события, ни подписки на него в справке нет:
-трекинг Почты живёт на опросе, и делать его нечем до стадии 2 — SOAP-контракт
-требует `zeep` вне `carriers/major`, то есть поправки к ADR-0013 и новой
-зависимости, а это решение человека (CLAUDE.md §2).
+**Вебхуков нет, и трекинга пока тоже.** Ни приёма события, ни подписки
+на него в справке нет: трекинг Почты живёт на опросе и лежит в отдельном
+SOAP-сервисе. Подключить его — значит завести `zeep` вне `carriers/major`,
+то есть поправить ADR-0013 и добавить зависимость, а это решение человека
+(CLAUDE.md §2).
 """
 
 from __future__ import annotations
@@ -57,7 +73,16 @@ from aerogram.carriers.base import (
     WebhookUpdate,
 )
 from aerogram.carriers.pochta.client import BASE_URL_SETTING, PochtaClient, user_key
-from aerogram.carriers.pochta.mapping import PochtaProduct
+from aerogram.carriers.pochta.mapping import PochtaProduct, product_by_code
+from aerogram.carriers.pochta.orders import (
+    BACKLOG_PATH,
+    POSTOFFICE_SETTING,
+    SEARCH_PATH,
+    create_payload,
+    form_path,
+    parse_created,
+    parse_found,
+)
 from aerogram.carriers.pochta.quotes import TARIFF_PATH, build_tariff_payload, parse_tariff
 from aerogram.carriers.pochta.quotes import products_for as _products_for
 from aerogram.shared.enums import LabelFormat
@@ -107,8 +132,11 @@ class PochtaAdapter:
         computes_volumetric_weight=True,
         # Одно РПО — одно место: в теле расчёта одна `mass` и один `dimension`.
         max_places=1,
-        # Печатные формы — стадия 2, обещать формат заранее нечем.
-        supported_label_formats=(),
+        # Ф7п приходит готовым PDF-ом: «Генерирует и возвращает pdf файл
+        # с формой ф7п для указанного заказа». Размер листа перевозчик
+        # не называет, а форма 7п — бланк сопроводительного адреса на A4;
+        # других форматов у метода нет.
+        supported_label_formats=(LabelFormat.PDF_A4,),
     )
 
     def __init__(self, client_factory: Any = None) -> None:
@@ -197,20 +225,83 @@ class PochtaAdapter:
         body = await client.post(TARIFF_PATH, payload, operation="quote")
         return parse_tariff(body, product, price_source=acc.price_source)
 
-    # --- Ещё не реализовано ----------------------------------------------
+    # --- Оформление -------------------------------------------------------
 
     async def create(self, req: ShipmentRequest, acc: CarrierAccount) -> ShipmentResult:
-        raise CarrierNotConfigured(
-            "Оформление у Почты России ещё не реализовано: заказ создаётся одним "
-            "вызовом, но отправлением он становится только пройдя партию, сессию "
-            "и печатные формы — это отдельная работа, а не продолжение расчёта",
-            carrier_code=POCHTA_CODE,
+        """``PUT /2.0/user/backlog``: заказ и сразу ШПИ.
+
+        Продукт берётся из ``tariff_code`` выбранного предложения: у Почты
+        это сочетание вида РПО, категории и вида транспортировки, и оформить
+        нужно ровно то, что посчитали. Неизвестный код — отказ, а не
+        подстановка первого попавшегося продукта: цена показана за один
+        продукт, а уехал бы другой.
+        """
+        product = product_by_code(req.tariff_code) or product_by_code(req.service_code)
+        if product is None:
+            raise CarrierValidationError(
+                f"Неизвестный продукт Почты России: «{req.tariff_code or req.service_code}»",
+                field="tariff_code",
+                carrier_code=POCHTA_CODE,
+            )
+        sender_index = acc.settings.get(POSTOFFICE_SETTING)
+        payload = create_payload(
+            req,
+            product,
+            sender_index=sender_index if isinstance(sender_index, str) else None,
         )
+        client = self._client_factory(acc)
+        try:
+            body = await client.put(BACKLOG_PATH, payload, operation="create")
+        finally:
+            await client.aclose()
+        if not isinstance(body, dict):
+            raise CarrierError(
+                "Почта России ответила на создание заказа неожиданным телом",
+                carrier_code=POCHTA_CODE,
+            )
+        return parse_created(body, number=req.number)
+
+    async def find_by_number(self, number: str, acc: CarrierAccount) -> ShipmentResult | None:
+        """``GET /1.0/backlog/search?query=`` — сверка «призраков» (FR-2.5).
+
+        Ищет по ``order-num``, куда при создании ушёл наш собственный номер.
+        ``None`` означает «заказа с таким номером у перевозчика нет» и
+        только это: ошибка вызова остаётся ошибкой и наверх поднимается.
+        Принять сбой за «не найден» значит создать второй заказ — с новым
+        ШПИ, вторым грузом и вторым счётом.
+        """
+        client = self._client_factory(acc)
+        try:
+            body = await client.get_json(SEARCH_PATH, operation="find", params={"query": number})
+        finally:
+            await client.aclose()
+        return parse_found(body, number=number)
 
     async def label(self, ext_id: str, fmt: LabelFormat, acc: CarrierAccount) -> LabelResult:
-        raise CarrierNotConfigured(
-            "Печатные формы Почты России ещё не реализованы", carrier_code=POCHTA_CODE
-        )
+        """``GET /1.0/forms/{id}/f7pdf`` — форма Ф7п готовым PDF-ом.
+
+        Единственный формат: метод отдаёт файл, а выбора листа у него нет.
+        Просьбу о другом формате отклоняем вслух — молча подменив формат,
+        мы отдали бы этикетку, которую не на что наклеить.
+        """
+        if fmt is not LabelFormat.PDF_A4:
+            raise CarrierValidationError(
+                f"Почта России отдаёт форму Ф7п только в PDF, запрошен {fmt.value}",
+                field="format",
+                carrier_code=POCHTA_CODE,
+            )
+        client = self._client_factory(acc)
+        try:
+            content = await client.get_bytes(form_path(ext_id), operation="label")
+        finally:
+            await client.aclose()
+        if not content:
+            # Пустой файл — не форма. Отдать его значило бы сказать
+            # «печатайте», а печатать нечего.
+            raise CarrierError("Почта России вернула пустую форму Ф7п", carrier_code=POCHTA_CODE)
+        return LabelResult(format=LabelFormat.PDF_A4, content=content, is_pending=False)
+
+    # --- Ещё не реализовано ----------------------------------------------
 
     async def track(self, ext_id: str, acc: CarrierAccount) -> list[RawEvent]:
         raise CarrierNotConfigured(
@@ -225,12 +316,6 @@ class PochtaAdapter:
             "У Почты России нет отмены отправления: до формирования партии заказ "
             "удаляется из черновиков, после — не отменяется вовсе. Синхронное "
             "«да/нет» нашего CancelResult этого не описывает (ADR-0020, решение 4)",
-            carrier_code=POCHTA_CODE,
-        )
-
-    async def find_by_number(self, number: str, acc: CarrierAccount) -> ShipmentResult | None:
-        raise CarrierNotConfigured(
-            "Поиск заказа Почты России по нашему номеру ещё не реализован",
             carrier_code=POCHTA_CODE,
         )
 
