@@ -103,9 +103,11 @@ CABINET_ONLY: frozenset[tuple[str, str]] = frozenset(
         ("GET", "/v1/counterparties"),
         ("POST", "/v1/counterparties"),
         ("GET", "/v1/counterparties/{counterparty_id}"),
+        ("PATCH", "/v1/counterparties/{counterparty_id}"),
         ("DELETE", "/v1/counterparties/{counterparty_id}"),
         ("GET", "/v1/counterparties/{counterparty_id}/addresses"),
         ("POST", "/v1/counterparties/{counterparty_id}/addresses"),
+        ("PATCH", "/v1/counterparties/{counterparty_id}/addresses/{address_id}"),
         ("GET", "/v1/admin/city-mappings"),
         ("POST", "/v1/admin/city-mappings/{item_id}/confirm"),
     }

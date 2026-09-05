@@ -45,6 +45,7 @@ BEYOND_CONTRACT: frozenset[str] = frozenset(
         "/v1/counterparties",
         "/v1/counterparties/{counterparty_id}",
         "/v1/counterparties/{counterparty_id}/addresses",
+        "/v1/counterparties/{counterparty_id}/addresses/{address_id}",
         "/v1/parties/lookup",
         # Массовые отправления: в ТЗ v3 их нет, решение принято отдельно —
         # ADR-0021 (вариант «Б») и ADR-0022 (схема). Это надстройка над уже

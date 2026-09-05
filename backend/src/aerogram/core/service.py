@@ -477,6 +477,23 @@ def ensure_tenant_active(tenant: Tenant) -> None:
         raise PermissionDenied("Доступ компании приостановлен")
 
 
+def _apply(entity: object, payload: dict[str, object], *, required: set[str]) -> None:
+    """Разложить переданные поля по сущности.
+
+    Приходит уже отфильтрованное ``exclude_unset``: в словаре только то,
+    что клиент назвал. Поэтому ``None`` здесь означает не «не передано»,
+    а «очистить» — иначе телефон, стёртый оператором, остался бы прежним,
+    и правка выглядела бы принятой.
+
+    Обязательные поля исключение: ``null`` в них не очистка, а `NOT NULL`
+    в базе. Отказ внятным сообщением лучше, чем ошибка драйвера.
+    """
+    for field, value in payload.items():
+        if value is None and field in required:
+            raise ValidationFailed(f"Поле «{field}» нельзя очистить", field=field)
+        setattr(entity, field, value)
+
+
 class AddressBookService:
     """Адресная книга тенанта: контрагенты и их адреса (FR-8.4)."""
 
@@ -566,6 +583,70 @@ class AddressBookService:
         # иначе связь остаётся незагруженной, и сериализация ответа пытается
         # дочитать её ленивым запросом уже вне асинхронного контекста.
         counterparty.addresses.append(address)
+        await self._session.flush()
+        return address
+
+    async def update(self, counterparty_id: UUID, payload: dict[str, object]) -> Counterparty:
+        """Изменить контрагента. Приходят только переданные поля.
+
+        ИНН и КПП не правятся: это не описка в названии, а другая
+        организация. Уникальность ИНН среди живых строк держит частичный
+        индекс, и правка вслепую упёрлась бы в него ошибкой базы вместо
+        внятного отказа. Нужен другой ИНН — заводится другой контрагент.
+        """
+        counterparty = await self.get(counterparty_id)
+        _apply(counterparty, payload, required={"name"})
+        await self._session.flush()
+        return counterparty
+
+    async def update_address(
+        self, counterparty_id: UUID, address_id: UUID, payload: dict[str, object]
+    ) -> Address:
+        """Изменить адрес контрагента.
+
+        Правка **не касается созданных отправлений**: у отправления лежит
+        снимок адреса на момент создания, а не ссылка на строку адресной
+        книги, и переезд контрагента не переписывает историю задним числом.
+
+        Пригодность пересчитывается, а не остаётся прежней: адрес, которому
+        дописали дом, обязан стать пригодным для доставки до двери, иначе
+        правка выглядит принятой, а отправление по-прежнему не создать.
+        """
+        counterparty = await self.get(counterparty_id)
+        address = await self._addresses.get_by_id(address_id)
+        # Чужой адрес по прямому идентификатору — 404, а не 403, и то же
+        # самое для адреса другого контрагента: иначе перебор идентификаторов
+        # рассказывает, какие из них существуют.
+        if address is None or address.counterparty_id != counterparty.id:
+            raise NotFound("Адрес не найден")
+
+        changes = dict(payload)
+        # Город и его код ФИАС ходят парой. Порознь адрес начинает врать:
+        # в строке одна местность, а сопоставление с перевозчиком идёт
+        # по коду другой — и груз уезжает не туда, причём молча.
+        if ("city" in changes) != ("city_fias_id" in changes):
+            raise ValidationFailed(
+                "Город и его код ФИАС меняются вместе: иначе адрес и код "
+                "перевозчика укажут на разные места",
+                field="city",
+            )
+        is_default = changes.pop("is_default_sender", None)
+        if is_default is True:
+            # Отправитель по умолчанию ровно один: старый снимается до того,
+            # как новый попадёт под частичный уникальный индекс.
+            await self._addresses.clear_default_sender(keep_id=address.id)
+            address.is_default_sender = True
+        elif is_default is False:
+            address.is_default_sender = False
+
+        _apply(address, changes, required={"city"})
+
+        fitness, _ = assess_fitness(
+            city_known=bool(address.city_fias_id),
+            house_known=bool(address.house),
+            foreign=address.country_code != "RU",
+        )
+        address.fitness = fitness.value
         await self._session.flush()
         return address
 

@@ -19,11 +19,13 @@ from aerogram.core.deps import (
 from aerogram.core.schemas import (
     AddressCreate,
     AddressOut,
+    AddressUpdate,
     ApiKeyCreate,
     ApiKeyCreated,
     ApiKeyOut,
     CounterpartyCreate,
     CounterpartyOut,
+    CounterpartyUpdate,
     LoginRequest,
     MfaCodeRequest,
     MfaSetupOut,
@@ -377,6 +379,65 @@ async def get_counterparty(
 ) -> CounterpartyOut:
     counterparty = await AddressBookService(session).get(counterparty_id)
     return CounterpartyOut.model_validate(counterparty)
+
+
+@counterparties_router.patch(
+    "/{counterparty_id}",
+    response_model=CounterpartyOut,
+    summary="Изменить контрагента",
+)
+async def update_counterparty(
+    counterparty_id: UUID,
+    payload: CounterpartyUpdate,
+    request: Request,
+    session: SessionDep,
+    principal: Annotated[object, require_roles(UserRole.OWNER, UserRole.LOGISTICIAN)],
+) -> CounterpartyOut:
+    """Правка названия и контактов. ИНН и КПП не меняются — см. сервис."""
+    actor: CurrentPrincipal = principal  # type: ignore[assignment]
+    counterparty = await AddressBookService(session).update(
+        counterparty_id, payload.model_dump(exclude_unset=True)
+    )
+    AuditService(session).record(
+        tenant_id=actor.tenant_id,
+        actor_user_id=actor.user_id,
+        action="counterparty.update",
+        entity_type="counterparty",
+        entity_id=counterparty_id,
+        ip=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    return CounterpartyOut.model_validate(counterparty)
+
+
+@counterparties_router.patch(
+    "/{counterparty_id}/addresses/{address_id}",
+    response_model=AddressOut,
+    summary="Изменить адрес контрагента",
+)
+async def update_address(
+    counterparty_id: UUID,
+    address_id: UUID,
+    payload: AddressUpdate,
+    request: Request,
+    session: SessionDep,
+    principal: Annotated[object, require_roles(UserRole.OWNER, UserRole.LOGISTICIAN)],
+) -> AddressOut:
+    """Правка адреса. Созданных отправлений не касается: у них снимок."""
+    actor: CurrentPrincipal = principal  # type: ignore[assignment]
+    address = await AddressBookService(session).update_address(
+        counterparty_id, address_id, payload.model_dump(exclude_unset=True)
+    )
+    AuditService(session).record(
+        tenant_id=actor.tenant_id,
+        actor_user_id=actor.user_id,
+        action="address.update",
+        entity_type="address",
+        entity_id=address_id,
+        ip=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    return AddressOut.model_validate(address)
 
 
 @counterparties_router.post(

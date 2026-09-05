@@ -8,8 +8,10 @@ import {
   tokens,
   type ApiError,
   type Counterparty,
+  type CounterpartyAddress,
   type CorePage,
 } from '@/api/client'
+import { AddressBookEdit } from '@/components/AddressBookEdit'
 import { AppShell } from '@/components/AppShell'
 import { COUNTERPARTY_TYPE_LABELS, formatAddress } from '@/lib/directory'
 import styles from './page.module.css'
@@ -24,6 +26,7 @@ export default function CounterpartiesPage() {
   const [page, setPage] = useState(1)
   const [opened, setOpened] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
 
   useEffect(() => {
     if (!tokens.access()) router.replace('/login')
@@ -47,6 +50,34 @@ export default function CounterpartiesPage() {
       request<Counterparty>('/counterparties', { method: 'POST', body }),
     onSuccess: async () => {
       setAdding(false)
+      await client.invalidateQueries({ queryKey: ['counterparties'] })
+    },
+  })
+
+  const patchCounterparty = useMutation({
+    mutationFn: (input: { id: string; patch: Record<string, unknown> }) =>
+      request<Counterparty>(`/counterparties/${input.id}`, {
+        method: 'PATCH',
+        body: input.patch,
+      }),
+    onSuccess: async () => {
+      setEditing(null)
+      await client.invalidateQueries({ queryKey: ['counterparties'] })
+    },
+  })
+
+  const patchAddress = useMutation({
+    mutationFn: (input: {
+      counterpartyId: string
+      addressId: string
+      patch: Record<string, unknown>
+    }) =>
+      request<CounterpartyAddress>(
+        `/counterparties/${input.counterpartyId}/addresses/${input.addressId}`,
+        { method: 'PATCH', body: input.patch },
+      ),
+    onSuccess: async () => {
+      setEditing(null)
       await client.invalidateQueries({ queryKey: ['counterparties'] })
     },
   })
@@ -124,6 +155,38 @@ export default function CounterpartiesPage() {
                       {counterparty.name}
                     </button>
                     {open && (
+                      <button
+                        type="button"
+                        className={styles.edit}
+                        onClick={() =>
+                          setEditing(editing === counterparty.id ? null : counterparty.id)
+                        }
+                      >
+                        {editing === counterparty.id ? 'Отмена' : 'Изменить'}
+                      </button>
+                    )}
+                    {open && editing === counterparty.id && (
+                      <AddressBookEdit
+                        counterparty={counterparty}
+                        pending={patchCounterparty.isPending || patchAddress.isPending}
+                        error={
+                          ((patchCounterparty.error ?? patchAddress.error) as ApiError | null)
+                            ?.message ?? null
+                        }
+                        onSaveContacts={(patch) =>
+                          patchCounterparty.mutate({ id: counterparty.id, patch })
+                        }
+                        onSaveAddress={(addressId, patch) =>
+                          patchAddress.mutate({
+                            counterpartyId: counterparty.id,
+                            addressId,
+                            patch,
+                          })
+                        }
+                        onDone={() => setEditing(null)}
+                      />
+                    )}
+                    {open && (
                       <ul className={styles.addresses}>
                         {counterparty.addresses.length === 0 && (
                           <li className={styles.muted}>Адресов пока нет.</li>
@@ -140,9 +203,7 @@ export default function CounterpartiesPage() {
                       </ul>
                     )}
                   </td>
-                  <td>
-                    {COUNTERPARTY_TYPE_LABELS[counterparty.type] ?? counterparty.type}
-                  </td>
+                  <td>{COUNTERPARTY_TYPE_LABELS[counterparty.type] ?? counterparty.type}</td>
                   <td>{counterparty.inn ?? '—'}</td>
                   <td>
                     {counterparty.contact_person ?? '—'}

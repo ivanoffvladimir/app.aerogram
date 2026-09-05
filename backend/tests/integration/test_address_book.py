@@ -322,6 +322,250 @@ class TestSoftDelete:
         assert response.status_code == 404
 
 
+class TestUpdate:
+    """Правка контрагента и адреса (PATCH).
+
+    Отдельно проверяется то, из-за чего правка откладывалась: у отправления
+    лежит снимок адреса, а не ссылка на строку адресной книги, поэтому переезд
+    контрагента не переписывает историю задним числом.
+    """
+
+    async def test_name_and_contacts_are_editable(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        created = await client.post("/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+        counterparty_id = created.json()["id"]
+
+        response = await client.patch(
+            f"/v1/counterparties/{counterparty_id}",
+            json={"contact_person": "Петров Пётр", "phone": "+79990000000"},
+            headers=headers_a,
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["contact_person"] == "Петров Пётр"
+        assert body["phone"] == "+79990000000"
+        # Непереданное не трогается: правка телефона не стирает название.
+        assert body["name"] == ROSPLOMBA["name"]
+        assert body["inn"] == ROSPLOMBA["inn"]
+
+    async def test_inn_is_not_editable(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        # ИНН — это не описка в названии, а другая организация. Поле схемой
+        # не принимается вовсе, поэтому оно молча игнорируется, а не меняет
+        # личность контрагента.
+        created = await client.post("/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+        counterparty_id = created.json()["id"]
+
+        response = await client.patch(
+            f"/v1/counterparties/{counterparty_id}",
+            json={"inn": "9909999999"},
+            headers=headers_a,
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["inn"] == ROSPLOMBA["inn"]
+
+    async def test_an_explicit_null_clears_a_contact(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        """Стёртый оператором телефон обязан стать пустым.
+
+        Тело PATCH приходит уже отфильтрованным: в нём только названные поля,
+        поэтому ``null`` означает «очистить», а не «не передано». Иначе
+        правка выглядела бы принятой, а телефон остался бы прежним.
+        """
+        created = await client.post("/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+
+        response = await client.patch(
+            f"/v1/counterparties/{created.json()['id']}",
+            json={"phone": None},
+            headers=headers_a,
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["phone"] is None
+        # Не названное поле осталось на месте.
+        assert response.json()["contact_person"] == ROSPLOMBA["contact_person"]
+
+    async def test_a_required_field_cannot_be_cleared(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        # Отказ внятным сообщением лучше, чем ошибка драйвера на NOT NULL.
+        created = await client.post("/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+
+        response = await client.patch(
+            f"/v1/counterparties/{created.json()['id']}",
+            json={"name": None},
+            headers=headers_a,
+        )
+
+        assert response.status_code == 422, response.text
+
+    async def test_adding_a_house_makes_the_address_fit_for_the_door(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        """Пригодность пересчитывается, иначе правка принята, а толку нет."""
+        payload = {
+            **ROSPLOMBA,
+            "addresses": [
+                {
+                    "city": "Москва",
+                    "city_fias_id": "0c5b2444-70a0-4932-980c-b4dc0d3f02b5",
+                    "street": "ул Тверская",
+                }
+            ],
+        }
+        created = await client.post("/v1/counterparties", json=payload, headers=headers_a)
+        body = created.json()
+        assert body["addresses"][0]["fitness"] == "locality"
+
+        response = await client.patch(
+            f"/v1/counterparties/{body['id']}/addresses/{body['addresses'][0]['id']}",
+            json={"house": "1"},
+            headers=headers_a,
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["fitness"] == "door"
+
+    async def test_city_and_its_fias_id_move_together(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        """Порознь адрес начинает врать, и груз уезжает не туда молча.
+
+        В строке была бы одна местность, а сопоставление с перевозчиком шло
+        бы по коду другой.
+        """
+        created = await client.post("/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+        body = created.json()
+        path = f"/v1/counterparties/{body['id']}/addresses/{body['addresses'][0]['id']}"
+
+        alone = await client.patch(path, json={"city": "Тверь"}, headers=headers_a)
+        assert alone.status_code == 422, alone.text
+
+        together = await client.patch(
+            path,
+            json={"city": "Тверь", "city_fias_id": "deadbeef-70a0-4932-980c-b4dc0d3f02b5"},
+            headers=headers_a,
+        )
+        assert together.status_code == 200, together.text
+        assert together.json()["city"] == "Тверь"
+
+    async def test_the_default_sender_moves_rather_than_doubles(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        """Отправитель по умолчанию ровно один — это держит частичный индекс.
+
+        Без снятия старого признака правка упёрлась бы в ошибку базы, а не
+        в перенос отметки.
+        """
+        payload = {
+            **ROSPLOMBA,
+            "addresses": [
+                {
+                    "city": "Москва",
+                    "city_fias_id": "0c5b2444-70a0-4932-980c-b4dc0d3f02b5",
+                    "street": "ул Тверская",
+                    "house": "1",
+                    "is_default_sender": True,
+                },
+                {
+                    "city": "Тверь",
+                    "city_fias_id": "0c5b2444-70a0-4932-980c-b4dc0d3f02b6",
+                    "street": "пр Мира",
+                    "house": "3",
+                },
+            ],
+        }
+        created = await client.post("/v1/counterparties", json=payload, headers=headers_a)
+        body = created.json()
+        addresses = {a["city"]: a for a in body["addresses"]}
+
+        response = await client.patch(
+            f"/v1/counterparties/{body['id']}/addresses/{addresses['Тверь']['id']}",
+            json={"is_default_sender": True},
+            headers=headers_a,
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["is_default_sender"] is True
+
+        after = await client.get(f"/v1/counterparties/{body['id']}/addresses", headers=headers_a)
+        defaults = [a["city"] for a in after.json() if a["is_default_sender"]]
+        assert defaults == ["Тверь"]
+
+    async def test_an_address_of_another_counterparty_is_not_found(
+        self, client: AsyncClient, headers_a: dict[str, str]
+    ) -> None:
+        # Иначе перебор идентификаторов рассказывает, какие из них существуют.
+        first = await client.post("/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+        second = await client.post(
+            "/v1/counterparties",
+            json={**ROSPLOMBA, "inn": "7702345678", "kpp": None, "name": "ООО «Другая»"},
+            headers=headers_a,
+        )
+        alien_address = first.json()["addresses"][0]["id"]
+
+        response = await client.patch(
+            f"/v1/counterparties/{second.json()['id']}/addresses/{alien_address}",
+            json={"house": "2"},
+            headers=headers_a,
+        )
+
+        assert response.status_code == 404
+
+    async def test_another_tenant_cannot_edit(
+        self, client: AsyncClient, headers_a: dict[str, str], headers_b: dict[str, str]
+    ) -> None:
+        created = await client.post("/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+
+        response = await client.patch(
+            f"/v1/counterparties/{created.json()['id']}",
+            json={"name": "Захвачено"},
+            headers=headers_b,
+        )
+
+        assert response.status_code == 404
+
+    async def test_editing_is_recorded_in_the_audit(
+        self,
+        client: AsyncClient,
+        headers_a: dict[str, str],
+        session: Any,
+        seeded_tenants: tuple[UUID, UUID],
+    ) -> None:
+        """Кто и что правил в адресной книге, обязано остаться в аудите.
+
+        Читается под ролью приложения с установленным тенантом: без
+        ``app.tenant_id`` RLS отдаёт пустоту, и тест зеленел бы на любой
+        реализации, включая отсутствующую.
+        """
+        from sqlalchemy import select
+
+        from aerogram.core.models import AuditLog
+        from tests.conftest import with_tenant
+
+        created = await client.post("/v1/counterparties", json=ROSPLOMBA, headers=headers_a)
+        counterparty_id = created.json()["id"]
+        await client.patch(
+            f"/v1/counterparties/{counterparty_id}",
+            json={"name": "ООО «Роспломба-Юг»"},
+            headers=headers_a,
+        )
+
+        await with_tenant(session, seeded_tenants[0])
+        rows = (
+            await session.execute(
+                select(AuditLog.action, AuditLog.entity_id).where(
+                    AuditLog.action == "counterparty.update"
+                )
+            )
+        ).all()
+        assert [(a, str(e)) for a, e in rows] == [("counterparty.update", counterparty_id)]
+
+
 class TestPermissions:
     async def test_viewer_cannot_create(
         self, client: AsyncClient, headers_a: dict[str, str]
