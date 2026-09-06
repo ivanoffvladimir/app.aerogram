@@ -318,6 +318,20 @@ export default function RateShoppingPage() {
             </div>
           )}
 
+          {(quote.blocked ?? []).length > 0 && (
+            <div className={styles.warning}>
+              {/* Запрет показывается отдельно от отказа: «перевозчик не ответил»
+                  про того, кого не спрашивали, — неправда, и оператор по такой
+                  строке пошёл бы разбираться с доступностью вместо политики.
+                  Цены здесь нет намеренно: перевозчика не опрашивали. */}
+              Запрещено политикой компании:{' '}
+              {(quote.blocked ?? [])
+                .map((b) => `${b.carrier_name ?? b.carrier_code ?? '—'} — ${b.message}`)
+                .join('; ')}
+              .
+            </div>
+          )}
+
           {quote.no_deadline_match && (
             <div className={styles.danger}>
               В указанный срок не укладывается ни один перевозчик. Ниже — ближайшие
@@ -427,11 +441,13 @@ export default function RateShoppingPage() {
             <OfferCard key={offer.id} offer={offer} />
           ))}
 
-          {offers.length === 0 && quote.failures.length === 0 && (
-            <div className={styles.card}>
-              Ни один перевозчик не вернул предложений. Проверьте подключённые договоры.
-            </div>
-          )}
+          {offers.length === 0 &&
+            quote.failures.length === 0 &&
+            (quote.blocked ?? []).length === 0 && (
+              <div className={styles.card}>
+                Ни один перевозчик не вернул предложений. Проверьте подключённые договоры.
+              </div>
+            )}
         </>
       )}
 

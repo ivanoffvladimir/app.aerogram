@@ -46,8 +46,8 @@ def facts(
     dangerous: bool = False,
 ) -> RequestFacts:
     return RequestFacts(
-        origin_city_id=origin,
-        destination_city_id=destination,
+        origin_fias_id=origin,
+        destination_fias_id=destination,
         billable_weight_grams=grams,
         cargo_value=value,
         cargo_type=cargo_type,

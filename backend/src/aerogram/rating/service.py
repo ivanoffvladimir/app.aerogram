@@ -35,6 +35,7 @@ from aerogram.core.models import CarrierAccount
 from aerogram.core.repository import CarrierAccountRepository
 from aerogram.core.service import decrypt_credentials
 from aerogram.directories.dadata import DadataClient
+from aerogram.directories.models import City
 from aerogram.directories.repository import CarrierRepository
 from aerogram.directories.service import (
     CarrierPartyResolver,
@@ -46,10 +47,19 @@ from aerogram.intelligence.repository import ScoreRepository
 from aerogram.rating.models import RateOffer, RateQuote
 from aerogram.rating.repository import RateRepository
 from aerogram.rating.schemas import (
+    BlockedCarrierOut,
     CarrierFailureOut,
     RateOfferOut,
     RateRequestIn,
     RateResponse,
+)
+from aerogram.routing.repository import RoutingRepository
+from aerogram.routing.rules import (
+    Policy,
+    RequestFacts,
+    evaluate,
+    parse_rules,
+    policy_fingerprint,
 )
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import (
@@ -72,6 +82,13 @@ log = get_logger(__name__)
 #: или валидации от повтора не исчезнет, и предлагать его — вводить в заблуждение.
 RETRYABLE_FAILURES = frozenset({"carrier_timeout", "carrier_unavailable", "carrier_rate_limited"})
 
+#: Код строки «запрещено политикой». Строка хранится среди предложений,
+#: потому что ограничение таблицы требует у строки либо цену, либо код
+#: ошибки, а цены здесь нет и не должно быть: перевозчика не спрашивали.
+#: В ответе она уходит не в ``failures``, а в отдельный список: «не вернул
+#: расчёт» здесь неправда.
+BLOCKED_BY_POLICY = "blocked_by_policy"
+
 
 @dataclass(frozen=True, slots=True)
 class _CarrierOutcome:
@@ -83,6 +100,17 @@ class _CarrierOutcome:
     quotes: tuple[Quote, ...] = ()
     error_code: str | None = None
     error_message: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _BlockedCarrier:
+    """Перевозчик, которого не спросили: правило маршрутизации запретило."""
+
+    carrier_code: str
+    carrier_id: UUID
+    account_id: UUID
+    reason: IneligibilityReason
+    message: str
 
 
 class RateShoppingService:
@@ -103,6 +131,7 @@ class RateShoppingService:
         self._parties = CarrierPartyResolver(self._cities, self._mappings)
         self._rates = RateRepository(session)
         self._scores = ScoreRepository(session)
+        self._routing = RoutingRepository(session)
 
     async def quote(
         self, payload: RateRequestIn, *, tenant_id: UUID, user_id: UUID | None
@@ -113,7 +142,12 @@ class RateShoppingService:
         заново, а возвращает уже полученную (FR-1.6).
         """
         started = time.monotonic()
-        request_hash = self._request_hash(payload)
+        rules = parse_rules(list(await self._routing.active_rules()))
+        # Версия политики входит в отпечаток запроса: иначе изменение правил
+        # не отменяло бы уже снятую выдачу, и пятнадцать минут после запрета
+        # запрещённый перевозчик продолжал бы показываться с ценой.
+        policy_version = policy_fingerprint(rules)
+        request_hash = self._request_hash(payload, policy_version)
         accounts = await self._eligible_accounts(payload)
 
         reused = await self._reusable(request_hash, accounts)
@@ -125,16 +159,32 @@ class RateShoppingService:
             )
             return await self._response(reused, list(reused.offers))
 
-        # Город назначения разрешается один раз на запрос, а не на каждого
-        # перевозчика: от него зависит таймзона, в которой обещанный день
-        # превращается в момент. Делается это после проверки на повтор:
-        # готовой выдаче разрешение города уже не нужно.
+        # Города разрешаются один раз на запрос, а не на каждого перевозчика.
+        # От назначения зависит таймзона, в которой обещанный день превращается
+        # в момент; оба нужны правилам маршрутизации. Делается это после
+        # проверки на повтор: готовой выдаче разрешение города уже не нужно.
+        origin = await self._cities.resolve(payload.origin.city, payload.origin.region)
         destination = await self._cities.resolve(
             payload.destination.city, payload.destination.region
         )
         destination_tz = destination.timezone if destination else None
 
-        outcomes = await self._poll(accounts, payload)
+        # Правила применяются ДО опроса: все их условия — свойства запроса,
+        # а не предложения (ADR-0028). Запрещённого перевозчика не спрашивают:
+        # вызов стоит денег и времени, а у Почты России ещё и суточной квоты.
+        # Правилам подаются коды ТОЛЬКО подключённых тенантом перевозчиков.
+        # Весь справочник платформы дал бы вердикты про тех, с кем у клиента
+        # нет договора, — то есть политика рассуждала бы о перевозчиках,
+        # которых в этой выдаче быть не может ни при каком правиле.
+        codes = await self._codes()
+        policy = evaluate(
+            rules,
+            _facts(payload, _fias(origin), _fias(destination)),
+            sorted({codes[a.carrier_id] for a in accounts if a.carrier_id in codes}),
+        )
+        allowed, blocked = self._apply_policy(accounts, policy, codes)
+
+        outcomes = await self._poll(allowed, payload, insurance=policy.require_insurance)
         duration_ms = int((time.monotonic() - started) * 1000)
 
         quote = RateQuote(
@@ -154,7 +204,9 @@ class RateShoppingService:
         # рекомендация объясняется теми числами, которые были видны тогда,
         # а не теми, что получились после следующего пересчёта (FR-7.6).
         scores = await self._scores.latest_by_carrier()
-        rows = self._persist(quote, outcomes, payload, tenant_id, destination_tz, scores)
+        rows = self._persist(
+            quote, outcomes, payload, tenant_id, destination_tz, scores, blocked=blocked
+        )
         await self._session.flush()
 
         # ``carrier_code`` берётся из опроса, а не из справочника: перевозчика
@@ -163,7 +215,8 @@ class RateShoppingService:
         response = await self._response(
             quote,
             [row for row, _ in rows],
-            codes={outcome.carrier_id: outcome.carrier_code for outcome in outcomes},
+            codes={outcome.carrier_id: outcome.carrier_code for outcome in outcomes}
+            | {item.carrier_id: item.carrier_code for item in blocked},
         )
         quote.no_deadline_match = response.no_deadline_match
 
@@ -172,6 +225,8 @@ class RateShoppingService:
             carriers=len(outcomes),
             offers=len(response.offers),
             failures=len(response.failures),
+            blocked=len(response.blocked),
+            policy_version=policy_version,
             duration_ms=duration_ms,
         )
         return response
@@ -261,6 +316,21 @@ class RateShoppingService:
                 str(o.id),
             )
         )
+        # Запрет и отказ разводятся здесь, а не смешиваются: «перевозчик
+        # не вернул расчёт» про запрещённого — неправда, его не спрашивали.
+        blocked = [
+            BlockedCarrierOut(
+                carrier_id=row.carrier_id,
+                carrier_code=carrier_codes.get(row.carrier_id),
+                carrier_name=names.get(row.carrier_id),
+                reason=row.ineligibility_reason or IneligibilityReason.TENANT_POLICY,
+                message=row.error_message or "Запрещено политикой компании",
+            )
+            for row in offers
+            if row.error_code == BLOCKED_BY_POLICY
+        ]
+        blocked.sort(key=lambda b: b.carrier_code or "")
+
         failures = [
             CarrierFailureOut(
                 carrier_id=row.carrier_id,
@@ -270,7 +340,7 @@ class RateShoppingService:
                 retryable=row.error_code in RETRYABLE_FAILURES,
             )
             for row in offers
-            if row.error_code is not None
+            if row.error_code is not None and row.error_code != BLOCKED_BY_POLICY
         ]
 
         # Порядок отказов задаётся по той же причине, что и порядок
@@ -292,6 +362,7 @@ class RateShoppingService:
             quote_id=quote.id,
             offers=priced,
             failures=failures,
+            blocked=blocked,
             no_deadline_match=no_deadline_match,
             valid_until=quote.valid_until,
         )
@@ -303,6 +374,13 @@ class RateShoppingService:
         так расчёт из кабинета не требует перечислять перевозчиков руками.
         Чёрный список сильнее белого: перевозчик, попавший в оба, исключается —
         запрет должен побеждать разрешение, иначе запрет ничего не гарантирует.
+
+        Список на конкретную отправку только **сужает**. Правила маршрутизации
+        применяются после этого отбора и сужают его дальше, поэтому список
+        в теле запроса не может расширить то, что разрешила политика. Иначе
+        жёсткий запрет обходился бы передачей списка в запросе — то есть это
+        было бы не удобство, а дыра: политику отменял бы тот, кого она
+        ограничивает (ADR-0028).
         """
         accounts = await self._accounts.list_active()
         allowed = set(payload.carrier_whitelist)
@@ -313,8 +391,64 @@ class RateShoppingService:
             accounts = [a for a in accounts if a.carrier_id not in denied]
         return accounts
 
+    async def _codes(self) -> dict[UUID, str]:
+        """Идентификатор перевозчика → его код. Правила пишутся кодами."""
+        return {carrier.id: carrier.code for carrier in await self._carriers.list_active()}
+
+    def _apply_policy(
+        self, accounts: list[CarrierAccount], policy: Policy, codes: dict[UUID, str]
+    ) -> tuple[list[CarrierAccount], list[_BlockedCarrier]]:
+        """Разделить учётные записи на «спросим» и «запрещено правилом».
+
+        Учётная запись перевозчика, которого нет в справочнике активных,
+        не спрашивается и в запрещённые не попадает: правила про неё ничего
+        не решали, и объявлять её запрещённой значило бы приписать политике
+        чужое решение.
+        """
+        allowed: list[CarrierAccount] = []
+        blocked: list[_BlockedCarrier] = []
+
+        for account in accounts:
+            code = codes.get(account.carrier_id)
+            if code is None:
+                continue
+            verdict = policy.verdict(code)
+            if verdict is not None and not verdict.allowed:
+                blocked.append(
+                    _BlockedCarrier(
+                        carrier_code=code,
+                        carrier_id=account.carrier_id,
+                        account_id=account.id,
+                        reason=verdict.reason or IneligibilityReason.TENANT_POLICY,
+                        message=_blocked_message(verdict.reason, verdict.rule_name),
+                    )
+                )
+                continue
+
+            # Обещать страховку тому, у кого её нет, хуже, чем не показать
+            # вариант: до страхового случая разница не видна, а после неё
+            # поздно (ADR-0028).
+            if policy.require_insurance and not _supports_insurance(code):
+                blocked.append(
+                    _BlockedCarrier(
+                        carrier_code=code,
+                        carrier_id=account.carrier_id,
+                        account_id=account.id,
+                        reason=IneligibilityReason.TENANT_POLICY,
+                        message=(
+                            f"Правило «{policy.insurance_rule}» требует страхования, "
+                            "а перевозчик его не поддерживает"
+                        ),
+                    )
+                )
+                continue
+
+            allowed.append(account)
+
+        return allowed, blocked
+
     async def _poll(
-        self, accounts: list[CarrierAccount], payload: RateRequestIn
+        self, accounts: list[CarrierAccount], payload: RateRequestIn, *, insurance: bool = False
     ) -> list[_CarrierOutcome]:
         """Опросить перевозчиков параллельно с общим дедлайном.
 
@@ -329,7 +463,9 @@ class RateShoppingService:
         # таймаута назовёт чужого перевозчика.
         prepared = [
             item
-            for item in [await self._prepare(account, payload) for account in accounts]
+            for item in [
+                await self._prepare(account, payload, insurance=insurance) for account in accounts
+            ]
             if item is not None
         ]
         if not prepared:
@@ -363,7 +499,7 @@ class RateShoppingService:
         return outcomes
 
     async def _prepare(
-        self, account: CarrierAccount, payload: RateRequestIn
+        self, account: CarrierAccount, payload: RateRequestIn, *, insurance: bool = False
     ) -> tuple[CarrierAccount, str, UUID, AdapterAccount, QuoteRequest] | None:
         """Собрать всё, что нужно адаптеру, до обращения к сети.
 
@@ -423,7 +559,10 @@ class RateShoppingService:
             cargo_type=payload.cargo_type,
             pickup=payload.pickup,
             delivery_to_door=payload.delivery_to_door,
-            insurance=payload.insurance,
+            # Обязательное страхование входит в цену, поэтому решается ДО
+            # опроса: посчитать без него и добавить потом значило бы показать
+            # оператору сумму, которой не будет в счёте.
+            insurance=payload.insurance or insurance,
             required_delivery_date=payload.deadline.date() if payload.deadline else None,
         )
         return account, carrier.code, carrier.id, adapter_account, request
@@ -490,9 +629,33 @@ class RateShoppingService:
         tenant_id: UUID,
         destination_tz: str | None,
         scores: dict[UUID, CarrierScoreSnapshot],
+        *,
+        blocked: list[_BlockedCarrier],
     ) -> list[tuple[RateOffer, str]]:
-        """Сохранить предложения и строки ошибок."""
+        """Сохранить предложения, строки ошибок и строки запретов."""
         rows: list[tuple[RateOffer, str]] = []
+
+        # Запрещённые сохраняются вместе с остальными, а не собираются заново
+        # при ответе: повтор выдачи (FR-1.6) читает те же строки, и запрет,
+        # существующий только в памяти, из повтора бы исчез.
+        for item in blocked:
+            rows.append(
+                (
+                    RateOffer(
+                        id=uuid7(),
+                        tenant_id=tenant_id,
+                        quote_id=quote.id,
+                        carrier_id=item.carrier_id,
+                        carrier_account_id=item.account_id,
+                        error_code=BLOCKED_BY_POLICY,
+                        error_message=item.message,
+                        eligible=False,
+                        ineligibility_reason=item.reason,
+                        valid_until=quote.valid_until,
+                    ),
+                    item.carrier_code,
+                )
+            )
 
         for outcome in outcomes:
             if outcome.error_code is not None:
@@ -572,7 +735,7 @@ class RateShoppingService:
         return decrypt_credentials(account, self._settings)
 
     @staticmethod
-    def _request_hash(payload: RateRequestIn) -> str:
+    def _request_hash(payload: RateRequestIn, policy_version: str) -> str:
         """Отпечаток нормализованного запроса — ключ повторного использования
         выдачи (FR-1.6).
 
@@ -591,6 +754,10 @@ class RateShoppingService:
         по которым получатся разные документы.
         """
         data = payload.model_dump(mode="json")
+        # Версия политики — часть запроса, хотя клиент её не присылает:
+        # при одном и том же теле разные правила дают разную выдачу,
+        # и общий отпечаток вернул бы вчерашний состав перевозчиков.
+        data["policy_version"] = policy_version
         for field in ("ship_at", "deadline"):
             value = getattr(payload, field)
             data[field] = None if value is None else value.astimezone(UTC).isoformat()
@@ -612,6 +779,88 @@ def _shown_confidence(stored: str | None) -> ScoreConfidence | None:
     if stored is None or stored == ScoreConfidence.INSUFFICIENT:
         return None
     return ScoreConfidence(stored)
+
+
+def _fias(city: City | None) -> UUID | None:
+    """Идентификатор ФИАС города как UUID — тем, кто сравнивает его с правилом.
+
+    ``fias_id`` хранится строкой, а условие правила разбирается в ``UUID``:
+    так «0c5b2444-70A0-…» и «0c5b2444-70a0-…» не оказываются разными городами.
+    Нечитаемый идентификатор даёт ``None``, то есть «город не разрешён»: это
+    поломка справочника, а не запроса, и угадывать здесь нечего.
+    """
+    if city is None:
+        return None
+    try:
+        return UUID(city.fias_id)
+    except (ValueError, AttributeError, TypeError):
+        log.warning("rating.fias_id_unreadable", city_id=str(city.id))
+        return None
+
+
+def _facts(payload: RateRequestIn, origin: UUID | None, destination: UUID | None) -> RequestFacts:
+    """Свойства запроса, по которым правила узнают «свой» случай."""
+    return RequestFacts(
+        origin_fias_id=origin,
+        destination_fias_id=destination,
+        billable_weight_grams=_policy_weight_grams(payload.packages),
+        cargo_value=payload.cargo_value.to_money(),
+        cargo_type=payload.cargo_type,
+        dangerous=payload.dangerous,
+    )
+
+
+def _policy_weight_grams(packages: list[PackageSchema]) -> int:
+    """Расчётный вес всего отправления для правил, в граммах.
+
+    Делитель объёмного веса берётся ПЛАТФОРМЕННЫЙ, а не перевозчика. Правило
+    одно на всех, и порог «тяжелее 30 кг» не может означать у разных
+    перевозчиков разный вес — иначе правило срабатывало бы на части выдачи,
+    и объяснить это оператору было бы нечем.
+
+    Значение по умолчанию выбрано в сторону осторожности (меньший делитель
+    даёт больший объёмный вес), то есть правило скорее сработает, чем нет:
+    ошибаться здесь следует в сторону запрета.
+    """
+    total = sum(
+        chargeable_weight(
+            package.weight_kg,
+            mm_to_cm(package.length_mm),
+            mm_to_cm(package.width_mm),
+            mm_to_cm(package.height_mm),
+        )
+        for package in packages
+    )
+    return int(total * 1000)
+
+
+def _supports_insurance(carrier_code: str) -> bool:
+    """Умеет ли перевозчик страховать. Неизвестный адаптер — считаем, что нет.
+
+    Неподключённый перевозчик всё равно не доедет до сети, и «умеет» о нём
+    было бы обещанием, которое некому исполнить.
+    """
+    try:
+        return registry.get_adapter(carrier_code).capabilities.supports_insurance
+    except LookupError:
+        return False
+
+
+#: Фразы запрета для оператора. Причина машинная, а строка — та, которую
+#: человек прочитает в выдаче, поэтому она называет правило по имени: без
+#: имени у логиста нет ни одного способа выяснить, каким именно запрещено.
+_BLOCKED_MESSAGES = {
+    IneligibilityReason.NOT_IN_WHITELIST: "Не входит в список, разрешённый правилом «{rule}»",
+    IneligibilityReason.CARGO_RESTRICTED: "Правило «{rule}»: перевозчику нельзя такой груз",
+}
+_BLOCKED_DEFAULT = "Запрещено правилом «{rule}»"
+
+
+def _blocked_message(reason: IneligibilityReason | None, rule_name: str | None) -> str:
+    if rule_name is None:
+        return "Запрещено политикой компании"
+    template = _BLOCKED_MESSAGES.get(reason or IneligibilityReason.TENANT_POLICY, _BLOCKED_DEFAULT)
+    return template.format(rule=rule_name)
 
 
 def _place(package: PackageSchema, divisor: int, carrier_computes: bool) -> Place:

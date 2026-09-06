@@ -6,8 +6,9 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from aerogram.routing.rules import RuleActions, RuleBody, RuleConditions
 from aerogram.shared.enums import (
     DecisionMode,
     OverrideReason,
@@ -20,6 +21,10 @@ __all__ = [
     "DecisionResponse",
     "RecommendationOut",
     "RoutingRequestIn",
+    "RoutingRuleIn",
+    "RoutingRuleOut",
+    "RoutingRulePatch",
+    "RoutingRulesOut",
 ]
 
 
@@ -82,3 +87,75 @@ class DecisionResponse(BaseModel):
     decision_id: UUID
     snapshot_id: UUID
     created_at: datetime
+
+
+class RoutingRuleIn(RuleBody):
+    """Новое правило маршрутизации.
+
+    Наследуется от ``RuleBody`` намеренно: состав условий и действий
+    проверяется ровно тем же кодом, что применяется при расчёте. Опиши мы
+    их здесь заново, две проверки однажды разошлись бы — и правило,
+    принятое на запись, перестало бы читаться при применении.
+    """
+
+    name: str = Field(min_length=1, max_length=255)
+    #: Больший приоритет — сильнее. Уникален внутри тенанта: два правила
+    #: с одинаковым приоритетом дали бы разный исход при разном порядке
+    #: чтения строк.
+    priority: int = Field(ge=0)
+    enabled: bool = True
+
+
+class RoutingRulePatch(BaseModel):
+    """Правка правила. Не переданное поле не меняется.
+
+    ``conditions`` и ``actions`` меняются только парой: действие без своего
+    условия и условие без своего действия — это половина правила, и та
+    половина, что осталась от прежнего, почти наверняка означает не то,
+    что человек имел в виду.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    priority: int | None = Field(default=None, ge=0)
+    enabled: bool | None = None
+    conditions: RuleConditions | None = None
+    actions: RuleActions | None = None
+
+    @model_validator(mode="after")
+    def _conditions_and_actions_change_together(self) -> RoutingRulePatch:
+        if (self.conditions is None) != (self.actions is None):
+            raise ValueError("условия и действия правила меняются только вместе")
+        if self.conditions is not None and self.actions is not None:
+            # Та же проверка сочетаемости, что и при создании: иначе правку
+            # можно было бы провести мимо неё.
+            RuleBody(conditions=self.conditions, actions=self.actions)
+        return self
+
+
+class RoutingRuleOut(BaseModel):
+    """Правило маршрутизации в кабинете."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    priority: int
+    enabled: bool
+    conditions: dict[str, Any]
+    actions: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+
+class RoutingRulesOut(BaseModel):
+    """Список правил и версия политики, которую они образуют.
+
+    Версия показывается рядом со списком, потому что она попадает в снимок
+    каждого решения: без неё нельзя понять, та ли это политика, по которой
+    принято решение месяц назад.
+    """
+
+    items: list[RoutingRuleOut]
+    policy_version: str

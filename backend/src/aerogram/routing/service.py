@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from aerogram.rating.models import RateOffer
 from aerogram.rating.repository import RateRepository
 from aerogram.routing.explanation import alternatives_delta, build_facts, render
-from aerogram.routing.models import Decision, Recommendation
+from aerogram.routing.models import Decision, Recommendation, RoutingRule
 from aerogram.routing.repository import RoutingRepository
 from aerogram.routing.rules import EMPTY_POLICY_VERSION, parse_rules, policy_fingerprint
 from aerogram.routing.schemas import (
@@ -23,6 +23,10 @@ from aerogram.routing.schemas import (
     DecisionResponse,
     RecommendationOut,
     RoutingRequestIn,
+    RoutingRuleIn,
+    RoutingRuleOut,
+    RoutingRulePatch,
+    RoutingRulesOut,
 )
 from aerogram.routing.strategies import ALGORITHM_VERSION, OfferFacts, rank
 from aerogram.shared.clock import utcnow
@@ -33,7 +37,7 @@ from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
 from aerogram.shared.money import Money
 
-__all__ = ["DecisionService", "RecommendationService"]
+__all__ = ["DecisionService", "RecommendationService", "RoutingRuleService"]
 
 log = get_logger(__name__)
 
@@ -242,3 +246,96 @@ def _to_out(recommendation: Recommendation) -> RecommendationOut:
         alternatives_delta=recommendation.alternatives_delta or {},
         confidence=recommendation.confidence,
     )
+
+
+class RoutingRuleService:
+    """Правила маршрутизации: чтение и правка корпоративной политики.
+
+    Версия политики пересчитывается при каждом изменении и записывается
+    во ВСЕ правила тенанта. Колонка ``policy_version`` при этом не второй
+    источник истины, а материализация: рекомендация считает отпечаток
+    от самого набора, а тест сверяет их равенство. Разойдись они, это
+    увидит тест, а не аналитик через полгода.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+        self._routing = RoutingRepository(session)
+
+    async def list(self) -> RoutingRulesOut:
+        rules = await self._routing.all_rules()
+        return RoutingRulesOut(
+            items=[RoutingRuleOut.model_validate(rule) for rule in rules],
+            policy_version=await self._version(),
+        )
+
+    async def create(self, payload: RoutingRuleIn, *, tenant_id: UUID) -> RoutingRuleOut:
+        await self._priority_is_free(payload.priority)
+        rule = RoutingRule(
+            id=uuid7(),
+            tenant_id=tenant_id,
+            name=payload.name,
+            priority=payload.priority,
+            enabled=payload.enabled,
+            conditions=payload.conditions.model_dump(mode="json", by_alias=True, exclude_none=True),
+            actions=payload.actions.model_dump(mode="json", exclude_none=True),
+            policy_version=EMPTY_POLICY_VERSION,
+        )
+        self._routing.add_rule(rule)
+        await self._session.flush()
+        await self._restamp()
+        log.info("routing.rule_created", rule_id=str(rule.id), priority=rule.priority)
+        return RoutingRuleOut.model_validate(rule)
+
+    async def update(self, rule_id: UUID, payload: RoutingRulePatch) -> RoutingRuleOut:
+        rule = await self._rule(rule_id)
+        if payload.priority is not None and payload.priority != rule.priority:
+            await self._priority_is_free(payload.priority)
+            rule.priority = payload.priority
+        if payload.name is not None:
+            rule.name = payload.name
+        if payload.enabled is not None:
+            rule.enabled = payload.enabled
+        if payload.conditions is not None and payload.actions is not None:
+            rule.conditions = payload.conditions.model_dump(
+                mode="json", by_alias=True, exclude_none=True
+            )
+            rule.actions = payload.actions.model_dump(mode="json", exclude_none=True)
+        await self._session.flush()
+        await self._restamp()
+        log.info("routing.rule_updated", rule_id=str(rule.id))
+        return RoutingRuleOut.model_validate(rule)
+
+    async def delete(self, rule_id: UUID) -> None:
+        rule = await self._rule(rule_id)
+        await self._routing.delete_rule(rule)
+        await self._session.flush()
+        await self._restamp()
+        log.info("routing.rule_deleted", rule_id=str(rule_id))
+
+    async def _rule(self, rule_id: UUID) -> RoutingRule:
+        rule = await self._routing.get_rule(rule_id)
+        if rule is None:
+            # Чужое правило RLS не отдаёт вовсе, и это тот же 404: наличие
+            # объекта у соседнего тенанта — не то, что стоит подтверждать.
+            raise NotFound("Правило не найдено")
+        return rule
+
+    async def _priority_is_free(self, priority: int) -> None:
+        taken = await self._routing.rule_by_priority(priority)
+        if taken is not None:
+            raise Conflict(f"Приоритет {priority} занят правилом «{taken.name}»", field="priority")
+
+    async def _version(self) -> str:
+        return policy_fingerprint(parse_rules(list(await self._routing.active_rules())))
+
+    async def _restamp(self) -> None:
+        """Записать новую версию политики во все правила тенанта.
+
+        Во все, а не только в изменённое: версия описывает НАБОР, и правило,
+        сохранившее прежнюю, утверждало бы, что политика не менялась.
+        """
+        version = await self._version()
+        for rule in await self._routing.all_rules():
+            rule.policy_version = version
+        await self._session.flush()

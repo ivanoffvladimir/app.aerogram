@@ -42,6 +42,36 @@ class RoutingRepository:
         stmt = select(Decision).where(Decision.idempotency_key == idempotency_key)
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
+    def add_rule(self, rule: RoutingRule) -> RoutingRule:
+        self._session.add(rule)
+        return rule
+
+    async def get_rule(self, rule_id: UUID) -> RoutingRule | None:
+        return await self._session.get(RoutingRule, rule_id)
+
+    async def delete_rule(self, rule: RoutingRule) -> None:
+        await self._session.delete(rule)
+
+    async def all_rules(self) -> list[RoutingRule]:
+        """Все правила тенанта, включая выключенные, по возрастанию приоритета.
+
+        Кабинету нужны и выключенные: правило, которое не видно, нельзя ни
+        включить обратно, ни удалить, — и оно останется висеть в таблице
+        с занятым приоритетом.
+        """
+        stmt = select(RoutingRule).order_by(RoutingRule.priority)
+        return list((await self._session.execute(stmt)).scalars())
+
+    async def rule_by_priority(self, priority: int) -> RoutingRule | None:
+        """Правило с этим приоритетом. Уникальность проверяется до записи.
+
+        Ограничение таблицы всё равно не пропустит второе, но отдать
+        человеку «нарушение уникальности» вместо «этот приоритет занят
+        правилом такого-то» значит переложить на него чтение ошибки БД.
+        """
+        stmt = select(RoutingRule).where(RoutingRule.priority == priority)
+        return (await self._session.execute(stmt)).scalar_one_or_none()
+
     async def active_rules(self) -> list[RoutingRule]:
         """Включённые правила тенанта по возрастанию приоритета."""
         stmt = (

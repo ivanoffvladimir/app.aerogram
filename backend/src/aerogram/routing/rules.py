@@ -44,6 +44,7 @@ __all__ = [
     "Policy",
     "RequestFacts",
     "RuleActions",
+    "RuleBody",
     "RuleConditions",
     "WeightCondition",
     "evaluate",
@@ -294,8 +295,13 @@ class RequestFacts:
     вообще спрашивать, а не какие строки погасить (ADR-0028).
     """
 
-    origin_city_id: UUID | None
-    destination_city_id: UUID | None
+    #: Идентификаторы ФИАС городов отправления и назначения — те самые,
+    #: которые платформа разрешила из адреса запроса. ``None`` означает
+    #: «город не разрешён», и это НЕ совпадает ни с каким перечислением:
+    #: применить правило «в Калининград — только Почтой» к запросу, про
+    #: который мы не знаем, куда он едет, значило бы угадать за человека.
+    origin_fias_id: UUID | None
+    destination_fias_id: UUID | None
     #: Расчётный вес всего отправления в граммах, с учётом объёмного.
     billable_weight_grams: int
     cargo_value: Money
@@ -490,11 +496,11 @@ def _matches_direction(direction: DirectionCondition, facts: RequestFacts) -> bo
     к запросу, про который мы не знаем, куда он едет.
     """
     if direction.from_ is not None and (
-        facts.origin_city_id is None or facts.origin_city_id not in direction.from_
+        facts.origin_fias_id is None or facts.origin_fias_id not in direction.from_
     ):
         return False
     return direction.to is None or (
-        facts.destination_city_id is not None and facts.destination_city_id in direction.to
+        facts.destination_fias_id is not None and facts.destination_fias_id in direction.to
     )
 
 

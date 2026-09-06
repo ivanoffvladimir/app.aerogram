@@ -10,7 +10,33 @@ export type Money = components['schemas']['Money']
 export type Address = components['schemas']['Address']
 export type Package = components['schemas']['Package']
 export type RateRequest = components['schemas']['RateRequest']
-export type RateResponse = components['schemas']['RateResponse']
+/**
+ * Перевозчик, запрещённый правилом маршрутизации. В замороженном контракте
+ * этого нет: язык правил принят отдельным решением, ADR-0028.
+ *
+ * Это не отказ и не предложение. «Не вернул расчёт» про него неправда —
+ * его не спрашивали, — а цены у него нет и не должно быть: тратить вызов
+ * на стоимость варианта, который выбрать нельзя, не на что.
+ */
+export interface BlockedCarrier {
+  carrier_id: string
+  carrier_code: string | null
+  carrier_name: string | null
+  reason: string
+  /** Готовая фраза для оператора: она называет правило по имени. */
+  message: string
+}
+
+/**
+ * Выдача расчёта. `blocked` дописан к типу контракта: поле возвращается
+ * бэкендом, но в замороженной схеме его нет, а без него запрет невидим —
+ * и выдача выглядела бы так, будто платформа ничего не нашла.
+ *
+ * Необязательное намеренно: старый ответ без поля не должен ломать экран.
+ */
+export type RateResponse = components['schemas']['RateResponse'] & {
+  blocked?: BlockedCarrier[]
+}
 export type RateOffer = components['schemas']['RateOffer']
 export type CostComponent = components['schemas']['CostComponent']
 export type CarrierFailure = components['schemas']['CarrierFailure']
@@ -488,6 +514,33 @@ export interface CarrierHealth {
   /** Текст для человека. У успешной проверки его нет. */
   message: string | null
   checked_at: string
+}
+
+/**
+ * Правило маршрутизации (`/v1/routing-rules`). Пути в контракте нет —
+ * состав языка правил принят отдельным решением, ADR-0028, — поэтому тип
+ * написан руками по `routing/schemas.py`.
+ *
+ * `conditions` и `actions` намеренно не типизированы жёстко: их состав
+ * проверяет бэкенд, и вторая копия правил проверки на фронте однажды
+ * разошлась бы с первой. Экран собирает их из полей формы и показывает
+ * человеку то, что вернул сервер.
+ */
+export interface RoutingRule {
+  id: string
+  name: string
+  priority: number
+  enabled: boolean
+  conditions: Record<string, unknown>
+  actions: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface RoutingRules {
+  items: RoutingRule[]
+  /** Отпечаток всего включённого набора: он попадает в снимок каждого решения. */
+  policy_version: string
 }
 
 /** Единый формат ошибки бэкенда. */

@@ -25,6 +25,7 @@ from aerogram.shared.enums import (
 from aerogram.shared.schemas import AddressSchema, MoneySchema, PackageSchema
 
 __all__ = [
+    "BlockedCarrierOut",
     "CarrierFailureOut",
     "CostComponentOut",
     "RateOfferOut",
@@ -48,6 +49,12 @@ class RateRequestIn(BaseModel):
     packages: list[PackageSchema] = Field(min_length=1, max_length=255)
     cargo_value: MoneySchema
     cargo_type: CargoType = CargoType.PARCEL
+    #: Опасный груз. Отдельный признак, а не значение ``cargo_type``: опасным
+    #: бывает и оборудование, и груз, и посылка, и, выбрав одно, мы теряем
+    #: второе (ADR-0028). Признак логический, а не класс ДОПОГ: класс —
+    #: юридическая величина, от которой зависят разрешения и допуск водителя,
+    #: и он появится тогда, когда будет кому его проверять.
+    dangerous: bool = False
     additional_services: list[str] = Field(default_factory=list)
     carrier_whitelist: list[UUID] = Field(default_factory=list)
     carrier_blacklist: list[UUID] = Field(default_factory=list)
@@ -155,12 +162,38 @@ class CarrierFailureOut(BaseModel):
     retryable: bool = False
 
 
+class BlockedCarrierOut(BaseModel):
+    """Перевозчик, которого не спрашивали: запрещён правилом маршрутизации.
+
+    Отдельный список, а не строка среди ``failures`` и не строка среди
+    ``offers``. Отказ означает «перевозчик не вернул расчёт» — здесь это
+    неправда, его не спрашивали. Предложение обязано нести цену — здесь её
+    нет и не должно быть: вызов стоит денег и квоты, а тратить их на цену
+    варианта, который выбрать нельзя, не на что.
+
+    Строка при этом остаётся видимой. Спрятать её значило бы показать клиенту
+    выдачу, в которой платформа «ничего не нашла», умолчав, что нашла и не
+    показала (ADR-0028).
+    """
+
+    carrier_id: UUID
+    carrier_code: str | None = None
+    carrier_name: str | None = None
+    reason: IneligibilityReason
+    #: Готовая фраза для оператора: она называет правило по имени, иначе
+    #: у логиста нет ни одного способа выяснить, каким именно запрещено.
+    message: str
+
+
 class RateResponse(BaseModel):
     """Выдача расчёта (схема ``RateResponse``)."""
 
     quote_id: UUID
     offers: list[RateOfferOut]
     failures: list[CarrierFailureOut]
+    #: Запрещённые политикой тенанта. Поля нет в замороженном контракте:
+    #: клиент от лишнего поля не ломается, а без него запрет невидим.
+    blocked: list[BlockedCarrierOut] = Field(default_factory=list)
     #: true — в срок не укладывается ни одно предложение. Отдельный признак,
     #: а не пустая выдача: альтернативы всё равно показываются.
     no_deadline_match: bool
