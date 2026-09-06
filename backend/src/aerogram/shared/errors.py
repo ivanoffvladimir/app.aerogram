@@ -9,6 +9,7 @@ from __future__ import annotations
 __all__ = [
     "AerogramError",
     "AuthenticationError",
+    "BrokenRoutingRule",
     "CarrierAuthError",
     "CarrierError",
     "CarrierRateLimited",
@@ -75,6 +76,20 @@ class Conflict(AerogramError):
     code = "conflict"
     http_status = 409
     message_ru = "Конфликт состояния"
+
+
+class BrokenRoutingRule(Conflict):
+    """Сохранённое правило маршрутизации не читается разбором.
+
+    Состав правила проверяется при записи, поэтому сюда попадает только то,
+    что изменилось мимо API: правка в базе руками или наш собственный
+    несовместимый разбор. Правило при этом **не игнорируется**: политика,
+    которую нельзя прочитать, обязана остановить расчёт, а не молча
+    разрешить то, что она запрещала.
+    """
+
+    code = "routing_rule_broken"
+    message_ru = "Правило маршрутизации не читается"
 
 
 class AuthenticationError(AerogramError):

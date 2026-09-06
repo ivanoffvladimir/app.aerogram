@@ -17,6 +17,7 @@ from aerogram.rating.repository import RateRepository
 from aerogram.routing.explanation import alternatives_delta, build_facts, render
 from aerogram.routing.models import Decision, Recommendation
 from aerogram.routing.repository import RoutingRepository
+from aerogram.routing.rules import EMPTY_POLICY_VERSION, parse_rules, policy_fingerprint
 from aerogram.routing.schemas import (
     DecisionRequestIn,
     DecisionResponse,
@@ -37,9 +38,10 @@ __all__ = ["DecisionService", "RecommendationService"]
 log = get_logger(__name__)
 
 #: Версия политики, когда у тенанта нет ни одного правила маршрутизации.
-#: Отсутствие правил — тоже политика, и в снимке она обязана быть названа:
-#: пустое поле нельзя отличить от «версию забыли записать».
-DEFAULT_POLICY_VERSION = "default-1"
+#: Живёт рядом с самим отпечатком (``routing.rules``): версия политики
+#: должна вычисляться в одном месте, иначе пустой набор однажды получит
+#: два разных имени.
+DEFAULT_POLICY_VERSION = EMPTY_POLICY_VERSION
 
 
 class RecommendationService:
@@ -97,11 +99,14 @@ class RecommendationService:
     async def _policy_version(self) -> str:
         """Версия политики тенанта на момент рекомендации.
 
-        Берётся от правила с наибольшим приоритетом: именно оно решает исход,
-        когда правила противоречат друг другу.
+        Отпечаток всего включённого набора, а не поле правила с наибольшим
+        приоритетом, как было до ADR-0028: тогда изменение любого другого
+        правила версию не меняло, два разных набора давали одинаковую
+        версию — и по историческому снимку нельзя было понять, по каким
+        правилам принято решение. А поле заведено ровно для этого
+        (продуктовое ТЗ, раздел 8).
         """
-        rules = await self._routing.active_rules()
-        return rules[-1].policy_version if rules else DEFAULT_POLICY_VERSION
+        return policy_fingerprint(parse_rules(list(await self._routing.active_rules())))
 
 
 class DecisionService:
