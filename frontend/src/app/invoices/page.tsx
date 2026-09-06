@@ -4,14 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import {
-  request,
-  tokens,
-  type ApiError,
-  type Reconciliation,
-  type ReconciliationState,
-} from '@/api/client'
+import { request, tokens, type Reconciliation, type ReconciliationState } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import { formatDateTime, formatMoney, formatRate } from '@/lib/format'
 import {
   STATE_LABELS,
@@ -106,11 +101,7 @@ export default function InvoicesPage() {
         </label>
       </div>
 
-      {reconciliation.isError && (
-        <div role="alert" className={styles.empty}>
-          {(reconciliation.error as ApiError).message}
-        </div>
-      )}
+      {reconciliation.isError && <ErrorNote error={reconciliation.error} />}
 
       {currencies.map((totals) => {
         const reconciled = reconciledCount(totals)

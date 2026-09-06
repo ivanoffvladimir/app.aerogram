@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { request, tokens, type ApiError, type User } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import { ROLE_LABELS, TENANT_ROLES } from '@/lib/directory'
 import { formatDateTime } from '@/lib/format'
 import styles from './page.module.css'
@@ -63,11 +64,7 @@ export default function UsersPage() {
         />
       )}
 
-      {users.isError && (
-        <div role="alert" className={styles.empty}>
-          {(users.error as ApiError).message}
-        </div>
-      )}
+      {users.isError && <ErrorNote error={users.error} />}
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>
@@ -184,11 +181,7 @@ function UserForm({
       >
         {pending ? 'Сохраняем…' : 'Добавить'}
       </button>
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error.message}
-        </p>
-      )}
+      {error ? <ErrorNote error={error} /> : null}
     </form>
   )
 }

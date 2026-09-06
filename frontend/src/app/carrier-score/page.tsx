@@ -3,8 +3,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { request, tokens, type ApiError, type CarrierAnalytics } from '@/api/client'
+import { request, tokens, type CarrierAnalytics } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import {
   BASIS_LABELS,
   COMPONENTS,
@@ -56,11 +57,7 @@ export default function CarrierScorePage() {
         компании.
       </p>
 
-      {analytics.isError && (
-        <div role="alert" className={styles.empty}>
-          {(analytics.error as ApiError).message}
-        </div>
-      )}
+      {analytics.isError && <ErrorNote error={analytics.error} />}
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>

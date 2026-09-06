@@ -4,8 +4,9 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { request, tokens, type ApiError, type ShipmentPage } from '@/api/client'
+import { request, tokens, type ShipmentPage } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import { formatDateTime, formatMoney } from '@/lib/format'
 import { SHIPMENT_STATUS_LABELS, statusTone } from '@/lib/shipmentStatus'
 import styles from './page.module.css'
@@ -90,11 +91,7 @@ export default function ShipmentsPage() {
         <button type="submit">Найти</button>
       </form>
 
-      {shipments.isError && (
-        <div role="alert" className={styles.empty}>
-          {(shipments.error as ApiError).message}
-        </div>
-      )}
+      {shipments.isError && <ErrorNote error={shipments.error} />}
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>
@@ -135,9 +132,7 @@ export default function ShipmentsPage() {
                     {formatDateTime(shipment.deadline)}
                   </td>
                   <td>
-                    {shipment.quoted_total_cost
-                      ? formatMoney(shipment.quoted_total_cost)
-                      : '—'}
+                    {shipment.quoted_total_cost ? formatMoney(shipment.quoted_total_cost) : '—'}
                   </td>
                   <td>{formatDateTime(shipment.created_at)}</td>
                 </tr>

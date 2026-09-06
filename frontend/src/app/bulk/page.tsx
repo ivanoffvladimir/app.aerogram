@@ -14,6 +14,7 @@ import {
   type BulkRunPage,
 } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import {
   IMPORT_STATUS_LABELS,
   formatDestination,
@@ -49,7 +50,10 @@ export default function BulkListPage() {
   const [valueMinor, setValueMinor] = useState('100000')
   const [preview, setPreview] = useState<BulkImport | null>(null)
   const [choices, setChoices] = useState<Choices>({})
-  const [formError, setFormError] = useState<string | null>(null)
+  // Хранится САМА ошибка, а не её текст: из текста уже не достать
+  // идентификатор запроса. Собственные сообщения проверки формы
+  // кладутся сюда строкой и показываются как есть.
+  const [formError, setFormError] = useState<unknown>(null)
 
   const runs = useQuery({
     queryKey: ['bulk-runs'],
@@ -63,7 +67,7 @@ export default function BulkListPage() {
       setPreview(result)
       setChoices({})
     },
-    onError: (error: ApiError) => setFormError(error.message),
+    onError: (error: ApiError) => setFormError(error),
   })
 
   const create = useMutation({
@@ -73,7 +77,7 @@ export default function BulkListPage() {
       void queryClient.invalidateQueries({ queryKey: ['bulk-runs'] })
       router.push(`/bulk/view?id=${run.id}`)
     },
-    onError: (error: ApiError) => setFormError(error.message),
+    onError: (error: ApiError) => setFormError(error),
   })
 
   // Список изменился — предпросмотр устарел: показывать старый подбор
@@ -234,7 +238,7 @@ export default function BulkListPage() {
         <p className={styles.counterLabel}>
           Общий груз применяется к строкам, у которых в файле не назван свой вес или ценность.
         </p>
-        {formError ? <p className={styles.error}>{formError}</p> : null}
+        {formError ? <ErrorNote error={formError} /> : null}
 
         {preview ? (
           <div className={styles.preview}>

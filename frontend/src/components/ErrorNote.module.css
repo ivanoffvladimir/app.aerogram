@@ -1,0 +1,54 @@
+/* Ошибка заметна, но не кричит: она сообщает, а не блокирует экран. */
+.note {
+  border: 1px solid var(--warning, #b9770e);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px 14px;
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.message {
+  display: block;
+}
+
+/* Подробности свёрнуты: оператору нужен текст, а код и идентификатор —
+   только когда он пишет в поддержку. */
+.details {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.details summary {
+  cursor: pointer;
+}
+
+.list {
+  margin: 6px 0 0;
+  display: grid;
+  gap: 2px;
+}
+
+.row {
+  display: flex;
+  gap: 6px;
+}
+
+.row dt::after {
+  content: ':';
+}
+
+.row dd {
+  margin: 0;
+  /* Идентификатор читают и переписывают: моноширинный шрифт спасает
+     от путаницы нуля с буквой O. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  user-select: all;
+}
+
+.copy {
+  margin-top: 8px;
+  font-size: 12px;
+  padding: 4px 10px;
+}

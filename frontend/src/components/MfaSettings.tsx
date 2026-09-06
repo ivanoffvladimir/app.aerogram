@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import type { ApiError, MfaSetup } from '@/api/client'
+import type { MfaSetup } from '@/api/client'
+import { ErrorNote } from './ErrorNote'
 import { QrCode } from './QrCode'
 import styles from './MfaSettings.module.css'
 
@@ -35,14 +36,17 @@ export function groupSecret(secret: string): string {
 export function MfaSettings({ enabled, pending, onSetup, onEnable, onDisable }: Props) {
   const [setup, setSetup] = useState<MfaSetup | null>(null)
   const [code, setCode] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  // Хранится САМА ошибка, а не её текст: из текста уже не достать
+  // идентификатор запроса. Сообщения проверки формы кладутся сюда
+  // строкой и показываются как есть.
+  const [error, setError] = useState<unknown>(null)
 
   async function run(action: () => Promise<unknown>) {
     setError(null)
     try {
       await action()
     } catch (caught) {
-      setError((caught as ApiError).message ?? 'Не получилось')
+      setError(caught)
     }
   }
 
@@ -84,11 +88,7 @@ export function MfaSettings({ enabled, pending, onSetup, onEnable, onDisable }: 
             Отключить
           </button>
         </form>
-        {error ? (
-          <p role="alert" className={styles.error}>
-            {error}
-          </p>
-        ) : null}
+        {error ? <ErrorNote error={error} /> : null}
       </section>
     )
   }
@@ -159,11 +159,7 @@ export function MfaSettings({ enabled, pending, onSetup, onEnable, onDisable }: 
           </form>
         </>
       )}
-      {error ? (
-        <p role="alert" className={styles.error}>
-          {error}
-        </p>
-      ) : null}
+      {error ? <ErrorNote error={error} /> : null}
     </section>
   )
 }

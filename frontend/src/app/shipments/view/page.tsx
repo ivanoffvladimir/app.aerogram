@@ -4,14 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
-import {
-  request,
-  tokens,
-  type ApiError,
-  type Shipment,
-  type TrackingEvent,
-} from '@/api/client'
+import { request, tokens, type ApiError, type Shipment, type TrackingEvent } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import { formatDateTime, formatMoney } from '@/lib/format'
 import {
   EVENT_STATUS_LABELS,
@@ -38,7 +33,7 @@ function ShipmentCard() {
   const router = useRouter()
   const id = useSearchParams().get('id') ?? ''
   const client = useQueryClient()
-  const [failure, setFailure] = useState<ApiError | null>(null)
+  const [failure, setFailure] = useState<unknown>(null)
 
   useEffect(() => {
     if (!tokens.access()) router.replace('/login')
@@ -61,7 +56,7 @@ function ShipmentCard() {
       client.setQueryData(['shipment', id], updated)
       void client.invalidateQueries({ queryKey: ['shipments'] })
     },
-    onError: (error) => setFailure(error as ApiError),
+    onError: (error) => setFailure(error),
   })
 
   if (shipment.isError) {
@@ -69,17 +64,14 @@ function ShipmentCard() {
     return (
       <AppShell>
         <h1>Отправление</h1>
-        <p role="alert">
-          {error.status === 404 ? 'Отправление не найдено.' : error.message}
-        </p>
+        <p role="alert">{error.status === 404 ? 'Отправление не найдено.' : error.message}</p>
         <Link href="/shipments">Ко всем отправлениям</Link>
       </AppShell>
     )
   }
 
   const data = shipment.data
-  const late =
-    data?.deadline && data.eta && new Date(data.eta) > new Date(data.deadline)
+  const late = data?.deadline && data.eta && new Date(data.eta) > new Date(data.deadline)
   // Отмена доступна, пока перевозчик её принимает. Финальные статусы кнопку
   // прячут: нажать её всё равно нельзя, а видеть недоступное действие
   // на карточке доставленного груза только сбивает.
@@ -89,27 +81,16 @@ function ShipmentCard() {
     <AppShell>
       <div className={styles.header}>
         <h1>{data?.number ?? 'Отправление'}</h1>
-        {data && (
-          <span>{SHIPMENT_STATUS_LABELS[data.status] ?? data.status}</span>
-        )}
+        {data && <span>{SHIPMENT_STATUS_LABELS[data.status] ?? data.status}</span>}
         {cancellable && (
-          <button
-            type="button"
-            onClick={() => cancel.mutate()}
-            disabled={cancel.isPending}
-          >
+          <button type="button" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
             {cancel.isPending ? 'Отменяем…' : 'Отменить отправление'}
           </button>
         )}
         <Link href="/shipments">Ко всем отправлениям</Link>
       </div>
 
-      {failure && (
-        <p role="alert">
-          {failure.message}
-          {failure.requestId && <span className={styles.raw}> · {failure.requestId}</span>}
-        </p>
-      )}
+      {failure ? <ErrorNote error={failure} /> : null}
 
       <div className={styles.grid}>
         <section className={styles.card}>
@@ -149,7 +130,10 @@ function ShipmentCard() {
               {/* Свежие сверху: оператор открывает карточку ради последнего
                   события, а не ради истории с начала. */}
               {[...timeline.data].reverse().map((event) => (
-                <li key={`${event.occurred_at}-${event.carrier_status}`} className={styles.event}>
+                <li
+                  key={`${event.occurred_at}-${event.carrier_status}`}
+                  className={styles.event}
+                >
                   <div className={styles.eventStatus}>
                     {EVENT_STATUS_LABELS[event.normalized_status] ?? event.normalized_status}
                   </div>
@@ -157,7 +141,9 @@ function ShipmentCard() {
                     {formatDateTime(event.occurred_at)}
                     {event.location ? ` · ${event.location}` : ''}
                   </div>
-                  {event.description && <div className={styles.eventMeta}>{event.description}</div>}
+                  {event.description && (
+                    <div className={styles.eventMeta}>{event.description}</div>
+                  )}
                   {/* Статус перевозчика показывается рядом с нашим: звонить
                       в службу поддержки ТК оператор будет на их языке. */}
                   {event.carrier_status && (

@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
-  ApiError,
   request,
   tokens,
   type DecisionResponse,
@@ -17,6 +16,7 @@ import {
   type Shipment,
 } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import { OfferCard } from '@/components/OfferCard'
 import { OverrideDialog } from '@/components/OverrideDialog'
 import { CONFIDENCE_LABELS, formatDateTime, formatMoney } from '@/lib/format'
@@ -53,7 +53,10 @@ export default function RateShoppingPage() {
   const [overriding, setOverriding] = useState<RateOffer | null>(null)
   const [decision, setDecision] = useState<DecisionResponse | null>(null)
   const [shipment, setShipment] = useState<Shipment | null>(null)
-  const [failure, setFailure] = useState<ApiError | null>(null)
+  // ``unknown``, а не ``ApiError``: приведение теряло обрыв связи целиком —
+  // `error instanceof ApiError ? error : null` глотал его молча, и экран
+  // оставался без единого следа неудачи.
+  const [failure, setFailure] = useState<unknown>(null)
   const [now, setNow] = useState(() => Date.now())
   //: Ключи идемпотентности выбора. Ref, а не состояние: их изменение
   //  не должно вызывать перерисовку.
@@ -100,7 +103,7 @@ export default function RateShoppingPage() {
       }),
     onMutate: () => setFailure(null),
     onSuccess: (created) => setShipment(created),
-    onError: (error) => setFailure(error as ApiError),
+    onError: (error) => setFailure(error),
   })
 
   const rates = useMutation({
@@ -144,7 +147,7 @@ export default function RateShoppingPage() {
       decisionKeys.current.clear()
       recommend.mutate({ quoteId: data.quote_id, strategy })
     },
-    onError: (error) => setFailure(error instanceof ApiError ? error : null),
+    onError: (error) => setFailure(error),
   })
 
   const recommend = useMutation({
@@ -156,7 +159,7 @@ export default function RateShoppingPage() {
         body: { quote_id: quoteId, strategy: chosen },
       }),
     onSuccess: setRecommendation,
-    onError: (error) => setFailure(error instanceof ApiError ? error : null),
+    onError: (error) => setFailure(error),
   })
 
   const decide = useMutation({
@@ -195,7 +198,7 @@ export default function RateShoppingPage() {
       setOverriding(null)
     },
     onError: (error) => {
-      setFailure(error instanceof ApiError ? error : null)
+      setFailure(error)
       setOverriding(null)
     },
   })
@@ -252,7 +255,12 @@ export default function RateShoppingPage() {
           </div>
           <div>
             <label htmlFor="cargoValueRub">Стоимость груза, ₽</label>
-            <input id="cargoValueRub" type="number" step="0.01" {...register('cargoValueRub')} />
+            <input
+              id="cargoValueRub"
+              type="number"
+              step="0.01"
+              {...register('cargoValueRub')}
+            />
           </div>
           <div>
             <label htmlFor="deadline">Крайний срок доставки</label>
@@ -262,7 +270,8 @@ export default function RateShoppingPage() {
 
         <div className={styles.actions}>
           <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', margin: 0 }}>
-            <input type="checkbox" style={{ width: 'auto' }} {...register('pickup')} /> Забор груза
+            <input type="checkbox" style={{ width: 'auto' }} {...register('pickup')} /> Забор
+            груза
           </label>
           <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', margin: 0 }}>
             <input type="checkbox" style={{ width: 'auto' }} {...register('doorDelivery')} />
@@ -278,14 +287,7 @@ export default function RateShoppingPage() {
         </div>
       </form>
 
-      {failure && (
-        <div className={styles.danger} role="alert">
-          {failure.message}
-          {failure.requestId && (
-            <div className={styles.requestId}>Идентификатор запроса: {failure.requestId}</div>
-          )}
-        </div>
-      )}
+      {failure ? <ErrorNote error={failure} /> : null}
 
       {rates.isPending && <div className={styles.skeleton} />}
 
@@ -311,15 +313,15 @@ export default function RateShoppingPage() {
             <div className={styles.warning}>
               {/* Показывается сообщение перевозчика, а не машинный код: код
                   оператору ничего не говорит, а решение принимать ему. */}
-              Часть перевозчиков не ответила:{' '}
-              {quote.failures.map((f) => f.message).join('; ')}.
+              Часть перевозчиков не ответила: {quote.failures.map((f) => f.message).join('; ')}.
               {offers.length > 0 && ' Остальные варианты доступны для выбора.'}
             </div>
           )}
 
           {quote.no_deadline_match && (
             <div className={styles.danger}>
-              В указанный срок не укладывается ни один перевозчик. Ниже — ближайшие альтернативы.
+              В указанный срок не укладывается ни один перевозчик. Ниже — ближайшие
+              альтернативы.
             </div>
           )}
 
@@ -332,7 +334,8 @@ export default function RateShoppingPage() {
           {decision && (
             <div className={styles.card} style={{ borderColor: 'var(--success)' }}>
               <strong>Решение зафиксировано.</strong> Снимок {decision.snapshot_id.slice(0, 8)},
-              решение {decision.decision_id.slice(0, 8)} от {formatDateTime(decision.created_at)}.
+              решение {decision.decision_id.slice(0, 8)} от{' '}
+              {formatDateTime(decision.created_at)}.
               <div style={{ marginTop: 12 }}>
                 {shipment ? (
                   <>
@@ -371,7 +374,9 @@ export default function RateShoppingPage() {
               </div>
 
               <ul className={styles.explanation}>
-                {recommendation.explanation?.map((line) => <li key={line}>{line}</li>)}
+                {recommendation.explanation?.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
               </ul>
 
               <div className={styles.actions}>
@@ -411,7 +416,9 @@ export default function RateShoppingPage() {
               key={offer.id}
               offer={offer}
               onSelect={selectOffer}
-              selectDisabled={isStale || decide.isPending || Boolean(decision) || !recommendation}
+              selectDisabled={
+                isStale || decide.isPending || Boolean(decision) || !recommendation
+              }
             />
           ))}
 

@@ -4,8 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { request, tokens, type ApiError, type ShipmentExceptionsPage } from '@/api/client'
+import { request, tokens, type ShipmentExceptionsPage } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import { EXCEPTION_REASONS, describeReason } from '@/lib/exceptionReason'
 import { formatDateTime } from '@/lib/format'
 import { SHIPMENT_STATUS_LABELS } from '@/lib/shipmentStatus'
@@ -69,11 +70,7 @@ export default function TrackingPage() {
         </div>
       )}
 
-      {exceptions.isError && (
-        <div role="alert" className={styles.empty}>
-          {(exceptions.error as ApiError).message}
-        </div>
-      )}
+      {exceptions.isError && <ErrorNote error={exceptions.error} />}
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>

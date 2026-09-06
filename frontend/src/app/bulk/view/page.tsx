@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect } from 'react'
-import { request, tokens, type ApiError, type BulkRun } from '@/api/client'
+import { request, tokens, type BulkRun } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import { describeAddress } from '@/lib/bulkRows'
 import { ROW_STATUS_LABELS, RUN_STATUS_LABELS, nextStep } from '@/lib/bulkStatus'
 import { formatDateTime } from '@/lib/format'
@@ -74,11 +75,7 @@ function BulkRunRegister() {
         )}
       </p>
 
-      {run.isError && (
-        <div role="alert" className={styles.error}>
-          {(run.error as ApiError).message}
-        </div>
-      )}
+      {run.isError && <ErrorNote error={run.error} />}
 
       <div className={styles.counters}>
         {COUNTER_ORDER.map((key) => (
@@ -111,11 +108,7 @@ function BulkRunRegister() {
         )}
       </div>
 
-      {advance.isError && (
-        <div role="alert" className={styles.error}>
-          {(advance.error as ApiError).message}
-        </div>
-      )}
+      {advance.isError && <ErrorNote error={advance.error} />}
 
       <p className={styles.hint}>
         Тариф по отдельной строке меняется обычным решением с заменой на экране «Расчёт и выбор»

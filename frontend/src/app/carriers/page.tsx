@@ -6,12 +6,12 @@ import { useEffect, useState } from 'react'
 import {
   request,
   tokens,
-  type ApiError,
   type CarrierAnalytics,
   type CarrierConnection,
   type CarrierHealth,
 } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import { ACCOUNT_STATUS_LABELS, CARRIER_MODE_LABELS, healthText } from '@/lib/directory'
 import { CONFIDENCE_LABELS, formatPercent } from '@/lib/format'
 import styles from './page.module.css'
@@ -74,8 +74,8 @@ export default function CarriersPage() {
         вводятся один раз и обратно не показываются: увидеть можно только то, какие поля нужны.
       </p>
 
-      {connections.isError && <p role="alert">{(connections.error as ApiError).message}</p>}
-      {check.isError && <p role="alert">{(check.error as ApiError).message}</p>}
+      {connections.isError && <ErrorNote error={connections.error} />}
+      {check.isError && <ErrorNote error={check.error} />}
 
       <div className={styles.tableWrap} style={{ marginBottom: 32 }}>
         <table className={styles.table}>
@@ -158,7 +158,7 @@ export default function CarriersPage() {
         экране «Carrier Score».
       </p>
 
-      {carriers.isError && <p role="alert">{(carriers.error as ApiError).message}</p>}
+      {carriers.isError && <ErrorNote error={carriers.error} />}
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>

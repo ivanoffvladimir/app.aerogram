@@ -4,8 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { request, tokens, type ApiError, type Summary } from '@/api/client'
+import { request, tokens, type Summary } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import { describeReason } from '@/lib/exceptionReason'
 import { formatMoney, formatRate } from '@/lib/format'
 import { OVERRIDE_REASON_LABELS } from '@/lib/overrideReason'
@@ -51,11 +52,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {summary.isError && (
-        <div role="alert" className={styles.empty}>
-          {(summary.error as ApiError).message}
-        </div>
-      )}
+      {summary.isError && <ErrorNote error={summary.error} />}
 
       <div className={styles.cards}>
         <div className={styles.card}>

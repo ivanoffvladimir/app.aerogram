@@ -13,6 +13,7 @@ import {
 } from '@/api/client'
 import { AddressBookEdit } from '@/components/AddressBookEdit'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import { COUNTERPARTY_TYPE_LABELS, formatAddress } from '@/lib/directory'
 import styles from './page.module.css'
 
@@ -123,11 +124,7 @@ export default function CounterpartiesPage() {
         <button type="submit">Найти</button>
       </form>
 
-      {counterparties.isError && (
-        <div role="alert" className={styles.empty}>
-          {(counterparties.error as ApiError).message}
-        </div>
-      )}
+      {counterparties.isError && <ErrorNote error={counterparties.error} />}
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>
@@ -312,11 +309,7 @@ function CounterpartyForm({
       <button type="submit" disabled={pending || name.trim() === ''}>
         {pending ? 'Сохраняем…' : 'Сохранить'}
       </button>
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error.message}
-        </p>
-      )}
+      {error ? <ErrorNote error={error} /> : null}
     </form>
   )
 }

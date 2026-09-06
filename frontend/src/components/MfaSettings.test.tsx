@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@/api/client'
 import { MfaSettings, groupSecret } from './MfaSettings'
 
 const SETUP = {
@@ -73,13 +74,60 @@ describe('MfaSettings', () => {
 
   it('показывает ошибку сервера, а не глотает её', async () => {
     const user = userEvent.setup()
+    // Настоящая ApiError, а не голый объект: раньше двойник проходил
+    // только из-за приведения типа без проверки, и тест не касался того
+    // пути, которым ошибка идёт в бою.
     renderOff({
-      onSetup: vi.fn().mockRejectedValue({ message: 'Второй фактор уже подключён' }),
+      onSetup: vi.fn().mockRejectedValue(
+        new ApiError(409, {
+          error: {
+            code: 'conflict',
+            message: 'Второй фактор уже подключён',
+            field: null,
+            carrier_code: null,
+            request_id: 'IIuhgQW2Qhn5AR7F',
+          },
+        }),
+      ),
     })
 
     await user.click(screen.getByRole('button', { name: 'Подключить' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Второй фактор уже подключён')
+  })
+
+  it('к ошибке сервера прилагается идентификатор запроса', async () => {
+    // Фронт-ТЗ, раздел 3: по нему поддержка находит запрос в логах.
+    const user = userEvent.setup()
+    renderOff({
+      onSetup: vi.fn().mockRejectedValue(
+        new ApiError(409, {
+          error: {
+            code: 'conflict',
+            message: 'Второй фактор уже подключён',
+            field: null,
+            carrier_code: null,
+            request_id: 'IIuhgQW2Qhn5AR7F',
+          },
+        }),
+      ),
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Подключить' }))
+    await user.click(await screen.findByText('Технические подробности'))
+
+    expect(screen.getByText('IIuhgQW2Qhn5AR7F')).toBeInTheDocument()
+  })
+
+  it('сообщение проверки формы показывается как есть', async () => {
+    // Оно наше, а не серверное, и подменять его общим текстом значило бы
+    // спрятать единственную подсказку, которая человеку и нужна.
+    const user = userEvent.setup()
+    renderOff({ enabled: true })
+
+    await user.click(screen.getByRole('button', { name: 'Отключить' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('шесть цифр')
   })
 
   it('отключение требует действующий код', async () => {

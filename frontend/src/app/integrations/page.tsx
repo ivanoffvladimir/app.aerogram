@@ -3,8 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { request, tokens, type ApiError, type ApiKey, type ApiKeyCreated } from '@/api/client'
+import { request, tokens, type ApiKey, type ApiKeyCreated } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { ErrorNote } from '@/components/ErrorNote'
 import { API_SCOPES, scopeLabel } from '@/lib/apiScope'
 import { formatDateTime } from '@/lib/format'
 import styles from './page.module.css'
@@ -15,7 +16,9 @@ export default function IntegrationsPage() {
   const [name, setName] = useState('')
   const [scopes, setScopes] = useState<string[]>([])
   const [issued, setIssued] = useState<ApiKeyCreated | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // Хранится САМА ошибка, а не её текст: из текста уже не достать
+  // идентификатор запроса, по которому поддержка находит запись в логах.
+  const [error, setError] = useState<unknown>(null)
 
   useEffect(() => {
     if (!tokens.access()) router.replace('/login')
@@ -37,7 +40,7 @@ export default function IntegrationsPage() {
       setError(null)
       void queryClient.invalidateQueries({ queryKey: ['api-keys'] })
     },
-    onError: (cause) => setError((cause as ApiError).message),
+    onError: (cause) => setError(cause),
   })
 
   const revoke = useMutation({
@@ -45,7 +48,7 @@ export default function IntegrationsPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['api-keys'] })
     },
-    onError: (cause) => setError((cause as ApiError).message),
+    onError: (cause) => setError(cause),
   })
 
   const toggle = (value: string) =>
@@ -107,11 +110,7 @@ export default function IntegrationsPage() {
           ))}
         </div>
 
-        {error && (
-          <div className={styles.error} role="alert">
-            {error}
-          </div>
-        )}
+        {error ? <ErrorNote error={error} /> : null}
 
         {/* Ключ без прав ничего не может, поэтому кнопка недоступна:
             сервер такой запрос всё равно отклонит. */}
