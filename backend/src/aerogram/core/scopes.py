@@ -68,6 +68,10 @@ MACHINE_SCOPES: dict[tuple[str, str], str] = {
     ("GET", "/v1/reports/summary"): "analytics:read",
     ("POST", "/v1/addresses/normalize"): "directories:read",
     ("GET", "/v1/cities/suggest"): "directories:read",
+    # Чтение уже выбранных городов по ФИАС. Та же область, что у подсказок:
+    # это тот же справочник, и в нём нет ничего тенантского — города общие,
+    # таблица под RLS не находится.
+    ("GET", "/v1/cities"): "directories:read",
     ("POST", "/v1/parties/lookup"): "directories:read",
     ("GET", "/v1/webhooks/subscriptions"): "webhooks:read",
     ("POST", "/v1/webhooks/subscriptions"): "webhooks:write",

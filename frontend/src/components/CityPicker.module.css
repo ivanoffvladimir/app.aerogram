@@ -1,0 +1,97 @@
+.picker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 260px;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.chosen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.chip button {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+/* Список подсказок перекрывает то, что под ним: в форме под ним стоят другие
+   поля, и раздвигание разметки на каждую букву делает ввод неуправляемым. */
+.options {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
+}
+
+.options button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+}
+
+.options button:hover,
+.options button:focus-visible {
+  background: var(--accent-soft, rgba(37, 99, 235, 0.1));
+}
+
+.name {
+  font-size: 14px;
+}
+
+.region {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.degraded {
+  font-size: 12px;
+  color: var(--warning, #b9770e);
+  margin: 0;
+}
+
+.empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}

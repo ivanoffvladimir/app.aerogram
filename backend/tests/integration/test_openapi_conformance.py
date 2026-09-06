@@ -59,6 +59,7 @@ BEYOND_CONTRACT: frozenset[str] = frozenset(
         # Справочники: вход оператора, а не публичный контракт.
         "/v1/addresses/normalize",
         "/v1/cities/suggest",
+        "/v1/cities",
         "/v1/carriers/{code}/terminals",
         # Проверка подключения: системное ТЗ (раздел 9) и фронт-ТЗ (раздел 8)
         # её требуют, пути в замороженном контракте нет.

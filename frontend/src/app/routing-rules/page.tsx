@@ -7,16 +7,19 @@ import {
   request,
   tokens,
   type CarrierConnection,
+  type City,
   type RoutingRule,
   type RoutingRules,
 } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
+import { CityPicker } from '@/components/CityPicker'
 import { ErrorNote } from '@/components/ErrorNote'
 import { formatDateTime } from '@/lib/format'
 import {
   ACTION_LABELS,
   CARGO_TYPE_LABELS,
   SELECTION_LABELS,
+  citiesInRules,
   describeAction,
   describeConditions,
   type RuleActionKind,
@@ -41,6 +44,8 @@ interface Draft {
   carriers: string[]
   cargoTypes: string[]
   dangerous: string
+  from: string[]
+  to: string[]
   minKg: string
   maxKg: string
   minValue: string
@@ -55,6 +60,8 @@ const EMPTY: Draft = {
   carriers: [],
   cargoTypes: [],
   dangerous: '',
+  from: [],
+  to: [],
   minKg: '',
   maxKg: '',
   minValue: '',
@@ -69,6 +76,15 @@ function toBody(draft: Draft) {
   }
   if (draft.cargoTypes.length > 0) conditions.cargo_type = draft.cargoTypes
   if (draft.dangerous) conditions.dangerous = draft.dangerous === 'true'
+
+  // Направление без единой стороны — это не «любое направление», а условие,
+  // которое бэкенд отвергнет: оно не значит ничего.
+  if (draft.from.length > 0 || draft.to.length > 0) {
+    conditions.direction = {
+      ...(draft.from.length > 0 && { from: draft.from }),
+      ...(draft.to.length > 0 && { to: draft.to }),
+    }
+  }
 
   const min = kgToGrams(draft.minKg)
   const max = kgToGrams(draft.maxKg)
@@ -155,6 +171,18 @@ export default function RoutingRulesPage() {
 
   const items = rules.data?.items ?? []
   const connected = (carriers.data ?? []).filter((carrier) => carrier.connected)
+
+  // Названия городов для условий по направлению: в правиле лежат только
+  // идентификаторы ФИАС, и без этого запроса направление читалось бы как
+  // «2 города» — проверить такое правило нельзя, исправить тем более.
+  const usedCities = citiesInRules(items)
+  const cities = useQuery({
+    queryKey: ['cities', usedCities],
+    queryFn: () =>
+      request<City[]>(`/cities?${usedCities.map((id) => `fias_id=${id}`).join('&')}`),
+    enabled: usedCities.length > 0,
+  })
+  const cityNames = new Map((cities.data ?? []).map((city) => [city.fias_id, city.name]))
 
   return (
     <AppShell>
@@ -340,6 +368,25 @@ export default function RoutingRulesPage() {
               Вес — <b>расчётный</b>, с учётом объёмного: правило «тяжелее 30 кг» обязано
               срабатывать на том же числе, которое попадёт в счёт.
             </p>
+
+            <div className={styles.row}>
+              <CityPicker
+                label="Откуда"
+                value={draft.from}
+                onChange={(from) => setDraft({ ...draft, from })}
+              />
+              <CityPicker
+                label="Куда"
+                value={draft.to}
+                onChange={(to) => setDraft({ ...draft, to })}
+              />
+            </div>
+            <p className={styles.muted}>
+              Пустая сторона означает «любая»: «Куда — Калининград» без «Откуда» — это правило
+              про всё, что едет в Калининград. Регионов в условии нет намеренно: регион в адресе
+              необязателен и в снимках обычно пуст, а правило, собранное из пустого поля, молча
+              не совпало бы ни с чем.
+            </p>
             <div className={styles.checks}>
               {Object.entries(CARGO_TYPE_LABELS).map(([value, label]) => (
                 <label key={value} className={styles.check}>
@@ -388,7 +435,7 @@ export default function RoutingRulesPage() {
                 <td className={styles.strong}>{rule.name}</td>
                 <td>
                   <ul className={styles.conditions}>
-                    {describeConditions(rule.conditions).map((line) => (
+                    {describeConditions(rule.conditions, cityNames).map((line) => (
                       <li key={line}>{line}</li>
                     ))}
                   </ul>

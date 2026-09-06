@@ -11,6 +11,35 @@
  * разошлась бы с той, что стоит на бэкенде, и разошлась бы молча.
  */
 
+/**
+ * Сколько идентификаторов принимает `GET /v1/cities` за раз.
+ *
+ * Ограничение бэкенда, а не наше пожелание: превышение даёт 422. Список
+ * поэтому подрезается здесь, а не отправляется целиком в надежде, что
+ * поместится.
+ */
+export const MAX_CITY_LOOKUP = 50
+
+/** Идентификаторы ФИАС всех городов, названные условиями набора правил.
+ *
+ *  Нужны одним списком: запрос на каждое правило означал бы десяток
+ *  обращений там, где хватает одного. Список подрезан: сверх предела
+ *  названия просто не придут, и правило покажет счёт — так же, как оно
+ *  показывает его, пока названия ещё грузятся. Это деградация показа,
+ *  а не потеря условия. */
+export function citiesInRules(rules: { conditions: Record<string, unknown> }[]): string[] {
+  const found = new Set<string>()
+  for (const rule of rules) {
+    const direction = rule.conditions.direction
+    if (!direction || typeof direction !== 'object') continue
+    for (const side of ['from', 'to'] as const) {
+      const list = (direction as Record<string, unknown>)[side]
+      if (Array.isArray(list)) list.forEach((id) => found.add(String(id)))
+    }
+  }
+  return [...found].sort().slice(0, MAX_CITY_LOOKUP)
+}
+
 /** Действия языка правил. Ровно одно на правило. */
 export type RuleActionKind = 'deny' | 'allow' | 'require_insurance' | 'auto_select'
 
@@ -59,7 +88,10 @@ export function describeAction(actions: Record<string, unknown>): string {
  * в одну строку читается хуже, чем два пункта: в сплошной фразе «и»
  * теряется, а от него зависит, срабатывает правило или нет.
  */
-export function describeConditions(conditions: Record<string, unknown>): string[] {
+export function describeConditions(
+  conditions: Record<string, unknown>,
+  names?: ReadonlyMap<string, string>,
+): string[] {
   const parts: string[] = []
 
   const carrier = conditions.carrier
@@ -70,9 +102,11 @@ export function describeConditions(conditions: Record<string, unknown>): string[
     const from = (direction as Record<string, unknown>).from
     const to = (direction as Record<string, unknown>).to
     const sides: string[] = []
-    if (Array.isArray(from)) sides.push(`из ${from.length} городов`)
-    if (Array.isArray(to)) sides.push(`в ${to.length} городов`)
-    parts.push(`направление: ${sides.join(', ')}`)
+    // «откуда Москва», а не «из Москвы»: склонять названия городов нечем,
+    // а «из Москва» читается как ошибка платформы, а не как экономия.
+    if (Array.isArray(from)) sides.push(`откуда ${cities(from, names)}`)
+    if (Array.isArray(to)) sides.push(`куда ${cities(to, names)}`)
+    parts.push(`направление: ${sides.join('; ')}`)
   }
 
   const weight = conditions.weight
@@ -93,8 +127,8 @@ export function describeConditions(conditions: Record<string, unknown>): string[
 
   const cargoType = conditions.cargo_type
   if (Array.isArray(cargoType)) {
-    const names = cargoType.map((type) => CARGO_TYPE_LABELS[String(type)] ?? String(type))
-    parts.push(`тип груза: ${names.join(', ')}`)
+    const typeNames = cargoType.map((type) => CARGO_TYPE_LABELS[String(type)] ?? String(type))
+    parts.push(`тип груза: ${typeNames.join(', ')}`)
   }
 
   if (conditions.dangerous === true) parts.push('только опасные грузы')
@@ -103,6 +137,36 @@ export function describeConditions(conditions: Record<string, unknown>): string[
   // Пустое условие — законная запись, и молчать о ней нельзя: правило
   // «запретить» без условий запрещает всех, и это должно быть видно.
   return parts.length > 0 ? parts : ['любой запрос']
+}
+
+/**
+ * Список городов условия: названиями, если они известны.
+ *
+ * Названий может не быть — их приносит отдельный запрос, и он мог ещё
+ * не вернуться или вернуться короче: город мог исчезнуть из справочника,
+ * а правило с ним осталось. Тогда показывается счёт, и он согласован
+ * по числу: «1 город», «2 города», «5 городов».
+ */
+function cities(ids: unknown[], names?: ReadonlyMap<string, string>): string {
+  const known = ids.map((id) => names?.get(String(id))).filter((name): name is string => !!name)
+  if (known.length === ids.length && known.length > 0) return known.join(', ')
+  return `${ids.length} ${pluralCities(ids.length)}`
+}
+
+/** Русское согласование: 1 город, 2 города, 5 городов, 11 городов. */
+export function pluralCities(count: number): string {
+  const tens = count % 100
+  if (tens >= 11 && tens <= 14) return 'городов'
+  switch (count % 10) {
+    case 1:
+      return 'город'
+    case 2:
+    case 3:
+    case 4:
+      return 'города'
+    default:
+      return 'городов'
+  }
 }
 
 function gramsToKg(value: unknown): number | null {

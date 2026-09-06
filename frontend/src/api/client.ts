@@ -517,6 +517,37 @@ export interface CarrierHealth {
 }
 
 /**
+ * Подсказка города (`GET /v1/cities/suggest`). Пути в замороженном
+ * контракте нет: подсказки — вход оператора, а не публичный API.
+ *
+ * Ключ здесь `fias_id`, а не наш идентификатор строки: именно им условие
+ * правила маршрутизации называет города, и именно его отдают подсказки.
+ */
+export interface CitySuggestion {
+  fias_id: string
+  name: string
+  full_name: string
+  region: string | null
+  fias_level: number
+}
+
+export interface CitySuggestResponse {
+  items: CitySuggestion[]
+  /** Подсказки пришли из локального справочника, а не от ДаData. */
+  degraded: boolean
+  degraded_reason: string | null
+}
+
+/** Город справочника (`GET /v1/cities?fias_id=…`). */
+export interface City {
+  id: string
+  fias_id: string
+  name: string
+  full_name: string | null
+  region: string | null
+}
+
+/**
  * Правило маршрутизации (`/v1/routing-rules`). Пути в контракте нет —
  * состав языка правил принят отдельным решением, ADR-0028, — поэтому тип
  * написан руками по `routing/schemas.py`.

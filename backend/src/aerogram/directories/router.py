@@ -16,12 +16,14 @@ from aerogram.core.deps import (
 )
 from aerogram.core.service import AuditService
 from aerogram.directories.deps import DadataDep
+from aerogram.directories.models import City
 from aerogram.directories.repository import CarrierRepository, TerminalRepository
 from aerogram.directories.schemas import (
     CarrierConnectionOut,
     CarrierHealthOut,
     CityMappingConfirm,
     CityMappingQueueItem,
+    CityOut,
     CitySuggestResponse,
     NormalizedAddress,
     PartyDraft,
@@ -63,6 +65,30 @@ async def suggest_cities(
     сервиса останавливал бы создание отправления целиком.
     """
     return await CityService(session, dadata).suggest(query, limit)
+
+
+@directories_router.get(
+    "/cities",
+    response_model=list[CityOut],
+    summary="Города по идентификаторам ФИАС",
+)
+async def cities_by_fias(
+    principal: CurrentPrincipal,
+    session: SessionDep,
+    fias_id: Annotated[list[str], Query(min_length=1, max_length=50)],
+) -> list[City]:
+    """Прочитать города по уже известным идентификаторам.
+
+    Подсказки (``/cities/suggest``) отвечают на «какой город имеется в виду»,
+    а этот путь — на «как называется тот, что уже выбран». Без него условие
+    правила маршрутизации, хранящее города списком ФИАС, нечитаемо: экран мог
+    бы только сосчитать, сколько их.
+
+    Ненайденный идентификатор не ошибка, а более короткий ответ: город мог
+    исчезнуть из справочника, а правило с ним продолжает существовать,
+    и отказывать в показе всего правила из-за одного города незачем.
+    """
+    return await CityService(session, None).by_fias_ids(fias_id)
 
 
 @directories_router.post(

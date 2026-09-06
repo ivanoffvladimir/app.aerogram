@@ -43,6 +43,24 @@ class CityRepository:
         stmt = select(City).where(City.fias_id == fias_id)
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
+    async def by_fias_ids(self, fias_ids: list[str]) -> list[City]:
+        """Города по списку идентификаторов ФИАС.
+
+        Нужен там, где идентификаторы уже сохранены, а показать надо
+        названия: условие правила маршрутизации хранит города списком ФИАС,
+        и без этого запроса сохранённое правило нечитаемо — экран мог бы
+        только сосчитать, сколько их.
+
+        Порядок ответа не совпадает с порядком запроса, и это намеренно:
+        часть идентификаторов может не найтись вовсе (город удалён
+        из справочника или никогда в него не попадал), и сопоставлять
+        по позиции было бы ошибкой. Сопоставление — по ``fias_id``.
+        """
+        if not fias_ids:
+            return []
+        stmt = select(City).where(City.fias_id.in_(fias_ids)).order_by(City.name)
+        return list((await self._session.execute(stmt)).scalars())
+
     async def search(self, query: str, limit: int = 10) -> list[City]:
         """Поиск города по названию в локальном справочнике.
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { describeAction, describeConditions } from './routingRules'
+import {
+  MAX_CITY_LOOKUP,
+  citiesInRules,
+  describeAction,
+  describeConditions,
+  pluralCities,
+} from './routingRules'
 
 describe('describeAction', () => {
   it('называет действие по-русски', () => {
@@ -74,9 +80,80 @@ describe('describeConditions', () => {
     expect(describeConditions({ dangerous: false })).toEqual(['только неопасные грузы'])
   })
 
-  it('направление считает города, а не печатает их идентификаторы', () => {
+  it('без известных названий показывает счёт, а не идентификаторы', () => {
+    // Идентификатор ФИАС человеку не говорит ничего, а строка правила
+    // должна оставаться читаемой и до того, как названия подгрузятся.
     expect(
       describeConditions({ direction: { to: ['0c5b2444-70a0-4932-980c-b4dc0d3f02b5'] } }),
-    ).toEqual(['направление: в 1 городов'])
+    ).toEqual(['направление: куда 1 город'])
+  })
+
+  it('с названиями показывает города, а не счёт', () => {
+    // Правило, направление которого читается как «2 города», нельзя
+    // ни проверить, ни исправить.
+    const names = new Map([
+      ['a', 'Москва'],
+      ['b', 'Владивосток'],
+    ])
+    expect(describeConditions({ direction: { from: ['b'], to: ['a'] } }, names)).toEqual([
+      'направление: откуда Владивосток; куда Москва',
+    ])
+  })
+
+  it('частично известные названия не смешиваются со счётом', () => {
+    // Половина списка названиями, половина идентификаторами читалась бы
+    // как разные вещи в одном перечислении. Либо все, либо счёт.
+    const names = new Map([['a', 'Москва']])
+    expect(describeConditions({ direction: { to: ['a', 'b'] } }, names)).toEqual([
+      'направление: куда 2 города',
+    ])
+  })
+})
+
+describe('pluralCities', () => {
+  it('согласует число с существительным', () => {
+    // «в 1 городов» — то, как это выглядело до появления названий.
+    expect(pluralCities(1)).toBe('город')
+    expect(pluralCities(2)).toBe('города')
+    expect(pluralCities(5)).toBe('городов')
+    expect(pluralCities(21)).toBe('город')
+  })
+
+  it('одиннадцать и его соседи — исключение, а не правило', () => {
+    // 11..14 склоняются не как 1..4, и это единственное место, где
+    // остаток от деления на десять даёт неверный ответ.
+    expect(pluralCities(11)).toBe('городов')
+    expect(pluralCities(12)).toBe('городов')
+    expect(pluralCities(14)).toBe('городов')
+    expect(pluralCities(111)).toBe('городов')
+  })
+})
+
+describe('citiesInRules', () => {
+  it('собирает города всех правил одним списком без повторов', () => {
+    // Запрос на каждое правило означал бы десяток обращений там,
+    // где хватает одного.
+    const rules = [
+      { conditions: { direction: { from: ['a'], to: ['b'] } } },
+      { conditions: { direction: { to: ['b', 'c'] } } },
+      { conditions: { carrier: ['cdek'] } },
+    ]
+    expect(citiesInRules(rules)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('правило без направления городов не добавляет', () => {
+    expect(citiesInRules([{ conditions: {} }])).toEqual([])
+  })
+
+  it('длинный список подрезается пределом пути, а не отправляется целиком', () => {
+    // Превышение даёт 422, и тогда не пришло бы НИ ОДНОГО названия.
+    // Лучше подрезать: остальные правила покажут счёт, как во время загрузки.
+    const many = Array.from(
+      { length: 80 },
+      (_, index) => `city-${String(index).padStart(3, '0')}`,
+    )
+    expect(citiesInRules([{ conditions: { direction: { to: many } } }])).toHaveLength(
+      MAX_CITY_LOOKUP,
+    )
   })
 })

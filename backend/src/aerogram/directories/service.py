@@ -118,6 +118,15 @@ class CityService:
         self._dadata = dadata
         self._cities = CityRepository(session)
 
+    async def by_fias_ids(self, fias_ids: list[str]) -> list[City]:
+        """Города по идентификаторам ФИАС — для показа уже сохранённого.
+
+        Ненайденный идентификатор не ошибка: город мог исчезнуть
+        из справочника, а правило с ним продолжает существовать. Ответ
+        просто короче запроса, и экран покажет то, что знает.
+        """
+        return await self._cities.by_fias_ids(fias_ids)
+
     async def suggest(self, query: str, limit: int = 10) -> CitySuggestResponse:
         """Подсказки города.
 
