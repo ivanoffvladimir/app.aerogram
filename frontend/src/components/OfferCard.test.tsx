@@ -46,6 +46,54 @@ describe('OfferCard', () => {
     expect(screen.getByText(/1 сутки/)).toBeInTheDocument()
   })
 
+  it('в расшифровке показывает подпись перевозчика, а не наш тип', async () => {
+    // Тип у строк расшифровки сегодня `other` у всех: классифицировать их
+    // в домене значило бы искать подстроки по-русски (ADR-0005). По типу
+    // вся таблица читалась бы как «Прочее», и надбавку за негабарит —
+    // единственное, ради чего оператор её открывает, — было бы не найти.
+    const user = userEvent.setup()
+    render(
+      <OfferCard
+        offer={offer({
+          cost_components: [
+            {
+              type: 'other',
+              money: { amount_minor: 210_050, currency: 'RUB' },
+              description: 'Пересылка',
+            },
+            {
+              type: 'other',
+              money: { amount_minor: 35_000, currency: 'RUB' },
+              description: 'Надбавка за негабарит',
+            },
+          ],
+        })}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Расшифровка стоимости' }))
+    expect(screen.getByText('Надбавка за негабарит')).toBeInTheDocument()
+    expect(screen.queryByText('Прочее')).not.toBeInTheDocument()
+  })
+
+  it('без подписи перевозчика показывает наш тип', async () => {
+    // Подпись необязательна в контракте: у строки, пришедшей без неё,
+    // должно остаться хоть какое-то имя, а не пустая ячейка.
+    const user = userEvent.setup()
+    render(
+      <OfferCard
+        offer={offer({
+          cost_components: [
+            { type: 'insurance', money: { amount_minor: 1_000, currency: 'RUB' } },
+          ],
+        })}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Расшифровка стоимости' }))
+    expect(screen.getByText('Страхование')).toBeInTheDocument()
+  })
+
   it('не даёт выбрать непригодный вариант', () => {
     const onSelect = vi.fn()
     render(

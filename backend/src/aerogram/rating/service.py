@@ -44,11 +44,12 @@ from aerogram.directories.service import (
 )
 from aerogram.intelligence.models import CarrierScoreSnapshot
 from aerogram.intelligence.repository import ScoreRepository
-from aerogram.rating.models import RateOffer, RateQuote
+from aerogram.rating.models import CostComponent, RateOffer, RateQuote
 from aerogram.rating.repository import RateRepository
 from aerogram.rating.schemas import (
     BlockedCarrierOut,
     CarrierFailureOut,
+    CostComponentOut,
     RateOfferOut,
     RateRequestIn,
     RateResponse,
@@ -63,6 +64,7 @@ from aerogram.routing.rules import (
 )
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import (
+    CostComponentType,
     IneligibilityReason,
     OfferSource,
     PriceSource,
@@ -287,6 +289,22 @@ class RateShoppingService:
                 service_code=row.service_code or "",
                 service_name=(row.raw_response or {}).get("service_name"),
                 source=row.source,
+                # Порядок задаётся здесь, а не выборкой: без него строки
+                # пришли бы как попало и расшифровка переставлялась бы
+                # от показа к показу. Убывание суммы, затем подпись —
+                # чтобы порядок был полным даже у одинаковых сумм.
+                cost_components=[
+                    CostComponentOut(
+                        type=component.type,
+                        money=MoneySchema.of(Money(component.amount_minor, component.currency)),
+                        rate_percent=component.rate_percent,
+                        description=component.description,
+                    )
+                    for component in sorted(
+                        row.cost_components,
+                        key=lambda c: (-c.amount_minor, c.description or ""),
+                    )
+                ],
                 total_cost=MoneySchema.of(Money(row.total_amount_minor or 0, row.currency)),
                 eta=row.eta,
                 deadline_margin_seconds=row.deadline_margin_seconds,
@@ -720,6 +738,7 @@ class RateShoppingService:
                             score_confidence=score.confidence if score else None,
                             score_scope=score.scope_type if score else None,
                             valid_until=quote.valid_until,
+                            cost_components=_components(offer, tenant_id),
                         ),
                         outcome.carrier_code,
                     )
@@ -779,6 +798,71 @@ def _shown_confidence(stored: str | None) -> ScoreConfidence | None:
     if stored is None or stored == ScoreConfidence.INSUFFICIENT:
         return None
     return ScoreConfidence(stored)
+
+
+#: Предел длины подписи составляющей. Подпись приходит от перевозчика —
+#: у ПЭК это вообще свободный текст поля ``info``, — и попадает на экран.
+#: Длина строки не то, ради чего существует расшифровка.
+_COMPONENT_LABEL_LIMIT = 200
+
+
+def _components(quote: Quote, tenant_id: UUID) -> list[CostComponent]:
+    """Расшифровка цены перевозчика → строки ``cost_components``.
+
+    Её считают три адаптера, и до этой функции она не доходила никуда:
+    ``CostComponent`` не создавался ни одной строкой кода, поэтому поле
+    контракта ``RateOffer.cost_components`` всегда было пустым списком.
+    Вместе с ним терялась и надбавка за негабарит, которую Почта России
+    называет прямо и уже включает в итог.
+
+    **Тип у всех строк — ``other``, а правду несёт подпись.** Ключи
+    расшифровки разнородны: у Почты это её собственные названия, у Деловых
+    Линий наши (`pickup`, `delivery`, `insurance`), у ПЭК свободный русский
+    текст самого перевозчика. Классифицировать их здесь значило бы искать
+    подстроки по-русски в домене, то есть завести знание о перевозчиках
+    там, где его быть не должно (ADR-0005). Честный способ — чтобы тип
+    называл адаптер, а это правка ``carriers/base.py``, то есть построчное
+    ревью человека (CLAUDE.md §7). До тех пор ``other`` честнее выдуманного
+    типа: он говорит «мы не знаем», а не называет наугад.
+
+    **Порядок строк задаётся суммой, а не порядком перевозчика.** Первая
+    редакция сортировала по идентификатору, считая UUIDv7 сортируемым по
+    времени создания. Внутри одной миллисекунды это неверно: в ``shared.ids``
+    счётчика нет, и младшие биты случайны, — а все строки одного предложения
+    создаются именно в одну миллисекунду. Расшифровка переставлялась бы
+    от показа к показу без единого изменения данных. Поймано тестом.
+
+    Порядок перевозчика при этом ничего не значит для читающего: у Почты
+    это порядок нашего же ``RATE_FIELDS``, у ПЭК — обход дерева услуг.
+    А убывание суммы ставит наверх то, из чего цена в основном и состоит.
+    """
+    rows: list[CostComponent] = []
+    for label, amount in quote.price_breakdown.items():
+        if amount.currency != quote.price.currency:
+            # Строка в чужой валюте не сохраняется вовсе. Сложить её с ценой
+            # нельзя (CLAUDE.md §6), а показать рядом — значит показать
+            # расшифровку, которая не сходится с итогом.
+            log.warning(
+                "rating.component_currency_mismatch",
+                component=amount.currency,
+                offer=quote.price.currency,
+            )
+            continue
+        if amount.amount_minor == 0:
+            # Нулевая строка не просто шум: «Надбавка за негабарит — 0 ₽»
+            # читается как «надбавка есть», хотя её нет.
+            continue
+        rows.append(
+            CostComponent(
+                id=uuid7(),
+                tenant_id=tenant_id,
+                type=CostComponentType.OTHER,
+                amount_minor=amount.amount_minor,
+                currency=amount.currency,
+                description=str(label)[:_COMPONENT_LABEL_LIMIT],
+            )
+        )
+    return rows
 
 
 def _fias(city: City | None) -> UUID | None:

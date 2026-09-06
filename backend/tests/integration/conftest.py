@@ -57,6 +57,7 @@ class FakeCarrier:
         behaviour: str = "ok",
         delay: float = 0.0,
         prices: tuple[int, ...] | None = None,
+        breakdown: dict[str, Money] | None = None,
     ) -> None:
         """``prices`` — суммы в минорных единицах, по одному тарифу на каждую.
 
@@ -67,6 +68,11 @@ class FakeCarrier:
         self._behaviour = behaviour
         self._delay = delay
         self._prices = prices
+        #: Расшифровка цены. По умолчанию её нет: так ведёт себя СДЭК,
+        #: и большинство тестов не про неё. Ставится только первому тарифу —
+        #: перевозчик не обязан расшифровывать все, и тест на пустую
+        #: расшифровку не должен требовать отдельного двойника.
+        self._breakdown = breakdown or {}
         self.seen: list[QuoteRequest] = []
 
     async def health_check(self, acc: CarrierAccount) -> HealthResult:
@@ -117,6 +123,7 @@ class FakeCarrier:
                 transit_days_max=3,
                 promised_delivery_date=date(2026, 9, 4),
                 price_source=acc.price_source,
+                price_breakdown=dict(self._breakdown),
             ),
             Quote(
                 service_code="137",

@@ -105,7 +105,14 @@ export function OfferCard({ offer, onSelect, selectDisabled }: Props) {
               {offer.cost_components.map((component, index) => (
                 <tr key={`${component.type}-${index}`}>
                   <td>
-                    {COST_COMPONENT_LABELS[component.type] ?? component.type}
+                    {/* Подпись перевозчика важнее нашего типа: тип у строк
+                        расшифровки сегодня `other` у всех, и по нему вся
+                        таблица читалась бы как «Прочее». Название даёт сам
+                        перевозчик — «Надбавка за негабарит», «Пересылка», —
+                        и оно единственное несёт смысл строки. */}
+                    {component.description ??
+                      COST_COMPONENT_LABELS[component.type] ??
+                      component.type}
                     {component.rate_percent ? ` (${component.rate_percent}%)` : ''}
                   </td>
                   <td style={{ textAlign: 'right' }}>{formatMoney(component.money)}</td>
