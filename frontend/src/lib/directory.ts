@@ -53,7 +53,6 @@ export function formatAddress(address: {
     .join(', ')
 }
 
-
 /** Режим договора с перевозчиком. */
 export const CARRIER_MODE_LABELS: Record<string, string> = {
   own_contract: 'Договор клиента',
@@ -65,4 +64,20 @@ export const ACCOUNT_STATUS_LABELS: Record<string, string> = {
   unchecked: 'не проверялись',
   ok: 'в порядке',
   error: 'ошибка',
+}
+
+/**
+ * Подпись итога проверки подключения.
+ *
+ * Успех называет задержку: «в порядке» без числа не отличает перевозчика,
+ * отвечающего за 200 мс, от отвечающего за 8 секунд, — а второй сорвёт
+ * общий дедлайн выдачи, оставаясь формально исправным.
+ */
+export function healthText(health: {
+  is_healthy: boolean
+  latency_ms: number
+  message: string | null
+}): string {
+  if (!health.is_healthy) return health.message ?? 'подключение не работает'
+  return `в порядке, ответ за ${health.latency_ms} мс`
 }

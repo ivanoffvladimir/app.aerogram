@@ -77,3 +77,17 @@
   margin-bottom: 4px;
   font-size: 18px;
 }
+
+/* Итог проверки подключения. Успех и отказ различаются цветом: оператор
+   нажимает кнопку именно затем, чтобы узнать ответ, не вчитываясь. */
+.healthy {
+  color: var(--success, #1e8449);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.broken {
+  color: var(--warning, #b9770e);
+  font-size: 12px;
+  margin-top: 4px;
+}

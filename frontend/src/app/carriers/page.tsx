@@ -1,17 +1,18 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import {
   request,
   tokens,
   type ApiError,
   type CarrierAnalytics,
   type CarrierConnection,
+  type CarrierHealth,
 } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
-import { ACCOUNT_STATUS_LABELS, CARRIER_MODE_LABELS } from '@/lib/directory'
+import { ACCOUNT_STATUS_LABELS, CARRIER_MODE_LABELS, healthText } from '@/lib/directory'
 import { CONFIDENCE_LABELS, formatPercent } from '@/lib/format'
 import styles from './page.module.css'
 
@@ -30,10 +31,28 @@ const CONFIDENCE_CLASS: Record<string, string | undefined> = {
 
 export default function CarriersPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     if (!tokens.access()) router.replace('/login')
   }, [router])
+
+  // Итог последней проверки держится по коду перевозчика: проверок может
+  // идти несколько подряд, и общий результат затирал бы предыдущий.
+  const [checked, setChecked] = useState<Record<string, CarrierHealth>>({})
+  const [checking, setChecking] = useState<string | null>(null)
+
+  const check = useMutation({
+    mutationFn: (code: string) =>
+      request<CarrierHealth>(`/carriers/${code}/check`, { method: 'POST' }),
+    onMutate: (code: string) => setChecking(code),
+    onSuccess: (health) => {
+      setChecked((prev) => ({ ...prev, [health.code]: health }))
+      // Итог осел в учётной записи — список обязан показать его же.
+      void queryClient.invalidateQueries({ queryKey: ['carrier-connections'] })
+    },
+    onSettled: () => setChecking(null),
+  })
 
   const carriers = useQuery({
     queryKey: ['carrier-analytics'],
@@ -56,6 +75,7 @@ export default function CarriersPage() {
       </p>
 
       {connections.isError && <p role="alert">{(connections.error as ApiError).message}</p>}
+      {check.isError && <p role="alert">{(check.error as ApiError).message}</p>}
 
       <div className={styles.tableWrap} style={{ marginBottom: 32 }}>
         <table className={styles.table}>
@@ -65,6 +85,7 @@ export default function CarriersPage() {
               <th>Подключён</th>
               <th>Договор</th>
               <th>Доступы</th>
+              <th>Проверка</th>
               <th>Делитель объёма</th>
               <th>Что нужно для подключения</th>
             </tr>
@@ -75,13 +96,42 @@ export default function CarriersPage() {
                 <td>{carrier.name}</td>
                 <td>{carrier.connected ? 'да' : <span className={styles.noData}>нет</span>}</td>
                 <td>
-                  {carrier.mode ? CARRIER_MODE_LABELS[carrier.mode] ?? carrier.mode : '—'}
+                  {carrier.mode ? (CARRIER_MODE_LABELS[carrier.mode] ?? carrier.mode) : '—'}
                   {carrier.is_sandbox && <span className={styles.confidence}>песочница</span>}
                 </td>
                 <td>
                   {carrier.status
-                    ? ACCOUNT_STATUS_LABELS[carrier.status] ?? carrier.status
+                    ? (ACCOUNT_STATUS_LABELS[carrier.status] ?? carrier.status)
                     : '—'}
+                  {carrier.status_message ? (
+                    <div className={styles.noData}>{carrier.status_message}</div>
+                  ) : null}
+                </td>
+                <td>
+                  {carrier.connected ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => check.mutate(carrier.code)}
+                        disabled={checking !== null}
+                      >
+                        {checking === carrier.code ? 'Проверяем…' : 'Проверить'}
+                      </button>
+                      {checked[carrier.code] ? (
+                        <div
+                          className={
+                            checked[carrier.code]!.is_healthy ? styles.healthy : styles.broken
+                          }
+                        >
+                          {healthText(checked[carrier.code]!)}
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    // Проверять нечего: доступов нет. Кнопка здесь предлагала
+                    // бы действие, которое заведомо откажет.
+                    <span className={styles.noData}>—</span>
+                  )}
                 </td>
                 {/* Делитель договорной: расхождение с договором должен
                     заметить человек, а не счёт от перевозчика. */}
@@ -103,9 +153,9 @@ export default function CarriersPage() {
 
       <h2 className={styles.section}>Качество доставки</h2>
       <p className={styles.note}>
-        Скор считается по фактическим доставкам за последние 30 суток. Пока наблюдений меньше
-        десяти, число не показывается вовсе: ноль читался бы как «худший перевозчик», а он
-        всего лишь новый.
+        Скор считается по фактическим доставкам за последние 30 суток. Пока своих доставок нет,
+        показывается оценка по статистике платформы — подробности и основание каждой оценки на
+        экране «Carrier Score».
       </p>
 
       {carriers.isError && <p role="alert">{(carriers.error as ApiError).message}</p>}
@@ -144,7 +194,9 @@ export default function CarriersPage() {
                 {/* Разрез показывается всегда: глобальный скор и скор
                     по направлению — разные утверждения (раздел 10.2 ТЗ). */}
                 <td>
-                  {carrier.scope_type ? SCOPE_LABELS[carrier.scope_type] ?? carrier.scope_type : '—'}
+                  {carrier.scope_type
+                    ? (SCOPE_LABELS[carrier.scope_type] ?? carrier.scope_type)
+                    : '—'}
                 </td>
                 <td className={styles.components}>
                   {carrier.score === null

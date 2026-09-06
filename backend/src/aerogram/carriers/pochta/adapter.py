@@ -63,6 +63,7 @@ from aerogram.carriers.base import (
     CancelResult,
     Capabilities,
     CarrierAccount,
+    HealthResult,
     LabelResult,
     Quote,
     QuoteRequest,
@@ -72,6 +73,7 @@ from aerogram.carriers.base import (
     ShipmentResult,
     WebhookUpdate,
 )
+from aerogram.carriers.health import probe
 from aerogram.carriers.pochta.client import BASE_URL_SETTING, PochtaClient, user_key
 from aerogram.carriers.pochta.mapping import PochtaProduct, product_by_code
 from aerogram.carriers.pochta.orders import (
@@ -83,7 +85,12 @@ from aerogram.carriers.pochta.orders import (
     parse_created,
     parse_found,
 )
-from aerogram.carriers.pochta.quotes import TARIFF_PATH, build_tariff_payload, parse_tariff
+from aerogram.carriers.pochta.quotes import (
+    LIMIT_PATH,
+    TARIFF_PATH,
+    build_tariff_payload,
+    parse_tariff,
+)
 from aerogram.carriers.pochta.quotes import products_for as _products_for
 from aerogram.shared.enums import LabelFormat
 from aerogram.shared.errors import (
@@ -300,6 +307,32 @@ class PochtaAdapter:
             # «печатайте», а печатать нечего.
             raise CarrierError("Почта России вернула пустую форму Ф7п", carrier_code=POCHTA_CODE)
         return LabelResult(format=LabelFormat.PDF_A4, content=content, is_pending=False)
+
+    async def health_check(self, acc: CarrierAccount) -> HealthResult:
+        """Остаток суточной квоты: чтение, которое проверяет оба заголовка.
+
+        `GET /1.0/settings/limit` был объявлен ещё на стадии 1 и до сих пор
+        никем не вызывался. Он подходит лучше всех: не считает, не создаёт,
+        и при этом требует и токена приложения, и ключа пользователя —
+        то есть проверяет ровно то, что вводит клиент.
+
+        Побочная польза: величина квоты — единственное ограничение Почты,
+        названное в документации, и до получения доступов она неизвестна.
+        Проверка подключения — первое место, где её видно.
+        """
+
+        async def call() -> object:
+            # Клиент строится ВНУТРИ замера намеренно: в боевом режиме без
+            # адреса API сборка отказывает, и адрес вводит тот же человек,
+            # который нажал кнопку. Он обязан прочитать причину, а не увидеть
+            # пятисотую.
+            client = self._client_factory(acc)
+            try:
+                return await client.get(LIMIT_PATH, operation="health")
+            finally:
+                await client.aclose()
+
+        return await probe(call, carrier_code=POCHTA_CODE)
 
     # --- Ещё не реализовано ----------------------------------------------
 

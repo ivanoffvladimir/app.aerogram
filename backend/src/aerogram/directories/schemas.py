@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -14,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 __all__ = [
     "AddressNormalizeRequest",
     "CarrierConnectionOut",
+    "CarrierHealthOut",
     "CityMappingConfirm",
     "CityMappingQueueItem",
     "CityOut",
@@ -323,3 +325,24 @@ class CarrierConnectionOut(BaseModel):
     #: (перевозчик не подключён к платформе).
     credential_fields: list[CredentialFieldOut] = Field(default_factory=list)
     where_to_get: str | None = None
+
+
+class CarrierHealthOut(BaseModel):
+    """Итог проверки подключения (фронт-ТЗ, раздел 8 — Test connection).
+
+    ``is_healthy = false`` — не ошибка запроса, а его ответ: вопрос был
+    «работают ли доступы», и «не работают» такой же законный ответ. Поэтому
+    путь отвечает 200 в обоих случаях, а красным строку красит кабинет.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    code: str
+    #: ``ok`` или ``error`` — то же значение, что осядет в учётной записи.
+    status: str
+    is_healthy: bool
+    #: Время вызова перевозчика в миллисекундах (бэкенд-ТЗ: health/latency).
+    latency_ms: int
+    #: Текст для человека. У успешной проверки его нет.
+    message: str | None = None
+    checked_at: datetime

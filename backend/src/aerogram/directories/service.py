@@ -16,9 +16,15 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from aerogram.carriers.base import CarrierCity, Party, RefCatalog
+from aerogram.carriers import registry
+from aerogram.carriers.base import CarrierAccount as AdapterAccount
+from aerogram.carriers.base import CarrierCity, HealthResult, Party, RefCatalog
 from aerogram.carriers.credentials import schema_for
+from aerogram.carriers.health import guard
+from aerogram.config import Settings
+from aerogram.core.models import CarrierAccount as CarrierAccountModel
 from aerogram.core.repository import CarrierAccountRepository
+from aerogram.core.service import decrypt_credentials
 from aerogram.directories.dadata import DadataClient
 from aerogram.directories.models import City
 from aerogram.directories.normalization import (
@@ -36,6 +42,7 @@ from aerogram.directories.repository import (
 )
 from aerogram.directories.schemas import (
     CarrierConnectionOut,
+    CarrierHealthOut,
     CitySuggestion,
     CitySuggestResponse,
     CredentialFieldOut,
@@ -44,7 +51,7 @@ from aerogram.directories.schemas import (
     TerminalUpsert,
 )
 from aerogram.shared.clock import utcnow
-from aerogram.shared.errors import DirectoryError, NotFound
+from aerogram.shared.errors import DirectoryError, NotFound, ValidationFailed
 from aerogram.shared.logging import get_logger
 from aerogram.shared.schemas import AddressSchema
 
@@ -602,9 +609,99 @@ class CarrierDirectoryService:
     (контракт ``core-below-domain``).
     """
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, settings: Settings | None = None) -> None:
         self._carriers = CarrierRepository(session)
         self._accounts = CarrierAccountRepository(session)
+        #: Нужны только проверке подключения — списку расшифровывать нечего.
+        self._settings = settings
+
+    async def check(self, code: str) -> CarrierHealthOut:
+        """Проверить доступы тенанта у перевозчика (системное ТЗ, раздел 9).
+
+        Итог записывается в учётную запись: `status`, `status_message`
+        и `last_check_at` существовали в схеме с самого начала и до сих пор
+        никем не заполнялись — список перевозчиков показывал «не проверялось»
+        всегда, чем бы дело ни кончилось.
+
+        **Неудачная проверка отвечает 200.** Вопрос был «работают ли доступы»,
+        и «не работают» — ответ на него, а не сбой запроса. Ошибкой здесь
+        считается только то, что помешало спросить: неизвестный перевозчик
+        или отсутствие подключения.
+        """
+        carrier = await self._carriers.get_by_code(code)
+        if carrier is None:
+            raise NotFound("Перевозчик не найден")
+
+        account = next(
+            (a for a in await self._accounts.list_active() if a.carrier_id == carrier.id), None
+        )
+        if account is None:
+            raise ValidationFailed(
+                f"«{carrier.name}» не подключён: сначала введите доступы", field="code"
+            )
+
+        result = await self._probe(carrier.code, account)
+        account.status = "ok" if result.is_healthy else "error"
+        account.status_message = result.message
+        checked_at = utcnow()
+        account.last_check_at = checked_at
+        log.info(
+            "carrier.checked",
+            carrier=carrier.code,
+            healthy=result.is_healthy,
+            latency_ms=result.latency_ms,
+        )
+        return CarrierHealthOut(
+            code=carrier.code,
+            status=account.status,
+            is_healthy=result.is_healthy,
+            latency_ms=result.latency_ms,
+            message=result.message,
+            checked_at=checked_at,
+        )
+
+    async def _probe(self, code: str, account: CarrierAccountModel) -> HealthResult:
+        """Позвать адаптер. Всё, что мешает позвать, — тоже отрицательный итог.
+
+        Незарегистрированный адаптер и нечитаемые учётные данные к перевозчику
+        отношения не имеют, но для оператора это тот же ответ: подключение
+        не работает. Разница видна в тексте, и она важна — во втором случае
+        доступы нужно ввести заново, а не выпрашивать у перевозчика.
+        """
+        try:
+            adapter = registry.get_adapter(code)
+        except LookupError:
+            return HealthResult(
+                is_healthy=False,
+                latency_ms=0,
+                message="Адаптер перевозчика не подключён к платформе",
+            )
+        if self._settings is None:  # pragma: no cover — собирается в роутере
+            raise RuntimeError("проверке подключения нужны настройки платформы")
+        try:
+            credentials = decrypt_credentials(account, self._settings)
+        except Exception as exc:
+            # Широко намеренно: расшифровка бросает InvalidTag из cryptography,
+            # JSONDecodeError, KeyError при отозванном ключе. Текст исключения
+            # в лог не пишется — он может содержать шифротекст.
+            log.error("carrier.credentials_unreadable", carrier=code, error_type=type(exc).__name__)
+            return HealthResult(
+                is_healthy=False,
+                latency_ms=0,
+                message="Учётные данные не читаются: введите их заново",
+            )
+        adapter_account = AdapterAccount(
+            account_id=str(account.id),
+            carrier_code=code,
+            mode=account.mode,  # type: ignore[arg-type]
+            credentials=credentials,
+            is_sandbox=account.is_sandbox,
+            settings=dict(account.settings or {}),
+        )
+        # Через ``guard``, а не напрямую: контракт объявляет отказ результатом,
+        # но соблюдение контракта проверить нечем, и ошибка внутри адаптера
+        # ушла бы клиенту пятисотой.
+        return await guard(lambda: adapter.health_check(adapter_account), carrier_code=code)
 
     async def connections(self) -> list[CarrierConnectionOut]:
         """Все перевозчики платформы с отметкой о подключении тенанта.

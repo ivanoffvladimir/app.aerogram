@@ -108,6 +108,11 @@ CABINET_ONLY: frozenset[tuple[str, str]] = frozenset(
         ("GET", "/v1/counterparties/{counterparty_id}/addresses"),
         ("POST", "/v1/counterparties/{counterparty_id}/addresses"),
         ("PATCH", "/v1/counterparties/{counterparty_id}/addresses/{address_id}"),
+        # Проверка подключения тратит вызов у перевозчика и пишет итог
+        # в учётную запись. Требует владельца или логиста, а у ключа роль
+        # машинного клиента — область здесь была бы обещанием, которое
+        # всё равно упирается в 403.
+        ("POST", "/v1/carriers/{code}/check"),
         ("GET", "/v1/admin/city-mappings"),
         ("POST", "/v1/admin/city-mappings/{item_id}/confirm"),
         # Сверка расчёта и счетов закрыта не «на всякий случай», а вслед

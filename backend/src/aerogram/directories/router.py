@@ -7,12 +7,19 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
 
-from aerogram.core.deps import CurrentPrincipal, SessionDep, client_ip, require_roles
+from aerogram.core.deps import (
+    CurrentPrincipal,
+    SessionDep,
+    SettingsDep,
+    client_ip,
+    require_roles,
+)
 from aerogram.core.service import AuditService
 from aerogram.directories.deps import DadataDep
 from aerogram.directories.repository import CarrierRepository, TerminalRepository
 from aerogram.directories.schemas import (
     CarrierConnectionOut,
+    CarrierHealthOut,
     CityMappingConfirm,
     CityMappingQueueItem,
     CitySuggestResponse,
@@ -106,6 +113,29 @@ async def list_carriers(
     которых требует перевозчик.
     """
     return await CarrierDirectoryService(session).connections()
+
+
+@directories_router.post(
+    "/carriers/{code}/check",
+    response_model=CarrierHealthOut,
+    summary="Проверить подключение к перевозчику",
+)
+async def check_carrier(
+    code: str,
+    principal: Annotated[object, require_roles(UserRole.OWNER, UserRole.LOGISTICIAN)],
+    session: SessionDep,
+    settings: SettingsDep,
+) -> CarrierHealthOut:
+    """Авторизованный вызов к перевозчику под доступами тенанта.
+
+    Отвечает 200 и при неудаче: «доступы не работают» — это ответ на вопрос
+    кабинета, а не сбой запроса. Ошибкой считается только то, что помешало
+    спросить: неизвестный перевозчик или отсутствие подключения.
+
+    ``POST``, а не ``GET``: проверка тратит вызов у перевозчика и записывает
+    итог в учётную запись.
+    """
+    return await CarrierDirectoryService(session, settings).check(code)
 
 
 @directories_router.get(

@@ -17,6 +17,7 @@ from aerogram.carriers.base import (
     CancelResult,
     Capabilities,
     CarrierAccount,
+    HealthResult,
     LabelResult,
     Quote,
     QuoteRequest,
@@ -93,6 +94,21 @@ class MajorExpressAdapter:
         мы не знаем.
         """
         raise self._refuse(acc, "поиска заказа по номеру")
+
+    async def health_check(self, acc: CarrierAccount) -> HealthResult:
+        """Проверка отказывает честно: интеграции ещё нет.
+
+        Единственный метод, который НЕ поднимает ``CarrierNotConfigured``,
+        а возвращает отрицательный результат: вопрос кабинета — «работает ли
+        подключение», и «интеграция не готова» это ответ на него, а не сбой
+        запроса. Исключение здесь превратило бы кнопку в красный экран
+        вместо строки в таблице.
+        """
+        return HealthResult(
+            is_healthy=False,
+            latency_ms=0,
+            message="Интеграция с Major Express ещё не реализована",
+        )
 
     async def fetch_refs(self, acc: CarrierAccount) -> RefCatalog:
         raise self._refuse(acc, "выгрузки справочников")

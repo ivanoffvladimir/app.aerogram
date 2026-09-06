@@ -60,6 +60,9 @@ BEYOND_CONTRACT: frozenset[str] = frozenset(
         "/v1/addresses/normalize",
         "/v1/cities/suggest",
         "/v1/carriers/{code}/terminals",
+        # Проверка подключения: системное ТЗ (раздел 9) и фронт-ТЗ (раздел 8)
+        # её требуют, пути в замороженном контракте нет.
+        "/v1/carriers/{code}/check",
         # Ручной разбор сопоставления городов — администрирование платформы.
         "/v1/admin/city-mappings",
         "/v1/admin/city-mappings/{item_id}/confirm",

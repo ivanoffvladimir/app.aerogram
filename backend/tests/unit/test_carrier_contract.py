@@ -22,6 +22,7 @@ from aerogram.carriers.base import (
     CarrierCity,
     CarrierServiceRow,
     CarrierTerminalRow,
+    HealthResult,
     LabelResult,
     Party,
     Quote,
@@ -47,6 +48,10 @@ class FakeCarrier:
         max_places=10,
         supported_label_formats=(LabelFormat.PDF_A6,),
     )
+
+    async def health_check(self, acc: CarrierAccount) -> HealthResult:
+        """Проверка доступов исполнима без сети: она и есть один вызов."""
+        return HealthResult(is_healthy=True, latency_ms=12)
 
     async def quote(self, req: QuoteRequest, acc: CarrierAccount) -> list[Quote]:
         return [
@@ -132,10 +137,31 @@ class TestContractIsImplementable:
             "cancel",
             "find_by_number",
             "fetch_refs",
+            "health_check",
             "parse_webhook",
             "verify_webhook",
         ):
             assert callable(getattr(adapter, name)), f"метод {name} отсутствует"
+
+
+class TestHealthCheck:
+    """Метод добавлен в контракт по системному ТЗ, раздел 9.
+
+    Смысл проверки тот же, что и у остальных в этом файле: убедиться, что
+    метод исполним без базы и без сети. У ``health_check`` это не формальность
+    — он единственный, кому запрещено бросать исключение при отказе
+    перевозчика, и двойник обязан уметь ответить «не работает».
+    """
+
+    async def test_it_answers_without_network(
+        self, adapter: FakeCarrier, account: CarrierAccount
+    ) -> None:
+        result = await adapter.health_check(account)
+
+        assert result.is_healthy is True
+        assert result.latency_ms >= 0
+        # У здоровой проверки текста нет: подпись пишет экран.
+        assert result.message is None
 
 
 class TestFetchRefs:

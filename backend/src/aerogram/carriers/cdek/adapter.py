@@ -20,6 +20,7 @@ from aerogram.carriers.base import (
     Capabilities,
     CarrierAccount,
     CarrierCity,
+    HealthResult,
     LabelResult,
     Party,
     Quote,
@@ -47,6 +48,7 @@ from aerogram.carriers.cdek.orders import (
     request_error,
 )
 from aerogram.carriers.cdek.webhook import parse_order_status
+from aerogram.carriers.health import probe
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import LabelFormat
 from aerogram.shared.errors import (
@@ -370,6 +372,26 @@ class CdekAdapter:
         code, message = error
         log.info("cdek.request_rejected", operation=operation, cdek_code=code)
         raise CarrierValidationError(message or "СДЭК отклонил запрос", carrier_code=CDEK_CODE)
+
+    async def health_check(self, acc: CarrierAccount) -> HealthResult:
+        """Запрос токена OAuth: он и есть проверка учётных данных.
+
+        Дешевле некуда и ничего не создаёт: `client_id` и `client_secret`
+        либо принимаются, либо нет, и другого способа это узнать у СДЭК нет.
+        """
+
+        async def call() -> object:
+            # Клиент строится ВНУТРИ замера намеренно: у части перевозчиков
+            # сборка сама по себе может отказать — нет адреса API, нечем
+            # собрать ключ. Для оператора это тот же ответ «подключение
+            # не работает», и он обязан увидеть строку, а не пятисотую.
+            client = self._client_factory(acc)
+            try:
+                return await client.token()
+            finally:
+                await client.aclose()
+
+        return await probe(call, carrier_code=CDEK_CODE)
 
     async def label(self, ext_id: str, fmt: LabelFormat, acc: CarrierAccount) -> LabelResult:
         raise self._not_implemented("печатная форма", "неделя 7")

@@ -36,6 +36,7 @@ from aerogram.carriers.base import (
     CancelResult,
     Capabilities,
     CarrierAccount,
+    HealthResult,
     LabelResult,
     Quote,
     QuoteRequest,
@@ -45,6 +46,7 @@ from aerogram.carriers.base import (
     ShipmentResult,
     WebhookUpdate,
 )
+from aerogram.carriers.health import probe
 from aerogram.carriers.pecom.client import PecomClient
 from aerogram.carriers.pecom.orders import (
     LIST_ORDERS_PATH,
@@ -220,6 +222,27 @@ class PecomAdapter:
             # нельзя, а падать не за что: контракт предусматривает ожидание.
             return LabelResult(format=LabelFormat.PDF_A4, content=None, is_pending=True)
         return LabelResult(format=LabelFormat.PDF_A4, content=content, is_pending=False)
+
+    async def health_check(self, acc: CarrierAccount) -> HealthResult:
+        """Список заказов по логину: самый дешёвый авторизованный вызов.
+
+        Отдельного метода входа у ПЭК нет — авторизация идёт в каждом
+        запросе, поэтому проверять нечем, кроме настоящего вызова. Взято
+        чтение: расчёт у ПЭК считает цену, а создание создаёт заказ.
+        """
+
+        async def call() -> object:
+            # Внутри замера: сборка клиента тоже может отказать, и для
+            # оператора это тот же ответ «подключение не работает».
+            client = self._client_factory(acc)
+            try:
+                return await client.post(
+                    LIST_ORDERS_PATH, list_orders_payload(), operation="health"
+                )
+            finally:
+                await client.aclose()
+
+        return await probe(call, carrier_code=PECOM_CODE)
 
     # --- Ещё не реализовано ----------------------------------------------
 

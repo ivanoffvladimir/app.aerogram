@@ -25,6 +25,7 @@ from aerogram.carriers import registry
 from aerogram.carriers.base import (
     Capabilities,
     CarrierAccount,
+    HealthResult,
     Quote,
     QuoteRequest,
     RawEvent,
@@ -67,6 +68,20 @@ class FakeCarrier:
         self._delay = delay
         self._prices = prices
         self.seen: list[QuoteRequest] = []
+
+    async def health_check(self, acc: CarrierAccount) -> HealthResult:
+        """Проверка доступов. Двойник обязан выполнять контракт целиком.
+
+        Ведёт себя по тому же ``behaviour``, что и расчёт: иначе нельзя
+        проверить, что кабинет показывает отказ, а не падает.
+        """
+        if self._behaviour == "error":
+            return HealthResult(
+                is_healthy=False, latency_ms=7, message="Перевозчик отклонил учётные данные"
+            )
+        if self._behaviour == "crash":
+            raise RuntimeError("что-то пошло не так внутри адаптера")
+        return HealthResult(is_healthy=True, latency_ms=7)
 
     async def quote(self, req: QuoteRequest, acc: CarrierAccount) -> list[Quote]:
         self.seen.append(req)

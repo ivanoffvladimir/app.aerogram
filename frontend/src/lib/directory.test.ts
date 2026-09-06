@@ -4,6 +4,7 @@ import {
   CARRIER_MODE_LABELS,
   COUNTERPARTY_TYPE_LABELS,
   formatAddress,
+  healthText,
   ROLE_LABELS,
   TENANT_ROLES,
 } from './directory'
@@ -62,7 +63,6 @@ describe('адрес одной строкой', () => {
   })
 })
 
-
 describe('подключение перевозчика', () => {
   it('называет оба режима договора', () => {
     // Значения совпадают с проверкой carrier_account_mode в core/models.py.
@@ -73,5 +73,33 @@ describe('подключение перевозчика', () => {
     for (const status of ['unchecked', 'ok', 'error']) {
       expect(ACCOUNT_STATUS_LABELS[status]).toBeTruthy()
     }
+  })
+})
+
+describe('healthText', () => {
+  it('успешная проверка называет задержку', () => {
+    // «В порядке» без числа не отличает перевозчика, отвечающего за 200 мс,
+    // от отвечающего за 8 секунд, — а второй сорвёт общий дедлайн выдачи,
+    // оставаясь формально исправным.
+    expect(healthText({ is_healthy: true, latency_ms: 213, message: null })).toBe(
+      'в порядке, ответ за 213 мс',
+    )
+  })
+
+  it('отказ показывает причину, а не общее слово', () => {
+    expect(
+      healthText({
+        is_healthy: false,
+        latency_ms: 90,
+        message: 'Перевозчик отклонил учётные данные',
+      }),
+    ).toBe('Перевозчик отклонил учётные данные')
+  })
+
+  it('отказ без причины всё равно называет себя отказом', () => {
+    // Пустая ячейка читалась бы как «проверка не запускалась».
+    expect(healthText({ is_healthy: false, latency_ms: 0, message: null })).toBe(
+      'подключение не работает',
+    )
   })
 })

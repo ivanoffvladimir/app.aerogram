@@ -40,6 +40,7 @@ from aerogram.carriers.base import (
     CancelResult,
     Capabilities,
     CarrierAccount,
+    HealthResult,
     LabelResult,
     Quote,
     QuoteRequest,
@@ -72,6 +73,7 @@ from aerogram.carriers.dellin.quotes import (
     delivery_types_for,
     parse_quote,
 )
+from aerogram.carriers.health import probe
 from aerogram.shared.enums import LabelFormat
 from aerogram.shared.errors import CarrierError, CarrierNotConfigured, CarrierValidationError
 from aerogram.shared.logging import get_logger
@@ -318,6 +320,24 @@ class DellinAdapter:
             "(ADR-0020, решение 4)",
             carrier_code=DELLIN_CODE,
         )
+
+    async def health_check(self, acc: CarrierAccount) -> HealthResult:
+        """Авторизация сессии: она и есть проверка доступов.
+
+        У Деловых Линий три составляющих доступа — ключ приложения, логин
+        и пароль, — и вход проверяет все три сразу. Ничего не создаёт.
+        """
+
+        async def call() -> object:
+            # Внутри замера: сборка клиента тоже может отказать, и для
+            # оператора это тот же ответ «подключение не работает».
+            client = self._client_factory(acc)
+            try:
+                return await client.session()
+            finally:
+                await client.aclose()
+
+        return await probe(call, carrier_code=DELLIN_CODE)
 
     async def fetch_refs(self, acc: CarrierAccount) -> RefCatalog:
         raise CarrierNotConfigured(

@@ -116,11 +116,7 @@ export interface Summary {
  * «расхождений нет» там, где счетов не приходило вовсе.
  */
 export type ReconciliationState =
-  | 'awaiting'
-  | 'no_quote'
-  | 'matched'
-  | 'overcharged'
-  | 'undercharged'
+  'awaiting' | 'no_quote' | 'matched' | 'overcharged' | 'undercharged'
 
 /** Одно отправление в сверке. `difference` — факт минус котировка. */
 export interface CostLine {
@@ -205,13 +201,7 @@ export interface ApiKeyCreated {
 }
 
 /** Состояние массового расчёта. */
-export type BulkRunStatus =
-  | 'draft'
-  | 'quoting'
-  | 'quoted'
-  | 'creating'
-  | 'completed'
-  | 'failed'
+export type BulkRunStatus = 'draft' | 'quoting' | 'quoted' | 'creating' | 'completed' | 'failed'
 
 /** Состояние одной строки массового расчёта. */
 export type BulkRowStatus = 'new' | 'quoted' | 'selected' | 'created' | 'failed'
@@ -480,6 +470,24 @@ export interface CarrierConnection {
   contract_number: string | null
   credential_fields: { name: string; label: string; secret: boolean; required: boolean }[]
   where_to_get: string | null
+}
+
+/**
+ * Итог проверки подключения (`POST /v1/carriers/{code}/check`).
+ *
+ * `is_healthy === false` — не ошибка запроса, а его ответ: вопрос был
+ * «работают ли доступы». Путь отвечает 200 в обоих случаях, красным строку
+ * красит кабинет.
+ */
+export interface CarrierHealth {
+  code: string
+  status: 'ok' | 'error'
+  is_healthy: boolean
+  /** Время вызова перевозчика в миллисекундах (бэкенд-ТЗ: health/latency). */
+  latency_ms: number
+  /** Текст для человека. У успешной проверки его нет. */
+  message: string | null
+  checked_at: string
 }
 
 /** Единый формат ошибки бэкенда. */
