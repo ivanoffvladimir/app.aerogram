@@ -14,6 +14,7 @@ import {
 import { AddressBookEdit } from '@/components/AddressBookEdit'
 import { AppShell } from '@/components/AppShell'
 import { ErrorNote } from '@/components/ErrorNote'
+import { PersonalDataNotice } from '@/components/PersonalDataNotice'
 import { COUNTERPARTY_TYPE_LABELS, formatAddress } from '@/lib/directory'
 import styles from './page.module.css'
 
@@ -310,6 +311,7 @@ function CounterpartyForm({
         {pending ? 'Сохраняем…' : 'Сохранить'}
       </button>
       {error ? <ErrorNote error={error} /> : null}
+      <PersonalDataNotice />
     </form>
   )
 }

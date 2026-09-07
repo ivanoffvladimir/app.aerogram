@@ -1,0 +1,52 @@
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+  line-height: 1.6;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+/* Заметна намеренно: черновик, выданный за действующий документ, хуже
+   отсутствия документа — на него сошлются. */
+.draft {
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  padding: 12px 16px;
+  margin-bottom: 28px;
+  font-size: 14px;
+}
+
+.section {
+  margin-bottom: 28px;
+}
+
+.section h2 {
+  font-size: 17px;
+  margin: 0 0 10px;
+}
+
+.section p {
+  margin: 0 0 10px;
+}
+
+.section ul {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.section li {
+  margin-bottom: 6px;
+}

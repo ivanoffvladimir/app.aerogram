@@ -60,6 +60,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
           ))}
         </nav>
+        {/* Политика лежит в подвале меню, а не только на входе: сотрудник,
+            уже вошедший в кабинет, должен иметь возможность её открыть —
+            неограниченный доступ этого и требует. */}
+        <div className={styles.legal}>
+          <Link href="/legal/privacy" className={styles.legalLink}>
+            Обработка персональных данных
+          </Link>
+        </div>
       </aside>
       <div>
         <div className={styles.topbar}>

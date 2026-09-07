@@ -42,3 +42,11 @@
   color: #fff;
   font-weight: 500;
 }
+
+.legal {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 16px 0 0;
+  text-align: center;
+}

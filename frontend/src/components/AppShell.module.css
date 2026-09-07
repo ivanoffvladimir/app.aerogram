@@ -85,3 +85,18 @@
 .profile:hover {
   color: var(--accent);
 }
+
+.legal {
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+.legalLink {
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.legalLink:hover {
+  text-decoration: underline;
+}

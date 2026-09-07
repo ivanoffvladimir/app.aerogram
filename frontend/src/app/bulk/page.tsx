@@ -15,6 +15,7 @@ import {
 } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
 import { ErrorNote } from '@/components/ErrorNote'
+import { PersonalDataNotice } from '@/components/PersonalDataNotice'
 import {
   IMPORT_STATUS_LABELS,
   formatDestination,
@@ -198,6 +199,7 @@ export default function BulkListPage() {
             индекс, вес, ценность — или ИНН и название, тогда получатель подбирается по вашей
             адресной книге.
           </span>
+          <PersonalDataNotice />
         </div>
 
         <div className={styles.row}>

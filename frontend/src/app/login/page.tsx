@@ -1,6 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -101,6 +102,14 @@ export default function LoginPage() {
         <button className={styles.submit} type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Входим…' : 'Войти'}
         </button>
+        {/* Часть 2 статьи 18.1 закона № 152-ФЗ требует неограниченного
+            доступа к политике. Документ, доступный только после входа,
+            этому требованию не отвечает. */}
+        <p className={styles.legal}>
+          Пользуясь кабинетом, вы принимаете{' '}
+          <Link href="/legal/privacy">политику обработки персональных данных</Link> и{' '}
+          <Link href="/legal/consent">условия согласия</Link>.
+        </p>
       </form>
     </div>
   )
