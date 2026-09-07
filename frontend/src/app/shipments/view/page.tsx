@@ -4,10 +4,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
-import { request, tokens, type ApiError, type Shipment, type TrackingEvent } from '@/api/client'
+import {
+  request,
+  tokens,
+  type ApiError,
+  type Decision,
+  type Shipment,
+  type TrackingEvent,
+} from '@/api/client'
 import { AppShell } from '@/components/AppShell'
 import { ErrorNote } from '@/components/ErrorNote'
+import { decisionMaker, overrideSummary } from '@/lib/decision'
 import { formatDateTime, formatMoney } from '@/lib/format'
+import { SELECTION_LABELS } from '@/lib/routingRules'
 import {
   EVENT_STATUS_LABELS,
   FINAL_STATUSES,
@@ -47,6 +56,18 @@ function ShipmentCard() {
   const timeline = useQuery({
     queryKey: ['tracking', id],
     queryFn: () => request<TrackingEvent[]>(`/shipments/${id}/tracking`),
+  })
+
+  //: Решение, по которому создано отправление. Отдельным запросом, потому что
+  //  идентификатор решения приходит в самом отправлении, а его снимок —
+  //  единственное место, где написано, чем объясняется выбор перевозчика.
+  //  `enabled` держит запрос до появления идентификатора: у отправления,
+  //  заведённого без решения, его нет вовсе.
+  const decisionId = shipment.data?.decision_id ?? null
+  const decision = useQuery({
+    queryKey: ['decision', decisionId],
+    queryFn: () => request<Decision>(`/decisions/${decisionId}`),
+    enabled: Boolean(decisionId),
   })
 
   const cancel = useMutation({
@@ -120,6 +141,54 @@ function ShipmentCard() {
             </dl>
           ) : (
             <p className={styles.empty}>Загружаем…</p>
+          )}
+        </section>
+
+        <section className={styles.card}>
+          <h2>Решение</h2>
+          {decision.data ? (
+            <dl className={styles.rows}>
+              {/* «Человек», «правило» и «интеграция» — три разных ответа
+                  на один и тот же вопрос спора с клиентом. Разбор живёт
+                  в lib и проверен тестом: это правило, а не разметка. */}
+              <dt>Кто выбрал</dt>
+              <dd>{decisionMaker(decision.data)}</dd>
+              {decision.data.selection_rule && (
+                <>
+                  <dt>Правило автовыбора</dt>
+                  <dd>
+                    {SELECTION_LABELS[decision.data.selection_rule] ??
+                      decision.data.selection_rule}
+                  </dd>
+                </>
+              )}
+              <dt>Отказ от рекомендации</dt>
+              <dd>{overrideSummary(decision.data)}</dd>
+              {decision.data.override_comment && (
+                <>
+                  <dt>Комментарий</dt>
+                  <dd>{decision.data.override_comment}</dd>
+                </>
+              )}
+              <dt>Принято</dt>
+              <dd>{formatDateTime(decision.data.decided_at)}</dd>
+              {decision.data.selection_version && (
+                <>
+                  <dt>Версия выбора</dt>
+                  <dd>{decision.data.selection_version}</dd>
+                </>
+              )}
+            </dl>
+          ) : (
+            <p className={styles.empty}>
+              {/* Отправление без решения — законное состояние: так заводятся
+                  «призраки», найденные сверкой у перевозчика. */}
+              {decisionId
+                ? decision.isLoading
+                  ? 'Загружаем…'
+                  : 'Решение недоступно'
+                : 'Отправление заведено без решения Decision Engine'}
+            </p>
           )}
         </section>
 

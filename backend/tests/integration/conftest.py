@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
@@ -136,6 +136,25 @@ class FakeCarrier:
                 price_source=acc.price_source,
             ),
         ]
+
+
+@pytest.fixture
+def auto_select_on() -> Iterator[None]:
+    """Включить рубильник автовыбора до сборки приложения.
+
+    Запрашивается ПЕРВОЙ в сигнатуре теста: ``app`` читает настройки при
+    сборке и сбрасывает их кэш, поэтому переменная должна встать раньше.
+
+    Живёт здесь, а не рядом с тестом автовыбора: фикстуру нельзя
+    импортировать по имени — имя затенялось бы аргументом тестовой функции.
+    """
+    previous = os.environ.get("AUTO_SELECT_ENABLED")
+    os.environ["AUTO_SELECT_ENABLED"] = "true"
+    yield
+    if previous is None:
+        os.environ.pop("AUTO_SELECT_ENABLED", None)
+    else:
+        os.environ["AUTO_SELECT_ENABLED"] = previous
 
 
 @pytest.fixture(autouse=True)

@@ -95,6 +95,45 @@ class TestDraft:
         assert response.status_code == 404
 
 
+class TestAutoSelectStaysOut:
+    """Прогон не отдаёт выбор правилу автовыбора (ADR-0029).
+
+    Две одинаковые строки списка делят один расчёт (FR-1.6), а ключ решения
+    автовыбора выведен из расчёта. Одно решение на две строки означало бы
+    одно отправление на две: «одно решение — одно отправление» держит домен,
+    и вторая строка просто не оформилась бы.
+    """
+
+    async def test_identical_rows_still_get_a_decision_each(
+        self,
+        auto_select_on: None,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        _register_shipping()
+        await client.post(
+            "/v1/routing-rules",
+            json={
+                "name": "берём дешёвое",
+                "priority": 10,
+                "conditions": {"cargo_type": ["equipment"]},
+                "actions": {"auto_select": "cheapest"},
+            },
+            headers=headers,
+        )
+        run_id = (await _create(client, headers))["id"]
+        await client.post(f"/v1/bulk-runs/{run_id}/quote", headers=headers)
+
+        selected = (await client.post(f"/v1/bulk-runs/{run_id}/select", headers=headers)).json()
+        decisions = [row["decision_id"] for row in selected["rows"]]
+        assert all(decisions), selected
+        assert len(set(decisions)) == 2, "у каждой строки своё решение"
+
+        created = (await client.post(f"/v1/bulk-runs/{run_id}/create", headers=headers)).json()
+        assert {row["status"] for row in created["rows"]} == {"created"}
+
+
 class TestRun:
     async def test_the_whole_list_goes_through_quote_select_and_create(
         self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]

@@ -9,6 +9,7 @@ from fastapi import APIRouter, status
 
 from aerogram.core.deps import CurrentPrincipal, Principal, SessionDep, require_roles
 from aerogram.routing.schemas import (
+    DecisionOut,
     DecisionRequestIn,
     DecisionResponse,
     RecommendationOut,
@@ -70,6 +71,25 @@ async def decide(
         user_id=principal.user_id,
         idempotency_key=idempotency_key,
     )
+
+
+@routing_router.get(
+    "/decisions/{decision_id}",
+    response_model=DecisionOut,
+    summary="Снимок принятого решения",
+)
+async def read_decision(
+    decision_id: UUID,
+    principal: CurrentPrincipal,
+    session: SessionDep,
+) -> DecisionOut:
+    """Прочитать решение.
+
+    Нужно карточке отправления и разбору спора: чем именно объясняется
+    выбор — рекомендацией, причиной отказа от неё или правилом автовыбора.
+    Снимок автовыбора виден иначе только в базе.
+    """
+    return await DecisionService(session).get(decision_id)
 
 
 #: Правила — это корпоративная политика: они решают, кого можно спрашивать

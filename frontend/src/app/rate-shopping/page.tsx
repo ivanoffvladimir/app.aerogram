@@ -19,6 +19,7 @@ import { AppShell } from '@/components/AppShell'
 import { ErrorNote } from '@/components/ErrorNote'
 import { OfferCard } from '@/components/OfferCard'
 import { OverrideDialog } from '@/components/OverrideDialog'
+import { autoRuleSummary } from '@/lib/decision'
 import { CONFIDENCE_LABELS, formatDateTime, formatMoney } from '@/lib/format'
 import { IdempotencyKeys } from '@/lib/idempotency'
 import styles from './page.module.css'
@@ -207,6 +208,13 @@ export default function RateShoppingPage() {
   // просроченной нельзя — это заблокировало бы выбор без причины.
   const isStale = quote?.valid_until ? new Date(quote.valid_until).getTime() <= now : false
   const offers = quote?.offers ?? []
+  // Правило владельца уже выбрало по этому расчёту (ADR-0029). Ручной выбор
+  // при этом закрыт: второе решение по тому же расчёту означало бы два
+  // заказа на один груз, а «одно решение — одно отправление» держит домен.
+  const auto = recommendation?.auto_decision ?? null
+  const autoOffer = auto
+    ? offers.find((offer) => offer.id === auto.selected_offer_id)
+    : undefined
   const recommended = offers.find((offer) => offer.id === recommendation?.recommended_offer_id)
   const alternatives = offers.filter((offer) => offer.id !== recommended?.id && offer.eligible)
   const rejected = offers.filter((offer) => !offer.eligible)
@@ -345,6 +353,54 @@ export default function RateShoppingPage() {
             </div>
           )}
 
+          {auto && (
+            <section className={styles.card} style={{ borderColor: 'var(--accent)' }}>
+              <span className={styles.badge}>Выбрано автоматически</span>
+              <h2 style={{ margin: '8px 0 0' }}>
+                {autoOffer
+                  ? `${autoOffer.carrier_name ?? 'Перевозчик'} — ${autoOffer.service_name ?? autoOffer.service_code}`
+                  : 'Выбранный вариант'}
+              </h2>
+              <p style={{ margin: '8px 0 0' }}>
+                {/* Названы и правило, и его имя: признак объясняет выбор,
+                    имя отвечает на вопрос «чьё это правило» — за ним человек
+                    идёт на экран правил. */}
+                {autoRuleSummary(auto)}. {autoOffer ? formatMoney(autoOffer.total_cost) : null}{' '}
+                {autoOffer ? `· ${formatDateTime(autoOffer.eta)}` : null}
+              </p>
+              {auto.override && (
+                <p className={styles.muted} style={{ margin: '8px 0 0' }}>
+                  {/* Расхождение — нормальный исход: правило и стратегия
+                      меряют разное. Молчать о нём нельзя: оператор увидел бы
+                      рекомендацию и другой выбор без объяснения. */}
+                  Правило выбрало не то, что рекомендует стратегия «
+                  {STRATEGIES.find((item) => item.value === strategy)?.label ?? strategy}». Это
+                  ожидаемо: правило и стратегия отвечают на разные вопросы.
+                </p>
+              )}
+              <div style={{ marginTop: 12 }}>
+                {shipment ? (
+                  <>
+                    Отправление <strong>{shipment.number}</strong> создано.{' '}
+                    <Link href={`/shipments/view?id=${shipment.id}`}>Открыть карточку</Link>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => create.mutate(auto.decision_id)}
+                    disabled={create.isPending}
+                  >
+                    {create.isPending ? 'Создаём заказ у перевозчика…' : 'Создать отправление'}
+                  </button>
+                )}
+              </div>
+              <p className={styles.muted} style={{ margin: '12px 0 0' }}>
+                Решение {auto.decision_id.slice(0, 8)} от {formatDateTime(auto.decided_at)} ·
+                выбор {auto.selection_version}
+              </p>
+            </section>
+          )}
+
           {decision && (
             <div className={styles.card} style={{ borderColor: 'var(--success)' }}>
               <strong>Решение зафиксировано.</strong> Снимок {decision.snapshot_id.slice(0, 8)},
@@ -397,7 +453,7 @@ export default function RateShoppingPage() {
                 <button
                   type="button"
                   className={styles.primary}
-                  disabled={isStale || decide.isPending || Boolean(decision)}
+                  disabled={isStale || decide.isPending || Boolean(decision) || Boolean(auto)}
                   onClick={() => selectOffer(recommended)}
                 >
                   Принять рекомендацию
@@ -431,7 +487,11 @@ export default function RateShoppingPage() {
               offer={offer}
               onSelect={selectOffer}
               selectDisabled={
-                isStale || decide.isPending || Boolean(decision) || !recommendation
+                isStale ||
+                decide.isPending ||
+                Boolean(decision) ||
+                Boolean(auto) ||
+                !recommendation
               }
             />
           ))}

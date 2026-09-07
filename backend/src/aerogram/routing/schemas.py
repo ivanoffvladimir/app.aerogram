@@ -14,9 +14,12 @@ from aerogram.shared.enums import (
     OverrideReason,
     RoutingStrategy,
     ScoreConfidence,
+    SelectionRule,
 )
 
 __all__ = [
+    "AutoDecisionOut",
+    "DecisionOut",
     "DecisionRequestIn",
     "DecisionResponse",
     "RecommendationOut",
@@ -33,6 +36,31 @@ class RoutingRequestIn(BaseModel):
 
     quote_id: UUID
     strategy: RoutingStrategy
+
+
+class AutoDecisionOut(BaseModel):
+    """Решение, принятое правилом автовыбора, без человека (ADR-0029).
+
+    Едет вместе с рекомендацией, потому что экран обязан узнать о нём
+    в тот же момент: иначе оператор нажмёт «Принять рекомендацию» и создаст
+    по тому же расчёту ВТОРОЕ решение, не зная о первом.
+
+    Правило названо и значением, и именем: значение объясняет выбор,
+    имя — чьё это правило. Имя историческое, из снимка: правило могли
+    переименовать после решения, и подставлять сегодняшнее имя значило бы
+    переписывать историю.
+    """
+
+    decision_id: UUID
+    selected_offer_id: UUID
+    rule: SelectionRule
+    rule_id: UUID
+    rule_name: str
+    #: Правило выбрало не то, что рекомендовала стратегия. Нормальный исход:
+    #: словари ``SelectionRule`` и ``RoutingStrategy`` не пересекаются.
+    override: bool
+    selection_version: str
+    decided_at: datetime
 
 
 class RecommendationOut(BaseModel):
@@ -52,6 +80,35 @@ class RecommendationOut(BaseModel):
     policy_version: str
     alternatives_delta: dict[str, Any] = Field(default_factory=dict)
     confidence: ScoreConfidence | None = None
+    #: Решение, уже принятое правилом автовыбора по этому расчёту.
+    #: ``None`` — правила нет, оно не сработало или рубильник выключен;
+    #: во всех трёх случаях выбор остаётся за человеком.
+    auto_decision: AutoDecisionOut | None = None
+
+
+class DecisionOut(BaseModel):
+    """Снимок принятого решения — то, чем оно объясняется через год.
+
+    Пути в замороженном контракте нет: там описано только создание решения.
+    Прочитать его, однако, нужно и карточке отправления, и разбору спора,
+    и снимок автовыбора виден иначе только в базе.
+    """
+
+    id: UUID
+    recommendation_id: UUID
+    quote_id: UUID
+    selected_offer_id: UUID
+    mode: DecisionMode
+    #: Автор. У машинного решения его нет — это не пропуск, а утверждение.
+    actor_id: UUID | None
+    override: bool
+    override_reason: OverrideReason | None
+    override_comment: str | None
+    selection_rule: SelectionRule | None
+    auto_select_rule_id: UUID | None
+    auto_select_rule_name: str | None
+    selection_version: str | None
+    decided_at: datetime
 
 
 class DecisionRequestIn(BaseModel):

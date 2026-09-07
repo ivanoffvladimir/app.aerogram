@@ -51,11 +51,28 @@ class CostRow:
 
 @dataclass(frozen=True, slots=True)
 class OverrideStats:
-    """Решения за период: сколько раз рекомендацию не приняли."""
+    """Решения за период: сколько раз рекомендацию не приняли.
 
+    Override Rate меряет доверие ЛЮДЕЙ к движку, поэтому и числитель,
+    и знаменатель здесь про людей: ``manual`` и ``overrides`` (ADR-0029).
+    Машинные решения считаются рядом и отдельно — одним числом на правило
+    автовыбора и одним на клиента по API. Смешай их, и включение одного
+    правила у одного клиента подняло бы метрику всего пилота, ничего
+    не сказав о логистах.
+    """
+
+    #: Все решения тенанта за окно — и людей, и машин.
     decisions: int
+    #: Решения человека. Знаменатель Override Rate.
+    manual: int
+    #: Отказы от рекомендации СРЕДИ РУЧНЫХ. Числитель Override Rate.
     overrides: int
-    auto: int
+    #: Решения правила автовыбора.
+    auto_by_rule: int
+    #: Решения машинного клиента по API: ``mode = auto`` без правила.
+    auto_by_client: int
+    #: Разрез РУЧНЫХ отказов по причинам — разложение числителя. Машинные
+    #: сюда не попадают: иначе разрез не сходился бы с самой метрикой.
     by_reason: dict[str, int]
 
 
@@ -119,18 +136,36 @@ class ReportRepository:
         ]
 
     async def override_stats(self, since: datetime) -> OverrideStats:
-        """Решения и доля отказов от рекомендации (Override Rate)."""
+        """Решения и доля отказов от рекомендации (Override Rate).
+
+        Разрезано по режиму: человек и машина отвечают на разные вопросы,
+        и одно число на двоих не отвечает ни на один (ADR-0029). Правило
+        автовыбора отличается от машинного клиента наличием снимка правила
+        в решении — колонкой, а не догадкой по причине отказа.
+        """
+        manual = Decision.mode == "manual"
+        auto = Decision.mode == "auto"
+        by_rule = Decision.auto_select_rule_id.is_not(None)
         totals = select(
             func.count(),
-            func.count().filter(Decision.override.is_(True)),
-            func.count().filter(Decision.mode == "auto"),
+            func.count().filter(manual),
+            func.count().filter(manual, Decision.override.is_(True)),
+            func.count().filter(auto, by_rule),
+            func.count().filter(auto, ~by_rule),
         ).where(Decision.decided_at >= since)
         row = (await self._session.execute(totals)).one()
 
         reasons = (
             select(Decision.override_reason, func.count())
-            .where(Decision.decided_at >= since, Decision.override_reason.is_not(None))
+            .where(Decision.decided_at >= since, manual, Decision.override_reason.is_not(None))
             .group_by(Decision.override_reason)
         )
         by_reason = {str(name): count for name, count in (await self._session.execute(reasons))}
-        return OverrideStats(decisions=row[0], overrides=row[1], auto=row[2], by_reason=by_reason)
+        return OverrideStats(
+            decisions=row[0],
+            manual=row[1],
+            overrides=row[2],
+            auto_by_rule=row[3],
+            auto_by_client=row[4],
+            by_reason=by_reason,
+        )

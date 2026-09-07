@@ -86,8 +86,26 @@ export default function DashboardPage() {
         <div className={styles.card}>
           <div className={styles.value}>{formatRate(overrides?.override_rate)}</div>
           <div className={styles.label}>Отказов от рекомендации</div>
+          {/* Знаменатель — решения ЛЮДЕЙ (ADR-0029). Метрика отвечает
+              на вопрос «насколько логисты доверяют движку», и правило
+              автовыбора, включённое у одного клиента, не должно её
+              поднимать. Сказано прямо, иначе число читается как «из всех». */}
           <div className={styles.label}>
-            {overrides ? `из ${overrides.decisions} решений` : ''}
+            {overrides ? `из ${overrides.manual} решений оператора` : ''}
+          </div>
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.value}>{overrides?.auto_by_rule ?? '—'}</div>
+          <div className={styles.label}>Решений без человека</div>
+          {/* Правило владельца и интеграция по API — разные явления, и одно
+              число на двоих не отвечает ни за одно из них. */}
+          <div className={styles.label}>
+            {overrides
+              ? overrides.auto_by_client > 0
+                ? `правилом автовыбора; ещё ${overrides.auto_by_client} — интеграцией`
+                : 'правилом автовыбора'
+              : ''}
           </div>
         </div>
       </div>
@@ -137,6 +155,10 @@ export default function DashboardPage() {
 
       <section className={styles.section}>
         <h2>Отказы от рекомендации</h2>
+        <p className={styles.note}>
+          Разрез по решениям оператора: он раскладывает числитель доли выше. Выбор, сделанный
+          правилом автовыбора, сюда не входит — он показан отдельной плиткой.
+        </p>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
@@ -155,7 +177,13 @@ export default function DashboardPage() {
             </tbody>
           </table>
           {!summary.isLoading && Object.keys(overrides?.by_reason ?? {}).length === 0 && (
-            <div className={styles.empty}>Рекомендацию принимали без исключений</div>
+            <div className={styles.empty}>
+              {/* «Люди не отказывались» и «людей тут не было» — разные вещи,
+                  и по первому стали бы делать вывод о доверии к движку. */}
+              {overrides && overrides.manual === 0
+                ? 'Решений оператора за период не было'
+                : 'Рекомендацию принимали без исключений'}
+            </div>
           )}
         </div>
       </section>

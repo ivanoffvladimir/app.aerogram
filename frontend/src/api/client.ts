@@ -57,6 +57,57 @@ export type Recommendation = Omit<
 > & {
   recommended_offer_id: string | null
   confidence?: 'low' | 'medium' | 'high'
+  /**
+   * Решение, уже принятое правилом автовыбора по этому расчёту (ADR-0029).
+   * Схема контракта его не знает: правил маршрутизации там нет вовсе.
+   *
+   * Едет вместе с рекомендацией, потому что экран обязан узнать о нём в тот
+   * же момент: иначе оператор нажмёт «Принять рекомендацию» и создаст
+   * по тому же расчёту второе решение, не зная о первом.
+   */
+  auto_decision?: AutoDecision | null
+}
+
+/** Выбор, сделанный правилом владельца, без человека. */
+export interface AutoDecision {
+  decision_id: string
+  selected_offer_id: string
+  rule: SelectionRule
+  rule_id: string
+  /**
+   * Имя правила на момент решения. Историческое: правило могли переименовать
+   * после, и подставлять сегодняшнее имя значило бы переписывать историю.
+   */
+  rule_name: string
+  /** Правило выбрало не то, что рекомендовала стратегия. Нормальный исход. */
+  override: boolean
+  selection_version: string
+  decided_at: string
+}
+
+export type SelectionRule =
+  'cheapest' | 'fastest' | 'best_score' | 'best_value' | 'cheapest_meeting_deadline'
+
+/**
+ * Снимок принятого решения. Пути в контракте нет — там описано только
+ * создание решения, — поэтому тип написан руками по `routing/schemas.py`.
+ */
+export interface Decision {
+  id: string
+  recommendation_id: string
+  quote_id: string
+  selected_offer_id: string
+  mode: 'manual' | 'auto'
+  /** У машинного решения автора нет — это утверждение, а не пропуск. */
+  actor_id: string | null
+  override: boolean
+  override_reason: string | null
+  override_comment: string | null
+  selection_rule: SelectionRule | null
+  auto_select_rule_id: string | null
+  auto_select_rule_name: string | null
+  selection_version: string | null
+  decided_at: string
 }
 export type RoutingRequest = components['schemas']['RoutingRequest']
 export type DecisionRequest = components['schemas']['DecisionRequest']
@@ -129,10 +180,18 @@ export interface Summary {
    * не показывают»: круг у них тот же, что у сверки со счетами.
    */
   costs_visible: boolean
+  /**
+   * `override_rate` считается по решениям ЧЕЛОВЕКА (ADR-0029): метрика
+   * отвечает на вопрос «насколько логисты доверяют движку», и включение
+   * одного правила автовыбора не должно её поднимать. Машинные решения
+   * стоят рядом двумя числами: сделанные правилом и сделанные интеграцией.
+   */
   overrides: {
     decisions: number
+    manual: number
     overrides: number
-    auto: number
+    auto_by_rule: number
+    auto_by_client: number
     override_rate: number | null
     by_reason: Record<string, number>
   }

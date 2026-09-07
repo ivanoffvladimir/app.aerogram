@@ -106,9 +106,12 @@ def _costs(row: CostRow) -> CostsOut:
 def _overrides(stats: OverrideStats) -> OverridesOut:
     return OverridesOut(
         decisions=stats.decisions,
+        manual=stats.manual,
         overrides=stats.overrides,
-        auto=stats.auto,
-        override_rate=_rate(stats.overrides, stats.decisions),
+        auto_by_rule=stats.auto_by_rule,
+        auto_by_client=stats.auto_by_client,
+        # Знаменатель — решения человека, а не все подряд (ADR-0029).
+        override_rate=_rate(stats.overrides, stats.manual),
         by_reason=stats.by_reason,
     )
 

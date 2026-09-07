@@ -14,7 +14,6 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
 from typing import Any
 from uuid import UUID
 
@@ -24,25 +23,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from aerogram.carriers import registry
+from aerogram.shared.ids import uuid7
+from tests.conftest import login
 from tests.integration.conftest import RATE_REQUEST, FakeCarrier
 
 pytestmark = pytest.mark.asyncio
-
-
-@pytest.fixture
-def auto_select_on() -> Iterator[None]:
-    """Включить рубильник до сборки приложения.
-
-    Фикстура запрашивается ПЕРВОЙ в сигнатуре теста: ``app`` читает настройки
-    при сборке и сбрасывает их кэш, поэтому переменная должна стоять раньше.
-    """
-    previous = os.environ.get("AUTO_SELECT_ENABLED")
-    os.environ["AUTO_SELECT_ENABLED"] = "true"
-    yield
-    if previous is None:
-        os.environ.pop("AUTO_SELECT_ENABLED", None)
-    else:
-        os.environ["AUTO_SELECT_ENABLED"] = previous
 
 
 @pytest.fixture
@@ -274,6 +259,191 @@ class TestAutoDecision:
         assert await _decisions(database_url, carrier_setup[0]) == []
 
 
+class TestRecommendationCarriesTheDecision:
+    """Экран обязан узнать о машинном выборе вместе с рекомендацией.
+
+    Иначе оператор нажмёт «Принять рекомендацию» и создаст по тому же
+    расчёту второе решение, не зная о первом.
+    """
+
+    async def test_the_recommendation_names_the_rule_that_already_chose(
+        self,
+        auto_select_on: None,
+        client: AsyncClient,
+        headers: dict[str, str],
+        fake: FakeCarrier,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        rule = await _rule(client, headers, "cheapest", name="берём дешёвое")
+        quote = await _quote(client, headers)
+        recommendation = await _recommend(client, headers, quote["quote_id"])
+
+        auto = recommendation["auto_decision"]
+        assert auto is not None
+        assert auto["rule"] == "cheapest"
+        assert auto["rule_id"] == rule["id"]
+        assert auto["rule_name"] == "берём дешёвое"
+        assert auto["selection_version"] == "selection-1.0.0"
+        assert auto["selected_offer_id"] in {o["id"] for o in quote["offers"]}
+
+    async def test_a_reopened_screen_still_sees_it(
+        self,
+        auto_select_on: None,
+        client: AsyncClient,
+        headers: dict[str, str],
+        fake: FakeCarrier,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        """Вторая рекомендация по тому же расчёту — это обновлённый экран.
+
+        Решение уже принято и не создаётся заново, но молчать о нём нельзя:
+        экран показал бы кнопку выбора там, где выбор уже сделан.
+        """
+        await _rule(client, headers, "cheapest")
+        quote = await _quote(client, headers)
+        first = await _recommend(client, headers, quote["quote_id"])
+        second = await _recommend(client, headers, quote["quote_id"])
+
+        assert second["auto_decision"] is not None
+        assert second["auto_decision"]["decision_id"] == first["auto_decision"]["decision_id"]
+
+    async def test_without_a_rule_the_field_is_empty(
+        self,
+        auto_select_on: None,
+        client: AsyncClient,
+        headers: dict[str, str],
+        fake: FakeCarrier,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        """Выбор остаётся за человеком, и экран не должен думать иначе."""
+        quote = await _quote(client, headers)
+        assert (await _recommend(client, headers, quote["quote_id"]))["auto_decision"] is None
+
+
+class TestReadDecision:
+    """``GET /v1/decisions/{id}`` — чем объясняется выбор."""
+
+    async def test_an_automatic_decision_explains_itself(
+        self,
+        auto_select_on: None,
+        client: AsyncClient,
+        headers: dict[str, str],
+        fake: FakeCarrier,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        rule = await _rule(client, headers, "cheapest", name="берём дешёвое")
+        quote = await _quote(client, headers)
+        recommendation = await _recommend(client, headers, quote["quote_id"])
+        decision_id = recommendation["auto_decision"]["decision_id"]
+
+        response = await client.get(f"/v1/decisions/{decision_id}", headers=headers)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["mode"] == "auto"
+        assert body["actor_id"] is None
+        assert body["quote_id"] == quote["quote_id"]
+        assert body["recommendation_id"] == recommendation["id"]
+        assert body["selection_rule"] == "cheapest"
+        assert body["auto_select_rule_id"] == rule["id"]
+        assert body["auto_select_rule_name"] == "берём дешёвое"
+        assert body["selection_version"] == "selection-1.0.0"
+
+    async def test_a_manual_decision_names_no_rule(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        fake: FakeCarrier,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        """Пустой снимок автовыбора — утверждение «выбрал человек»."""
+        quote = await _quote(client, headers)
+        recommendation = await _recommend(client, headers, quote["quote_id"])
+        created = await client.post(
+            "/v1/decisions",
+            json={
+                "recommendation_id": recommendation["id"],
+                "selected_offer_id": recommendation["recommended_offer_id"],
+                "mode": "manual",
+            },
+            headers={**headers, "Idempotency-Key": "manual-1"},
+        )
+        assert created.status_code == 201, created.text
+
+        body = (
+            await client.get(f"/v1/decisions/{created.json()['decision_id']}", headers=headers)
+        ).json()
+        assert body["mode"] == "manual"
+        assert body["actor_id"] is not None
+        assert body["selection_rule"] is None
+        assert body["auto_select_rule_id"] is None
+
+    async def test_a_foreign_decision_is_a_404_not_a_403(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        fake: FakeCarrier,
+        carrier_setup: tuple[UUID, UUID],
+        seeded_tenants: tuple[UUID, UUID],
+    ) -> None:
+        """403 подтвердил бы, что такой объект существует (CLAUDE.md §6)."""
+        quote = await _quote(client, headers)
+        recommendation = await _recommend(client, headers, quote["quote_id"])
+        created = await client.post(
+            "/v1/decisions",
+            json={
+                "recommendation_id": recommendation["id"],
+                "selected_offer_id": recommendation["recommended_offer_id"],
+                "mode": "manual",
+            },
+            headers={**headers, "Idempotency-Key": "manual-1"},
+        )
+        assert created.status_code == 201, created.text
+
+        stranger = await login(client, "b@example.com")
+        response = await client.get(
+            f"/v1/decisions/{created.json()['decision_id']}", headers=stranger
+        )
+        assert response.status_code == 404, response.text
+
+    async def test_an_unknown_id_is_a_404(
+        self, client: AsyncClient, headers: dict[str, str]
+    ) -> None:
+        response = await client.get(f"/v1/decisions/{uuid7()}", headers=headers)
+        assert response.status_code == 404, response.text
+
+
+class TestOverrideRateDenominator:
+    """Override Rate меряет доверие ЛЮДЕЙ к движку (ADR-0029).
+
+    Включение одного правила у одного клиента не должно поднимать метрику
+    всего пилота, ничего не сказав о логистах.
+    """
+
+    async def test_a_rule_decision_does_not_enter_the_denominator(
+        self,
+        auto_select_on: None,
+        client: AsyncClient,
+        headers: dict[str, str],
+        fake: FakeCarrier,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        await _rule(client, headers, "cheapest")
+        quote = await _quote(client, headers)
+        recommendation = await _recommend(client, headers, quote["quote_id"])
+        assert recommendation["auto_decision"] is not None
+
+        summary = (await client.get("/v1/reports/summary", headers=headers)).json()
+        overrides = summary["overrides"]
+        assert overrides["decisions"] == 1, "решение существует и считается общим числом"
+        assert overrides["manual"] == 0
+        assert overrides["auto_by_rule"] == 1
+        assert overrides["auto_by_client"] == 0
+        # Ноль читался бы как «люди ни разу не отказались от рекомендации»,
+        # хотя людей тут не было вовсе.
+        assert overrides["override_rate"] is None
+        assert overrides["by_reason"] == {}, "разрез должен сходиться с числителем"
+
+
 class TestReservedKey:
     async def test_a_client_cannot_claim_the_auto_prefix(
         self,
@@ -297,6 +467,40 @@ class TestReservedKey:
         )
         assert response.status_code == 422, response.text
         assert response.json()["error"]["field"] == "Idempotency-Key"
+
+    async def test_a_human_cannot_claim_the_rule_as_a_reason(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        fake: FakeCarrier,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        """Значение заведено, чтобы отличать правило от мотива человека.
+
+        Разреши человеку на него сослаться — и разница стёрлась бы ровно
+        там, где заводилась (ADR-0029).
+        """
+        quote = await _quote(client, headers)
+        recommendation = await _recommend(client, headers, quote["quote_id"])
+        other = next(
+            offer
+            for offer in quote["offers"]
+            if offer["id"] != recommendation["recommended_offer_id"]
+        )
+
+        response = await client.post(
+            "/v1/decisions",
+            json={
+                "recommendation_id": recommendation["id"],
+                "selected_offer_id": other["id"],
+                "override": True,
+                "override_reason": "auto_select_rule",
+                "mode": "manual",
+            },
+            headers={**headers, "Idempotency-Key": "pretending"},
+        )
+        assert response.status_code == 422, response.text
+        assert response.json()["error"]["field"] == "override_reason"
 
 
 class TestPolicyVersion:

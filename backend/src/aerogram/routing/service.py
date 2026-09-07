@@ -22,6 +22,8 @@ from aerogram.routing.models import Decision, Recommendation, RoutingRule
 from aerogram.routing.repository import RoutingRepository
 from aerogram.routing.rules import EMPTY_POLICY_VERSION, parse_rules, policy_fingerprint
 from aerogram.routing.schemas import (
+    AutoDecisionOut,
+    DecisionOut,
     DecisionRequestIn,
     DecisionResponse,
     RecommendationOut,
@@ -109,9 +111,15 @@ class AutoSkip(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class AutoOutcome:
-    """Итог попытки выбрать без человека. Заполнено ровно одно поле."""
+    """Итог попытки выбрать без человека. Заполнено ровно одно поле.
 
-    decision_id: UUID | None = None
+    Решение возвращается целиком, а не одним идентификатором: экран обязан
+    показать, каким правилом и что именно выбрано, в тот же момент, что
+    и рекомендацию. Иначе оператор нажмёт «Принять рекомендацию» и создаст
+    по тому же расчёту второе решение, не зная о первом.
+    """
+
+    decision: Decision | None = None
     skipped: str | None = None
 
 
@@ -124,12 +132,19 @@ class RecommendationService:
         self._rates = RateRepository(session)
         self._routing = RoutingRepository(session)
 
-    async def recommend(self, payload: RoutingRequestIn, *, tenant_id: UUID) -> RecommendationOut:
+    async def recommend(
+        self, payload: RoutingRequestIn, *, tenant_id: UUID, auto_select: bool = True
+    ) -> RecommendationOut:
         """Построить и сохранить рекомендацию.
 
         Просроченный расчёт не рекомендуется: цены и сроки в нём уже могли
         измениться, а решение, принятое по устаревшему снимку, невозможно
         предъявить перевозчику.
+
+        ``auto_select = False`` отключает автовыбор для этого вызова. Нужен
+        массовому прогону: там стратегию для строк выбрал оператор, а ключ
+        решения автовыбора выведен из расчёта, который две одинаковые строки
+        списка делят между собой (ADR-0029).
         """
         quote = await self._rates.get_quote(payload.quote_id)
         if quote is None:
@@ -171,10 +186,12 @@ class RecommendationService:
             recommended=best is not None,
             confidence=ranking.confidence.value,
         )
-        await AutoSelectService(self._session, self._settings).consider(
+        if not auto_select:
+            return _to_out(recommendation)
+        outcome = await AutoSelectService(self._session, self._settings).consider(
             quote, recommendation, tenant_id=tenant_id
         )
-        return _to_out(recommendation)
+        return _to_out(recommendation, outcome.decision)
 
     async def _policy_version(self) -> str:
         """Версия политики тенанта на момент рекомендации.
@@ -225,6 +242,15 @@ class DecisionService:
             raise ValidationFailed(
                 f"Префикс «{AUTO_KEY_PREFIX}» зарезервирован платформой",
                 field="Idempotency-Key",
+            )
+        if selection is None and payload.override_reason is OverrideReason.AUTO_SELECT_RULE:
+            # По той же причине зарезервирована и причина: значение заведено,
+            # чтобы отличать выбор правила от мотива человека (ADR-0029),
+            # и разрешить человеку на него сослаться значит стереть разницу
+            # ровно там, где она заводилась.
+            raise ValidationFailed(
+                "Эту причину проставляет правило автовыбора, а не человек",
+                field="override_reason",
             )
         body = payload.model_dump(mode="json")
         existing = await self._routing.decision_by_key(idempotency_key)
@@ -293,6 +319,42 @@ class DecisionService:
             decision_id=decision.id,
             snapshot_id=recommendation.quote_id,
             created_at=decision.decided_at,
+        )
+
+    async def get(self, decision_id: UUID) -> DecisionOut:
+        """Снимок принятого решения.
+
+        Чужое решение RLS не отдаёт вовсе, и это тот же 404: наличие объекта
+        у соседнего тенанта — не то, что стоит подтверждать (CLAUDE.md §6).
+        """
+        decision = await self._routing.get_decision(decision_id)
+        if decision is None:
+            raise NotFound("Решение не найдено")
+        recommendation = await self._routing.get_recommendation(decision.recommendation_id)
+        if recommendation is None:
+            # Рекомендация решения — обязательная ссылка схемы. Её отсутствие
+            # означало бы, что решение объяснить нечем; молча подставить
+            # что-нибудь на её место было бы хуже отказа.
+            raise NotFound("Рекомендация решения не найдена")
+        return DecisionOut(
+            id=decision.id,
+            recommendation_id=decision.recommendation_id,
+            quote_id=recommendation.quote_id,
+            selected_offer_id=decision.selected_offer_id,
+            mode=DecisionMode(decision.mode),
+            actor_id=decision.actor_id,
+            override=decision.override,
+            override_reason=(
+                OverrideReason(decision.override_reason) if decision.override_reason else None
+            ),
+            override_comment=decision.override_comment,
+            selection_rule=(
+                SelectionRule(decision.selection_rule) if decision.selection_rule else None
+            ),
+            auto_select_rule_id=decision.auto_select_rule_id,
+            auto_select_rule_name=decision.auto_select_rule_name,
+            selection_version=decision.selection_version,
+            decided_at=decision.decided_at,
         )
 
     async def _validated_offer(self, recommendation: Recommendation, offer_id: UUID) -> RateOffer:
@@ -367,11 +429,16 @@ class AutoSelectService:
             return self._skip(AutoSkip.OTHER_STRATEGY, quote)
 
         key = auto_idempotency_key(quote.id)
-        if await self._routing.decision_by_key(key) is not None:
+        decided = await self._routing.decision_by_key(key)
+        if decided is not None:
             # Проверяем ДО построения тела: у второй рекомендации по тому же
             # расчёту другой ``recommendation_id``, и обычная идемпотентность
             # увидела бы другое тело под тем же ключом и ответила 409.
-            return self._skip(AutoSkip.ALREADY_DECIDED, quote)
+            #
+            # Решение при этом ОТДАЁТСЯ, а не молча пропускается: вторая
+            # рекомендация по тому же расчёту — это обновлённый экран, и он
+            # обязан показать, что выбор уже сделан.
+            return AutoOutcome(decision=decided)
 
         chosen = select(
             [_facts(offer) for offer in quote.offers],
@@ -430,7 +497,10 @@ class AutoSelectService:
             override=is_override,
             selection_version=SELECTION_VERSION,
         )
-        return AutoOutcome(decision_id=response.decision_id)
+        created = await self._routing.get_decision(response.decision_id)
+        # Строка уже в сессии после ``flush``: это чтение из карты
+        # идентичности, а не второй запрос в базу.
+        return AutoOutcome(decision=created)
 
     def _skip(self, reason: str, quote: RateQuote, *, rule: str | None = None) -> AutoOutcome:
         if reason != AutoSkip.DISABLED:
@@ -465,7 +535,7 @@ def _facts(offer: RateOffer) -> OfferFacts:
     )
 
 
-def _to_out(recommendation: Recommendation) -> RecommendationOut:
+def _to_out(recommendation: Recommendation, decision: Decision | None = None) -> RecommendationOut:
     return RecommendationOut(
         id=recommendation.id,
         quote_id=recommendation.quote_id,
@@ -476,6 +546,34 @@ def _to_out(recommendation: Recommendation) -> RecommendationOut:
         policy_version=recommendation.policy_version,
         alternatives_delta=recommendation.alternatives_delta or {},
         confidence=recommendation.confidence,
+        auto_decision=_auto_out(decision),
+    )
+
+
+def _auto_out(decision: Decision | None) -> AutoDecisionOut | None:
+    """Решение автовыбора для экрана — или ``None``.
+
+    Половина снимка сюда не проходит: ограничение таблицы держит «либо все
+    четыре поля, либо ни одного», и полагаться на это в типах честнее,
+    чем показывать правило без имени.
+    """
+    if (
+        decision is None
+        or decision.selection_rule is None
+        or decision.auto_select_rule_id is None
+        or decision.auto_select_rule_name is None
+        or decision.selection_version is None
+    ):
+        return None
+    return AutoDecisionOut(
+        decision_id=decision.id,
+        selected_offer_id=decision.selected_offer_id,
+        rule=SelectionRule(decision.selection_rule),
+        rule_id=decision.auto_select_rule_id,
+        rule_name=decision.auto_select_rule_name,
+        override=decision.override,
+        selection_version=decision.selection_version,
+        decided_at=decision.decided_at,
     )
 
 
