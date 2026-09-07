@@ -5,16 +5,19 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
 import {
+  download,
   request,
   tokens,
   type ApiError,
   type Decision,
   type Shipment,
+  type ShipmentDocument,
   type TrackingEvent,
 } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
 import { ErrorNote } from '@/components/ErrorNote'
 import { decisionMaker, overrideSummary } from '@/lib/decision'
+import { documentState, documentTitle, isDownloadable } from '@/lib/documentStatus'
 import { formatDateTime, formatMoney } from '@/lib/format'
 import { SELECTION_LABELS } from '@/lib/routingRules'
 import {
@@ -68,6 +71,29 @@ function ShipmentCard() {
     queryKey: ['decision', decisionId],
     queryFn: () => request<Decision>(`/decisions/${decisionId}`),
     enabled: Boolean(decisionId),
+  })
+
+  const documents = useQuery({
+    queryKey: ['documents', id],
+    queryFn: () => request<ShipmentDocument[]>(`/shipments/${id}/documents`),
+  })
+
+  //: Заказ формы стоит вызова у перевозчика, а у Почты России — суточной
+  //  квоты. Кнопка поэтому одна и гаснет на время запроса: повторное
+  //  нажатие ничего не ускорит, а квоту потратит.
+  const orderLabel = useMutation({
+    mutationFn: () =>
+      request<ShipmentDocument>(`/shipments/${id}/documents`, { method: 'POST', body: {} }),
+    onMutate: () => setFailure(null),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ['documents', id] }),
+    onError: (error) => setFailure(error),
+  })
+
+  const save = useMutation({
+    mutationFn: (document: ShipmentDocument) =>
+      download(`/documents/${document.id}/content`, `${document.type}.${document.format}`),
+    onMutate: () => setFailure(null),
+    onError: (error) => setFailure(error),
   })
 
   const cancel = useMutation({
@@ -189,6 +215,44 @@ function ShipmentCard() {
                   : 'Решение недоступно'
                 : 'Отправление заведено без решения Decision Engine'}
             </p>
+          )}
+        </section>
+
+        <section className={styles.card}>
+          <h2>Документы</h2>
+          {(documents.data ?? []).length > 0 ? (
+            <ul className={styles.rows} style={{ display: 'block', margin: 0, padding: 0 }}>
+              {(documents.data ?? []).map((document) => (
+                <li key={document.id} style={{ listStyle: 'none', marginBottom: 12 }}>
+                  <div>{documentTitle(document)}</div>
+                  <div className={styles.eventMeta}>{documentState(document)}</div>
+                  {isDownloadable(document) && (
+                    <button
+                      type="button"
+                      onClick={() => save.mutate(document)}
+                      disabled={save.isPending}
+                    >
+                      {save.isPending ? 'Скачиваем…' : 'Скачать'}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.empty}>
+              {documents.isLoading ? 'Загружаем…' : 'Печатных форм пока нет'}
+            </p>
+          )}
+          {/* Заказ формы предлагается, пока её нет: повторное обращение
+              к перевозчику ничего не даёт, а квоту тратит. */}
+          {!documents.isLoading && (documents.data ?? []).length === 0 && (
+            <button
+              type="button"
+              onClick={() => orderLabel.mutate()}
+              disabled={orderLabel.isPending}
+            >
+              {orderLabel.isPending ? 'Запрашиваем у перевозчика…' : 'Запросить этикетку'}
+            </button>
           )}
         </section>
 

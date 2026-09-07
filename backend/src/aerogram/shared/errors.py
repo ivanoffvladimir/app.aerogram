@@ -20,6 +20,7 @@ __all__ = [
     "NotFound",
     "PermissionDenied",
     "RateLimited",
+    "StorageUnavailable",
     "TenantIsolationError",
     "ValidationFailed",
 ]
@@ -203,6 +204,19 @@ class DirectoryQuotaExceeded(DirectoryError):
 
     code = "directory_quota_exceeded"
     message_ru = "Исчерпан суточный лимит обращений к справочнику адресов"
+
+
+class StorageUnavailable(AerogramError):
+    """Объектное хранилище документов не настроено или не ответило (ADR-0016).
+
+    Отдельный класс, а не ``Conflict``: причина не в запросе клиента,
+    и повторить запрос имеет смысл — в отличие от ошибки данных. Отсюда
+    и ``503``: клиент должен отличать «попробуйте позже» от «так нельзя».
+    """
+
+    code = "storage_unavailable"
+    http_status = 503
+    message_ru = "Хранилище документов недоступно"
 
 
 class AddressNotResolved(ValidationFailed):

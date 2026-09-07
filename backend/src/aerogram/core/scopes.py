@@ -62,6 +62,14 @@ MACHINE_SCOPES: dict[tuple[str, str], str] = {
     ("POST", "/v1/bulk-runs/{run_id}/quote"): "rates:read",
     ("POST", "/v1/bulk-runs/{run_id}/select"): "decisions:write",
     ("POST", "/v1/bulk-runs/{run_id}/create"): "shipments:write",
+    # Печатные формы. Чтение — область отправлений: документ существует
+    # только при отправлении и ничего сверх него не открывает. Заказ формы
+    # отнесён к записи, потому что он тратит вызов у перевозчика, а у Почты
+    # России — суточную квоту: право «только читать» не должно уметь
+    # расходовать чужой лимит.
+    ("GET", "/v1/shipments/{shipment_id}/documents"): "shipments:read",
+    ("GET", "/v1/documents/{document_id}/content"): "shipments:read",
+    ("POST", "/v1/shipments/{shipment_id}/documents"): "shipments:write",
     ("GET", "/v1/carriers"): "carriers:read",
     ("GET", "/v1/carriers/{code}/terminals"): "carriers:read",
     ("GET", "/v1/analytics/carriers"): "analytics:read",

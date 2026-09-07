@@ -85,6 +85,28 @@ export interface AutoDecision {
   decided_at: string
 }
 
+/**
+ * Печатная форма отправления. Пути в контракте нет — фронт-ТЗ, раздел 7,
+ * требует «Documents: label/waybill where available», а `openapi.yaml`
+ * заморожен как P0-набор, — поэтому тип написан руками по
+ * `documents/schemas.py`.
+ *
+ * Ссылки на файл в нём нет намеренно: файл отдаётся отдельным путём под
+ * обычной сессией, а не подписанной ссылкой (ADR-0016).
+ */
+export interface ShipmentDocument {
+  id: string
+  shipment_id: string | null
+  type: 'label' | 'waybill' | 'manifest' | 'inventory' | 'acceptance_register'
+  format: 'pdf' | 'zpl' | 'png'
+  /** `pending` — перевозчик формирует; `ready` — файл у нас; `failed` — причина рядом. */
+  status: 'pending' | 'ready' | 'failed'
+  size_bytes: number | null
+  error: string | null
+  generated_at: string | null
+  created_at: string
+}
+
 export type SelectionRule =
   'cheapest' | 'fastest' | 'best_score' | 'best_value' | 'cheapest_meeting_deadline'
 
@@ -739,6 +761,46 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
+}
+
+/**
+ * Скачать файл, отданный API под обычной сессией.
+ *
+ * Отдельно от `request`, потому что тело здесь не JSON, а `<a href>` тут
+ * не годится: файл требует заголовка `Authorization`, а положить токен
+ * в адрес — значит отправить его в историю браузера и в логи прокси.
+ * Поэтому файл забирается запросом, а сохранение вызывается по временной
+ * ссылке на полученный blob.
+ */
+export async function download(path: string, fallbackName: string): Promise<void> {
+  const headers: Record<string, string> = {}
+  const token = tokens.access()
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  const response = await fetch(`/v1${path}`, { headers })
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorBody(response))
+  }
+
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  try {
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filenameFrom(response) ?? fallbackName
+    link.click()
+  } finally {
+    // Без отзыва blob остаётся в памяти вкладки до её закрытия, а в нём
+    // персональные данные получателя.
+    URL.revokeObjectURL(url)
+  }
+}
+
+/** Имя файла из `Content-Disposition`, если сервер его назвал. */
+function filenameFrom(response: Response): string | null {
+  const header = response.headers.get('Content-Disposition')
+  const match = header?.match(/filename="([^"]+)"/)
+  return match?.[1] ?? null
 }
 
 async function readErrorBody(response: Response): Promise<Partial<ApiErrorBody>> {

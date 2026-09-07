@@ -23,6 +23,7 @@ dependencies = [
     "python-multipart>=0.0.17",
     "email-validator>=2.2.0",
     "pyotp>=2.10.0",
+    "boto3>=1.43.89",
 ]
 
 [dependency-groups]
@@ -102,6 +103,14 @@ warn_unused_ignores = true
 no_implicit_optional = true
 check_untyped_defs = true
 disallow_untyped_defs = true
+
+# boto3 не поставляет аннотаций, а пакет заглушек (`boto3-stubs`) — новая
+# зависимость, то есть решение человека (CLAUDE.md §2). Подавление точечное:
+# оно закрывает только сам импорт, а не типы в нашем коде — граница
+# с хранилищем описана в `documents/storage.py` явными сигнатурами.
+[[tool.mypy.overrides]]
+module = ["boto3.*", "botocore.*"]
+ignore_missing_imports = true
 
 # Строгий режим там, где ошибка агента дороже всего (CLAUDE.md §6)
 [[tool.mypy.overrides]]

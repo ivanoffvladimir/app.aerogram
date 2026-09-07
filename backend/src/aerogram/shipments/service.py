@@ -112,13 +112,23 @@ class ShipmentService:
     # --- Чтение -----------------------------------------------------------
 
     async def get(self, shipment_id: UUID) -> ShipmentOut:
+        return await self._to_out(await self.require(shipment_id))
+
+    async def require(self, shipment_id: UUID) -> Shipment:
+        """Отправление тенанта или 404.
+
+        Публичный метод, потому что через него ходят и документы: заказ
+        печатной формы начинается с того же вопроса «есть ли у тенанта
+        такое отправление», и вторая копия проверки однажды разошлась бы
+        с этой.
+        """
         shipment = await self._shipments.get(shipment_id)
         if shipment is None:
             # Чужое отправление RLS не отдаёт вовсе, и это тот же 404:
             # наличие объекта у соседнего тенанта — не то, что стоит
             # подтверждать (раздел 7.2 ТЗ).
             raise NotFound("Отправление не найдено")
-        return await self._to_out(shipment)
+        return shipment
 
     async def page(
         self,
@@ -268,7 +278,7 @@ class ShipmentService:
         дублем — с оплатой и вторым грузом. На свежем черновике сверять
         нечего, и лишний вызов только удвоил бы задержку создания.
         """
-        adapter, account = await self._adapter_for(shipment)
+        adapter, account = await self.adapter_for(shipment)
         result = await adapter.find_by_number(shipment.number, account) if reconcile else None
         reconciled = result is not None
         if result is None:
@@ -308,7 +318,7 @@ class ShipmentService:
         if ShipmentStatus(shipment.status) in _FINAL_STATES:
             raise Conflict("Отправление уже завершено, отменять нечего", field="status")
 
-        adapter, account = await self._adapter_for(shipment)
+        adapter, account = await self.adapter_for(shipment)
         if not adapter.capabilities.supports_cancel:
             raise Conflict("Перевозчик не принимает отмену", field="carrier_id")
 
@@ -355,7 +365,7 @@ class ShipmentService:
         данные уже есть тут, а трекинг сознательно не ходит к перевозчикам —
         он нормализует и хранит то, что ему принесли.
         """
-        adapter, account = await self._adapter_for(shipment)
+        adapter, account = await self.adapter_for(shipment)
         if shipment.external_id is None:
             # Заказа у перевозчика нет — спрашивать не о чем. Это черновик,
             # и им занимается сверка «призраков», а не опрос статусов.
@@ -381,7 +391,7 @@ class ShipmentService:
         found = 0
         for shipment in await self._shipments.unconfirmed(limit):
             try:
-                adapter, account = await self._adapter_for(shipment)
+                adapter, account = await self.adapter_for(shipment)
                 result = await adapter.find_by_number(shipment.number, account)
             except Exception as exc:
                 # Сбой по одному перевозчику не должен останавливать сверку
@@ -404,8 +414,14 @@ class ShipmentService:
 
     # --- Вспомогательное --------------------------------------------------
 
-    async def _adapter_for(self, shipment: Shipment) -> tuple[CarrierAdapter, AdapterAccount]:
-        """Адаптер и расшифрованная учётная запись для отправления."""
+    async def adapter_for(self, shipment: Shipment) -> tuple[CarrierAdapter, AdapterAccount]:
+        """Адаптер и расшифрованная учётная запись для отправления.
+
+        Публичный по той же причине, что и ``require``: печатную форму
+        заказывает тот же адаптер той же учётной записи, и вторая сборка
+        учётной записи означала бы второе место, где расшифровываются
+        учётные данные перевозчика.
+        """
         if shipment.carrier_account_id is None:
             raise Conflict("У отправления нет учётной записи перевозчика", field="carrier_id")
         account = await self._accounts.get_by_id(shipment.carrier_account_id)

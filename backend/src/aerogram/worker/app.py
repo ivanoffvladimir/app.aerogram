@@ -59,6 +59,13 @@ app.conf.beat_schedule = {
         "task": "aerogram.worker.tasks.deliver_webhooks",
         "schedule": crontab(minute="*"),
     },
+    # Печатные формы, которые перевозчик формирует асинхронно (ADR-0016).
+    # Каждые пять минут: склад ждёт этикетку сейчас, а не завтра, но чаще
+    # значило бы спрашивать перевозчика о форме, которая ещё готовится.
+    "fetch-pending-documents": {
+        "task": "aerogram.worker.tasks.fetch_pending_documents",
+        "schedule": crontab(minute="*/5"),
+    },
     # Справочники терминалов и ПВЗ синхронизируются ежесуточно (FR-8.3).
     "sync-carrier-references": {
         "task": "aerogram.worker.tasks.sync_carrier_references",

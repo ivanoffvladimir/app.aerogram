@@ -36,6 +36,7 @@ from aerogram.core.service import decrypt_credentials
 from aerogram.db import session_scope
 from aerogram.directories.repository import CarrierRepository
 from aerogram.directories.service import RefSyncService
+from aerogram.documents.service import DocumentService
 from aerogram.intelligence.repository import Observations
 from aerogram.intelligence.service import ScoreService
 from aerogram.shared.clock import utcnow
@@ -49,6 +50,7 @@ from aerogram.worker.app import app
 __all__ = [
     "SCORE_PERIOD_DAYS",
     "deliver_webhooks",
+    "fetch_pending_documents",
     "poll_shipment_statuses",
     "purge_raw_calls",
     "recalculate_carrier_score",
@@ -210,6 +212,18 @@ def _adapter_account(account: CarrierAccount, code: str, settings: Settings) -> 
     )
 
 
+async def _documents_tenant(tenant_id: UUID) -> int:
+    """Дотянуть печатные формы, которые перевозчик обещал сформировать.
+
+    Подметание по расписанию, а не отложенная задача на каждый документ:
+    состояние живёт в таблице, поэтому перезапуск брокера не оставляет форму
+    висеть в ``pending`` навсегда — а именно это и произошло бы с задачей,
+    потерянной вместе с очередью.
+    """
+    async with session_scope(tenant_id) as session:
+        return await DocumentService(session, get_settings()).fetch_pending()
+
+
 async def _purge_tenant(tenant_id: UUID) -> int:
     """Удалить сырьё вызовов с истёкшим сроком хранения (раздел 8.2 ТЗ, п. 6)."""
     async with session_scope(tenant_id) as session:
@@ -315,6 +329,12 @@ def recalculate_carrier_score() -> dict[str, int]:
 def sync_carrier_references() -> dict[str, int]:
     """Ежесуточная синхронизация справочников перевозчиков (FR-8.3)."""
     return asyncio.run(_for_each_tenant("sync_carrier_references", _refs_tenant))
+
+
+@app.task(name="aerogram.worker.tasks.fetch_pending_documents")  # type: ignore[untyped-decorator]
+def fetch_pending_documents() -> dict[str, int]:
+    """Дотянуть асинхронные печатные формы перевозчиков (ADR-0016)."""
+    return asyncio.run(_for_each_tenant("fetch_pending_documents", _documents_tenant))
 
 
 @app.task(name="aerogram.worker.tasks.purge_raw_calls")  # type: ignore[untyped-decorator]
