@@ -101,18 +101,34 @@ async def _insert_decision(conn: AsyncConnection, ids: dict[str, Any], **overrid
         "ovr": False,
         "reason": None,
         "key": f"k-{decision_id.hex[:12]}",
+        # Снимок автовыбора: у ручного решения его нет (ADR-0029).
+        "sel_rule": None,
+        "sel_id": None,
+        "sel_name": None,
+        "sel_version": None,
     }
     params.update(overrides)
     await conn.execute(
         text(
             "INSERT INTO decisions"
             " (id, tenant_id, recommendation_id, selected_offer_id, actor_id, mode,"
-            "  override, override_reason, idempotency_key, request_fingerprint)"
-            " VALUES (:i, :t, :r, :o, :a, :mode, :ovr, :reason, :key, 'fp')"
+            "  override, override_reason, selection_rule, auto_select_rule_id,"
+            "  auto_select_rule_name, selection_version, idempotency_key, request_fingerprint)"
+            " VALUES (:i, :t, :r, :o, :a, :mode, :ovr, :reason, :sel_rule, :sel_id,"
+            "  :sel_name, :sel_version, :key, 'fp')"
         ),
         params,
     )
     return decision_id
+
+
+#: Полный снимок автовыбора — четыре поля разом.
+WHOLE_SELECTION: dict[str, Any] = {
+    "sel_rule": "cheapest",
+    "sel_id": uuid7(),
+    "sel_name": "берём дешёвое",
+    "sel_version": "selection-1.0.0",
+}
 
 
 class TestDecisionInvariants:
@@ -146,6 +162,34 @@ class TestDecisionInvariants:
             await _insert_decision(conn, ids, key="repeated-key")
 
 
+class TestAutoSelectionSnapshot:
+    """Снимок автовыбора: четыре колонки, и только у машинного решения.
+
+    Ограничения проверяются на уровне БД, а не приложения: приложение
+    обходится скриптом и прямым SQL, ограничение таблицы — нет (ADR-0029).
+    """
+
+    async def test_an_automatic_decision_names_its_rule(self, conn: AsyncConnection) -> None:
+        ids = await _seed(conn)
+        await _insert_decision(conn, ids, mode="auto", a=None, **WHOLE_SELECTION)
+
+    async def test_a_manual_decision_cannot_name_a_selection_rule(
+        self, conn: AsyncConnection
+    ) -> None:
+        """Иначе выбор человека выглядел бы сделанным правилом."""
+        ids = await _seed(conn)
+        with pytest.raises(Exception, match="only_auto_decisions_name_a_selection_rule"):
+            await _insert_decision(conn, ids, **WHOLE_SELECTION)
+
+    @pytest.mark.parametrize("missing", sorted(WHOLE_SELECTION))
+    async def test_half_a_snapshot_is_rejected(self, conn: AsyncConnection, missing: str) -> None:
+        """Полуснимок не объясняет выбор ни аналитике, ни спору с клиентом."""
+        ids = await _seed(conn)
+        half = {**WHOLE_SELECTION, missing: None}
+        with pytest.raises(Exception, match="auto_selection_is_whole"):
+            await _insert_decision(conn, ids, mode="auto", a=None, **half)
+
+
 class TestDecisionImmutability:
     async def test_selected_offer_cannot_be_changed_afterwards(self, conn: AsyncConnection) -> None:
         """Снимок решения неизменяем (продуктовое ТЗ, раздел 8).
@@ -170,6 +214,33 @@ class TestDecisionImmutability:
             await conn.execute(
                 text("UPDATE decisions SET selected_offer_id = :o WHERE id = :i"),
                 {"o": other_offer, "i": decision_id},
+            )
+
+    @pytest.mark.parametrize(
+        ("column", "value"),
+        [
+            ("selection_rule", "fastest"),
+            ("auto_select_rule_id", str(uuid7())),
+            ("auto_select_rule_name", "переписанная история"),
+            ("selection_version", "selection-9.9.9"),
+        ],
+    )
+    async def test_the_selection_snapshot_cannot_be_rewritten(
+        self, conn: AsyncConnection, column: str, value: str
+    ) -> None:
+        """Новые колонки попали в тело функции неизменяемости.
+
+        Забудь их там — снимок остался бы неизменяемым во всём, кроме
+        самого нового, и «каким правилом выбрано» можно было бы переписать
+        задним числом (ADR-0029).
+        """
+        ids = await _seed(conn)
+        decision_id = await _insert_decision(conn, ids, mode="auto", a=None, **WHOLE_SELECTION)
+
+        with pytest.raises(Exception, match="неизменяем"):
+            await conn.execute(
+                text(f"UPDATE decisions SET {column} = :v WHERE id = :i"),  # noqa: S608
+                {"v": value, "i": decision_id},
             )
 
     async def test_comment_can_still_be_corrected(self, conn: AsyncConnection) -> None:

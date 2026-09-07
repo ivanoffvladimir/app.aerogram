@@ -330,6 +330,10 @@ class Policy:
     insurance_rule: str | None = None
     auto_select: SelectionRule | None = None
     auto_select_rule: str | None = None
+    #: Идентификатор правила автовыбора. Имя без него не переживает
+    #: переименование правила: снимок решения обязан назвать ТО правило,
+    #: а не то, как оно называется сегодня.
+    auto_select_rule_id: UUID | None = None
 
     @property
     def allowed_codes(self) -> tuple[str, ...]:
@@ -407,6 +411,7 @@ def evaluate(rules: list[ParsedRule], facts: RequestFacts, carrier_codes: list[s
         insurance_rule=insurance_rule,
         auto_select=auto.actions.auto_select if auto else None,
         auto_select_rule=auto.name if auto else None,
+        auto_select_rule_id=auto.id if auto else None,
     )
 
 

@@ -62,6 +62,7 @@ from aerogram.routing.rules import (
     parse_rules,
     policy_fingerprint,
 )
+from aerogram.routing.snapshot import dump_policy_snapshot
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import (
     CostComponentType,
@@ -179,9 +180,12 @@ class RateShoppingService:
         # нет договора, — то есть политика рассуждала бы о перевозчиках,
         # которых в этой выдаче быть не может ни при каком правиле.
         codes = await self._codes()
+        # Факты держатся переменной: они нужны дважды — правилам сейчас
+        # и снимку расчёта дальше. Восстановить их позже нельзя (ADR-0029).
+        facts = _facts(payload, _fias(origin), _fias(destination))
         policy = evaluate(
             rules,
-            _facts(payload, _fias(origin), _fias(destination)),
+            facts,
             sorted({codes[a.carrier_id] for a in accounts if a.carrier_id in codes}),
         )
         allowed, blocked = self._apply_policy(accounts, policy, codes)
@@ -198,6 +202,11 @@ class RateShoppingService:
             strategy=payload.strategy,
             deadline=payload.deadline,
             duration_ms=duration_ms,
+            # Вердикт политики замораживается здесь и только здесь: правила
+            # применяются при расчёте, а решение принимается позже и своих
+            # фактов уже не имеет (ADR-0029).
+            policy_version=policy_version,
+            policy_snapshot=dump_policy_snapshot(facts, policy),
             valid_until=utcnow() + timedelta(seconds=self._settings.quote_cache_ttl_seconds),
         )
         self._rates.add_quote(quote)

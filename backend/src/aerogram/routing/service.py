@@ -8,11 +8,14 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from enum import StrEnum
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from aerogram.rating.models import RateOffer
+from aerogram.config import Settings, get_settings
+from aerogram.rating.models import RateOffer, RateQuote
 from aerogram.rating.repository import RateRepository
 from aerogram.routing.explanation import alternatives_delta, build_facts, render
 from aerogram.routing.models import Decision, Recommendation, RoutingRule
@@ -28,16 +31,27 @@ from aerogram.routing.schemas import (
     RoutingRulePatch,
     RoutingRulesOut,
 )
+from aerogram.routing.selection import SELECTION_VERSION, Abstention, select
+from aerogram.routing.snapshot import load_policy_snapshot
 from aerogram.routing.strategies import ALGORITHM_VERSION, OfferFacts, rank
 from aerogram.shared.clock import utcnow
-from aerogram.shared.enums import DecisionMode, RoutingStrategy
-from aerogram.shared.errors import Conflict, NotFound, ValidationFailed
+from aerogram.shared.enums import DecisionMode, OverrideReason, RoutingStrategy, SelectionRule
+from aerogram.shared.errors import AerogramError, Conflict, NotFound, ValidationFailed
 from aerogram.shared.idempotency import ensure_same_request, request_fingerprint
 from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
 from aerogram.shared.money import Money
 
-__all__ = ["DecisionService", "RecommendationService", "RoutingRuleService"]
+__all__ = [
+    "AUTO_KEY_PREFIX",
+    "AutoSelectService",
+    "AutoSelection",
+    "AutoSkip",
+    "DecisionService",
+    "RecommendationService",
+    "RoutingRuleService",
+    "auto_idempotency_key",
+]
 
 log = get_logger(__name__)
 
@@ -47,12 +61,66 @@ log = get_logger(__name__)
 #: два разных имени.
 DEFAULT_POLICY_VERSION = EMPTY_POLICY_VERSION
 
+#: Префикс ключа идемпотентности автоматического решения. Зарезервирован:
+#: клиент не вправе прислать такой ``Idempotency-Key`` на ``POST /v1/decisions``
+#: и выдать своё решение за машинное (ADR-0029).
+AUTO_KEY_PREFIX = "auto:"
+
+
+def auto_idempotency_key(quote_id: UUID) -> str:
+    """Ключ автоматического решения — от РАСЧЁТА, а не от рекомендации.
+
+    Рекомендация не единственна: каждый ``POST /v1/routing/quote`` создаёт
+    новую строку, и кабинет зовёт её при каждой смене вкладки стратегии.
+    Ключ от рекомендации дал бы по решению на вкладку.
+    """
+    return f"{AUTO_KEY_PREFIX}{quote_id}"
+
+
+@dataclass(frozen=True, slots=True)
+class AutoSelection:
+    """Чем сделан автоматический выбор — четыре колонки снимка решения.
+
+    Имя правила лежит рядом с идентификатором: переименование правила
+    не должно переписывать историю, а удаление — стирать её.
+    """
+
+    rule: SelectionRule
+    rule_id: UUID
+    rule_name: str
+    version: str = SELECTION_VERSION
+
+
+class AutoSkip(StrEnum):
+    """Почему автоматического решения не появилось.
+
+    Причина называется всегда. «Автовыбор не сработал» без причины — это
+    ровно тот молчаливый ноль в доле решений без человека, который
+    ADR-0029 и чинит.
+    """
+
+    DISABLED = "disabled"
+    NO_SNAPSHOT = "no_snapshot"
+    NO_RULE = "no_rule"
+    OTHER_STRATEGY = "other_strategy"
+    ALREADY_DECIDED = "already_decided"
+    REJECTED = "rejected"
+
+
+@dataclass(frozen=True, slots=True)
+class AutoOutcome:
+    """Итог попытки выбрать без человека. Заполнено ровно одно поле."""
+
+    decision_id: UUID | None = None
+    skipped: str | None = None
+
 
 class RecommendationService:
     """Рекомендация по снимку расчёта и стратегии."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, settings: Settings | None = None) -> None:
         self._session = session
+        self._settings = settings or get_settings()
         self._rates = RateRepository(session)
         self._routing = RoutingRepository(session)
 
@@ -85,7 +153,12 @@ class RecommendationService:
             explanation=explanation,
             alternatives_delta=alternatives_delta(ranking) or None,
             algorithm_version=ALGORITHM_VERSION,
-            policy_version=await self._policy_version(),
+            # Версия политики берётся ИЗ РАСЧЁТА, а не пересчитывается по
+            # нынешним правилам: иначе снимок назвал бы политику, которая
+            # этот расчёт не порождала (ADR-0029). Пересчёт остаётся только
+            # для выдач, снятых до миграции 0014, — их окно не длиннее срока
+            # жизни выдачи после выката.
+            policy_version=quote.policy_version or await self._policy_version(),
             confidence=ranking.confidence,
         )
         self._routing.add_recommendation(recommendation)
@@ -97,6 +170,9 @@ class RecommendationService:
             eligible=len([f for f in facts if f.eligible]),
             recommended=best is not None,
             confidence=ranking.confidence.value,
+        )
+        await AutoSelectService(self._session, self._settings).consider(
+            quote, recommendation, tenant_id=tenant_id
         )
         return _to_out(recommendation)
 
@@ -128,8 +204,28 @@ class DecisionService:
         tenant_id: UUID,
         user_id: UUID | None,
         idempotency_key: str,
+        selection: AutoSelection | None = None,
     ) -> DecisionResponse:
-        """Принять решение. Повтор с тем же ключом не создаёт второго решения."""
+        """Принять решение. Повтор с тем же ключом не создаёт второго решения.
+
+        ``selection`` заполняется только автовыбором и попадает в снимок
+        решения четырьмя колонками. Автоматический путь проходит буквально
+        этот же метод, а не свою копию: разойдись они, ручное и машинное
+        решения перестали бы одинаково проверяться, и разница обнаружилась бы
+        на споре с клиентом.
+        """
+        if selection is not None and payload.mode is not DecisionMode.AUTO:
+            # Ошибка вызывающего кода, а не запроса: то же держит CHECK
+            # в схеме, но упасть здесь понятнее, чем ловить отказ базы.
+            raise ValueError("снимок автовыбора допустим только у решения mode=auto")
+        if selection is None and idempotency_key.startswith(AUTO_KEY_PREFIX):
+            # Префикс зарезервирован за автовыбором. Иначе клиент занял бы
+            # ключ будущего автоматического решения по этому расчёту — или
+            # выдал бы своё решение за машинное, исказив долю автовыбора.
+            raise ValidationFailed(
+                f"Префикс «{AUTO_KEY_PREFIX}» зарезервирован платформой",
+                field="Idempotency-Key",
+            )
         body = payload.model_dump(mode="json")
         existing = await self._routing.decision_by_key(idempotency_key)
         if existing is not None:
@@ -145,25 +241,7 @@ class DecisionService:
         if recommendation is None:
             raise NotFound("Рекомендация не найдена")
 
-        offer = await self._rates.get_offer(payload.selected_offer_id)
-        if offer is None:
-            raise NotFound("Предложение не найдено")
-        if offer.quote_id != recommendation.quote_id:
-            # Иначе решение ссылалось бы на предложение из другого расчёта,
-            # и снимок перестал бы объяснять сам себя.
-            raise ValidationFailed(
-                "Предложение относится к другому расчёту", field="selected_offer_id"
-            )
-        if offer.valid_until <= utcnow():
-            raise Conflict("Предложение устарело, требуется пересчёт", field="selected_offer_id")
-        if not offer.eligible:
-            # Жёсткое ограничение остаётся жёстким и при ручном выборе:
-            # оператор не должен уметь выбрать вариант, нарушающий дедлайн,
-            # не пересчитав расчёт без дедлайна.
-            raise ValidationFailed(
-                "Это предложение не проходит по заданным ограничениям",
-                field="selected_offer_id",
-            )
+        offer = await self._validated_offer(recommendation, payload.selected_offer_id)
 
         is_override = offer.id != recommendation.recommended_offer_id
         if is_override and payload.override_reason is None:
@@ -194,6 +272,10 @@ class DecisionService:
             override=is_override,
             override_reason=payload.override_reason if is_override else None,
             override_comment=payload.override_comment if is_override else None,
+            selection_rule=selection.rule if selection else None,
+            auto_select_rule_id=selection.rule_id if selection else None,
+            auto_select_rule_name=selection.rule_name if selection else None,
+            selection_version=selection.version if selection else None,
             idempotency_key=idempotency_key,
             request_fingerprint=request_fingerprint(body),
         )
@@ -205,12 +287,161 @@ class DecisionService:
             mode=payload.mode.value,
             override=is_override,
             reason=payload.override_reason.value if payload.override_reason else None,
+            rule=selection.rule_name if selection else None,
         )
         return DecisionResponse(
             decision_id=decision.id,
             snapshot_id=recommendation.quote_id,
             created_at=decision.decided_at,
         )
+
+    async def _validated_offer(self, recommendation: Recommendation, offer_id: UUID) -> RateOffer:
+        """Проверить выбранное предложение четырьмя жёсткими условиями.
+
+        Метод отдельный, потому что через него ходят оба пути — ручной
+        и автоматический. Заведи автовыбор свою копию проверок, они однажды
+        разошлись бы, и правило смогло бы выбрать то, чего не может выбрать
+        человек.
+        """
+        offer = await self._rates.get_offer(offer_id)
+        if offer is None:
+            raise NotFound("Предложение не найдено")
+        if offer.quote_id != recommendation.quote_id:
+            # Иначе решение ссылалось бы на предложение из другого расчёта,
+            # и снимок перестал бы объяснять сам себя.
+            raise ValidationFailed(
+                "Предложение относится к другому расчёту", field="selected_offer_id"
+            )
+        if offer.valid_until <= utcnow():
+            raise Conflict("Предложение устарело, требуется пересчёт", field="selected_offer_id")
+        if not offer.eligible:
+            # Жёсткое ограничение остаётся жёстким и при ручном выборе:
+            # оператор не должен уметь выбрать вариант, нарушающий дедлайн,
+            # не пересчитав расчёт без дедлайна.
+            raise ValidationFailed(
+                "Это предложение не проходит по заданным ограничениям",
+                field="selected_offer_id",
+            )
+        return offer
+
+
+class AutoSelectService:
+    """Автовыбор: замороженный вердикт политики доводится до решения.
+
+    Своего выбора у сервиса нет — он исполняет правило, записанное
+    в снимок расчёта, и создаёт решение тем же ``DecisionService``, каким
+    его создаёт человек. Ошибка здесь не должна ломать рекомендацию:
+    оператор попросил рекомендацию, а не автовыбор, и отдать ему ``500``
+    вместо списка предложений — худший из возможных исходов.
+    """
+
+    def __init__(self, session: AsyncSession, settings: Settings | None = None) -> None:
+        self._session = session
+        self._settings = settings or get_settings()
+        self._routing = RoutingRepository(session)
+        self._decisions = DecisionService(session)
+
+    async def consider(
+        self, quote: RateQuote, recommendation: Recommendation, *, tenant_id: UUID
+    ) -> AutoOutcome:
+        """Принять решение по правилу автовыбора, если оно есть и применимо."""
+        if not self._settings.auto_select_enabled:
+            return self._skip(AutoSkip.DISABLED, quote)
+
+        snapshot = load_policy_snapshot(quote.policy_snapshot)
+        if snapshot is None:
+            return self._skip(AutoSkip.NO_SNAPSHOT, quote)
+        if (
+            snapshot.auto_select is None
+            or snapshot.auto_select_rule_id is None
+            or snapshot.auto_select_rule is None
+        ):
+            # Все три части нужны разом: значение правила, его идентификатор
+            # и имя. Снимок с пустым именем прошёл бы ``CHECK`` таблицы
+            # (пустая строка не ``NULL``) и объяснял бы решение никак.
+            return self._skip(AutoSkip.NO_RULE, quote)
+        if recommendation.strategy != quote.strategy:
+            # Гейт по стратегии: автовыбор срабатывает на рекомендации,
+            # построенной по стратегии самого расчёта. Иначе ``override``
+            # зависел бы от того, на какую вкладку человек нажал первой.
+            return self._skip(AutoSkip.OTHER_STRATEGY, quote)
+
+        key = auto_idempotency_key(quote.id)
+        if await self._routing.decision_by_key(key) is not None:
+            # Проверяем ДО построения тела: у второй рекомендации по тому же
+            # расчёту другой ``recommendation_id``, и обычная идемпотентность
+            # увидела бы другое тело под тем же ключом и ответила 409.
+            return self._skip(AutoSkip.ALREADY_DECIDED, quote)
+
+        chosen = select(
+            [_facts(offer) for offer in quote.offers],
+            snapshot.auto_select,
+            deadline_set=quote.deadline is not None,
+        )
+        if chosen.offer is None:
+            # Воздержание — законный исход, и у него названа причина.
+            # ``or`` здесь только ради типов: ``Selection`` гарантирует
+            # причину, когда предложения нет, и это держит отдельный тест.
+            reason = chosen.abstention or Abstention.NO_ELIGIBLE_OFFERS
+            return self._skip(reason.value, quote, rule=snapshot.auto_select_rule)
+
+        is_override = chosen.offer.offer_id != recommendation.recommended_offer_id
+        payload = DecisionRequestIn(
+            recommendation_id=recommendation.id,
+            selected_offer_id=chosen.offer.offer_id,
+            override=is_override,
+            # Расхождение правила со стратегией — нормальный исход, а не
+            # ошибка: словари ``SelectionRule`` и ``RoutingStrategy``
+            # не пересекаются (ADR-0029). Причина названа своим значением,
+            # а не ``corporate_policy``: то — мотив человека.
+            override_reason=OverrideReason.AUTO_SELECT_RULE if is_override else None,
+            mode=DecisionMode.AUTO,
+        )
+        selection = AutoSelection(
+            rule=snapshot.auto_select,
+            rule_id=snapshot.auto_select_rule_id,
+            rule_name=snapshot.auto_select_rule,
+        )
+        try:
+            response = await self._decisions.decide(
+                payload,
+                tenant_id=tenant_id,
+                user_id=None,
+                idempotency_key=key,
+                selection=selection,
+            )
+        except AerogramError as error:
+            # Устаревшее предложение, гонка по ключу, отвергнутый выбор:
+            # рекомендация от этого не перестаёт быть верной, и оператор
+            # обязан её увидеть. Причина попадает в лог, а не в ответ.
+            log.warning(
+                "routing.auto_select_rejected",
+                quote_id=str(quote.id),
+                error_code=error.code,
+            )
+            return AutoOutcome(skipped=AutoSkip.REJECTED.value)
+
+        log.info(
+            "routing.auto_selected",
+            quote_id=str(quote.id),
+            decision_id=str(response.decision_id),
+            rule=snapshot.auto_select.value,
+            rule_name=snapshot.auto_select_rule,
+            override=is_override,
+            selection_version=SELECTION_VERSION,
+        )
+        return AutoOutcome(decision_id=response.decision_id)
+
+    def _skip(self, reason: str, quote: RateQuote, *, rule: str | None = None) -> AutoOutcome:
+        if reason != AutoSkip.DISABLED:
+            # Выключенный рубильник — не событие: он молчит по всей выдаче
+            # каждого тенанта. Остальные причины пишутся: правило заведено,
+            # человек его ждёт, и «ничего не произошло» без причины
+            # неотличимо от поломки.
+            log.info(
+                "routing.auto_select_skipped", quote_id=str(quote.id), reason=reason, rule=rule
+            )
+        return AutoOutcome(skipped=reason)
 
 
 def _facts(offer: RateOffer) -> OfferFacts:

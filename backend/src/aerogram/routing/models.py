@@ -38,6 +38,7 @@ from aerogram.shared.enums import (
     OverrideReason,
     RoutingStrategy,
     ScoreConfidence,
+    SelectionRule,
 )
 
 __all__ = ["Decision", "Recommendation", "RoutingRule"]
@@ -114,6 +115,18 @@ class Decision(Base, TenantMixin):
     )
     override_reason: Mapped[OverrideReason | None] = mapped_column(String(30))
     override_comment: Mapped[str | None] = mapped_column(Text)
+    #: Чем сделан автоматический выбор (ADR-0029). Колонки, а не JSONB:
+    #: по правилу фильтруют — «покажи решения, принятые правилом X», — а то,
+    #: по чему фильтруют, живёт в колонке (CLAUDE.md §6).
+    #:
+    #: Имя хранится РЯДОМ с идентификатором и не подтягивается по ссылке:
+    #: переименование правила не должно переписывать историю, а удаление —
+    #: стирать её. Внешнего ключа поэтому нет: ``RESTRICT`` запер бы удаление
+    #: правила, ``SET NULL`` стёр бы снимок.
+    selection_rule: Mapped[SelectionRule | None] = mapped_column(String(30))
+    auto_select_rule_id: Mapped[UUID | None] = mapped_column()
+    auto_select_rule_name: Mapped[str | None] = mapped_column(String(255))
+    selection_version: Mapped[str | None] = mapped_column(String(40))
     #: Ключ идемпотентности запроса и отпечаток его тела: повтор с тем же ключом
     #: и тем же телом обязан вернуть тот же результат, с другим телом — 409.
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -132,6 +145,17 @@ class Decision(Base, TenantMixin):
             "NOT override OR override_reason IS NOT NULL", name="override_states_the_reason"
         ),
         CheckConstraint(
+            "selection_rule IS NULL OR mode = 'auto'",
+            name="only_auto_decisions_name_a_selection_rule",
+        ),
+        # Полуснимок не объясняет выбор и не годится ни для аналитики,
+        # ни для спора с клиентом: либо все четыре поля, либо ни одного.
+        CheckConstraint(
+            "num_nonnulls(selection_rule, auto_select_rule_id, auto_select_rule_name,"
+            " selection_version) IN (0, 4)",
+            name="auto_selection_is_whole",
+        ),
+        CheckConstraint(
             "mode <> 'manual' OR actor_id IS NOT NULL", name="manual_decision_has_an_actor"
         ),
         UniqueConstraint(
@@ -139,6 +163,7 @@ class Decision(Base, TenantMixin):
         ),
         Index("ix_decisions_tenant_id_decided_at", "tenant_id", "decided_at"),
         Index("ix_decisions_recommendation_id", "recommendation_id"),
+        Index("ix_decisions_tenant_id_auto_select_rule_id", "tenant_id", "auto_select_rule_id"),
     )
 
 

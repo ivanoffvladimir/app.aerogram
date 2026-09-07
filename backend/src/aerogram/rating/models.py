@@ -66,6 +66,15 @@ class RateQuote(Base, TenantMixin):
     no_deadline_match: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )
+    #: Отпечаток набора правил, действовавшего при расчёте. Рекомендация
+    #: берёт версию политики отсюда, а не пересчитывает по текущим правилам:
+    #: иначе снимок назвал бы политику, которая этот расчёт не порождала.
+    policy_version: Mapped[str | None] = mapped_column(String(40))
+    #: Замороженный вердикт политики: факты запроса с уже разрешёнными
+    #: городами и выбранное правило автовыбора (ADR-0029). Восстановить
+    #: их позже нельзя — разрешение города не чистая функция и пишет
+    #: в общую таблицу без RLS.
+    policy_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -207,6 +207,12 @@ class OverrideReason(StrEnum):
     CORPORATE_POLICY = "corporate_policy"
     NEGATIVE_EXPERIENCE = "negative_experience"
     CARRIER_PREFERENCE = "carrier_preference"
+    #: Выбрало правило автовыбора, а не человек (ADR-0029). Отдельное значение,
+    #: а не готовое ``corporate_policy``: то — мотив человека, сославшегося
+    #: на договор, а разрез сводки ``by_reason`` строится без фильтра
+    #: по режиму. Одно значение на двоих сделало бы людей и правило
+    #: неразличимыми задним числом.
+    AUTO_SELECT_RULE = "auto_select_rule"
     OTHER = "other"
 
 

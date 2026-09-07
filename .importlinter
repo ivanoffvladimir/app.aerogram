@@ -109,3 +109,11 @@ source_modules =
     aerogram.routing
 forbidden_modules =
     aerogram.carriers
+
+[importlinter:contract:routing-does-not-resolve-cities]
+name = routing не разрешает города заново: вердикт приезжает снимком (ADR-0029)
+type = forbidden
+source_modules =
+    aerogram.routing
+forbidden_modules =
+    aerogram.directories
