@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { CONSENT, LEGAL_DOCUMENTS, OPERATOR_PLACEHOLDER, PRIVACY_POLICY } from './legal'
+import {
+  CONSENT,
+  LEGAL_DOCUMENTS,
+  OPERATOR_PLACEHOLDER,
+  PRIVACY_POLICY,
+  RETENTION_YEARS,
+} from './legal'
 
 /**
  * Тексты проверяются не на красоту, а на то, что ломается молча: пустой
@@ -48,6 +54,19 @@ describe('политика обработки', () => {
     // это те, кому данные действительно уходят. Политика, умалчивающая
     // о получателе, неверна — а проверить это глазами через год не выйдет.
     expect(text).toContain(recipient)
+  })
+
+  it('называет срок хранения перевозочных документов', () => {
+    // «Храним, пока нужно» сроком не является: статья 5 закона требует
+    // названного. Число берётся из константы, а не пишется в тексте
+    // руками — иначе оно разойдётся с кодом и соврёт.
+    expect(RETENTION_YEARS).toBeGreaterThanOrEqual(5)
+    expect(text).toContain(`не менее ${RETENTION_YEARS} лет`)
+  })
+
+  it('обещает поиск и доступ в течение срока', () => {
+    // Хранить без возможности найти — не исполнить обязанность.
+    expect(text).toContain('поиска')
   })
 
   it('ссылается на закон, во исполнение которого опубликована', () => {

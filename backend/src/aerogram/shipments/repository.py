@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import Select, func, select, text
@@ -140,13 +141,26 @@ class ShipmentRepository:
         return list((await self._session.execute(stmt)).scalars())
 
     def _filtered(
-        self, status: str | None, carrier_id: UUID | None, q: str | None
+        self,
+        status: str | None,
+        carrier_id: UUID | None,
+        q: str | None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
     ) -> Select[tuple[Shipment]]:
         stmt = select(Shipment)
         if status is not None:
             stmt = stmt.where(Shipment.status == status)
         if carrier_id is not None:
             stmt = stmt.where(Shipment.carrier_id == carrier_id)
+        if created_from is not None:
+            stmt = stmt.where(Shipment.created_at >= created_from)
+        if created_to is not None:
+            # Правая граница исключающая: она уже сдвинута на начало
+            # следующих суток. Сравнение `<=` с концом дня теряло бы
+            # отправления, созданные в последнюю долю секунды, — редкость,
+            # которую заметят ровно один раз и в самый неподходящий момент.
+            stmt = stmt.where(Shipment.created_at < created_to)
         if q:
             # Поиск оператора: он держит в руках либо наш номер, либо трек ТК.
             pattern = f"%{q}%"
@@ -163,11 +177,20 @@ class ShipmentRepository:
         status: str | None = None,
         carrier_id: UUID | None = None,
         q: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[list[Shipment], int]:
-        """Страница списка и общее число подходящих строк."""
-        stmt = self._filtered(status, carrier_id, q)
+        """Страница списка и общее число подходящих строк.
+
+        Границы периода приходят готовыми моментами в UTC: считать их
+        по датам — дело сервиса, который знает часовой пояс тенанта.
+        Отбор по ``created_at`` опирается на индекс
+        ``ix_shipments_tenant_id_created_at``: архив за пять лет нельзя
+        листать перебором.
+        """
+        stmt = self._filtered(status, carrier_id, q, created_from, created_to)
         total = (
             await self._session.execute(select(func.count()).select_from(stmt.subquery()))
         ).scalar_one()

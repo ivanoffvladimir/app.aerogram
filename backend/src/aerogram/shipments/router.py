@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -35,6 +36,8 @@ async def list_shipments(
     shipment_status: Annotated[str | None, Query(alias="status", max_length=30)] = None,
     carrier_id: Annotated[UUID | None, Query()] = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
+    created_from: Annotated[date | None, Query(alias="from")] = None,
+    created_to: Annotated[date | None, Query(alias="to")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> ShipmentPage:
@@ -42,9 +45,20 @@ async def list_shipments(
 
     Поиск идёт по нашему номеру, треку перевозчика и его идентификатору
     заказа: оператор держит в руках что-то одно из трёх.
+
+    ``from`` и ``to`` — даты, включительно с обеих сторон, в часовом поясе
+    тенанта. Нужны архиву: отправления хранятся не менее пяти лет
+    (ADR-0030), и без периода такой список листается только перебором.
     """
     return await ShipmentService(session, settings, dadata).page(
-        status=shipment_status, carrier_id=carrier_id, q=q, page=page, page_size=page_size
+        status=shipment_status,
+        carrier_id=carrier_id,
+        q=q,
+        created_from=created_from,
+        created_to=created_to,
+        tenant_id=principal.tenant_id,
+        page=page,
+        page_size=page_size,
     )
 
 

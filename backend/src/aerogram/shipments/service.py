@@ -21,9 +21,10 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,7 +33,7 @@ from aerogram.carriers.base import CarrierAccount as AdapterAccount
 from aerogram.carriers.base import CarrierAdapter, Place, ShipmentRequest, ShipmentResult
 from aerogram.config import Settings
 from aerogram.core.models import CarrierAccount
-from aerogram.core.repository import CarrierAccountRepository
+from aerogram.core.repository import CarrierAccountRepository, TenantRepository
 from aerogram.core.service import decrypt_credentials
 from aerogram.db import session_scope
 from aerogram.directories.dadata import DadataClient
@@ -61,6 +62,11 @@ from aerogram.tracking.service import TrackingService, next_poll_after
 __all__ = ["NUMBER_PREFIX", "ShipmentService", "shipment_number"]
 
 log = get_logger(__name__)
+
+#: Запасной часовой пояс: тот же, что стоит у тенанта по умолчанию. Нужен
+#: там, где пояс неизвестен или испорчен, — отказать в поиске по архиву
+#: из-за колонки с опечаткой было бы хуже, чем сдвинуть границу на часы.
+DEFAULT_ZONE = ZoneInfo("Europe/Moscow")
 
 #: Префикс внутреннего номера. Виден оператору и уходит перевозчику,
 #: поэтому короткий и узнаваемый.
@@ -136,11 +142,26 @@ class ShipmentService:
         status: str | None,
         carrier_id: UUID | None,
         q: str | None,
+        created_from: date | None = None,
+        created_to: date | None = None,
+        tenant_id: UUID | None = None,
         page: int,
         page_size: int,
     ) -> ShipmentPage:
+        """Страница списка. Период задаётся датами в поясе тенанта.
+
+        Отправления хранятся не менее пяти лет (ADR-0030), и без отбора
+        по периоду архив за такой срок листается только перебором.
+        """
+        window = await self._window(created_from, created_to, tenant_id)
         rows, total = await self._shipments.page(
-            status=status, carrier_id=carrier_id, q=q, page=page, page_size=page_size
+            status=status,
+            carrier_id=carrier_id,
+            q=q,
+            created_from=window[0],
+            created_to=window[1],
+            page=page,
+            page_size=page_size,
         )
         names = {c.id: c.name for c in await self._carriers.list_active()}
         promises = await self._rates.promises_by_offer(
@@ -161,6 +182,53 @@ class ShipmentService:
             page=page,
             page_size=page_size,
         )
+
+    async def _window(
+        self, created_from: date | None, created_to: date | None, tenant_id: UUID | None
+    ) -> tuple[datetime | None, datetime | None]:
+        """Даты → моменты в UTC по часовому поясу тенанта.
+
+        Пояс берётся у тенанта, а не UTC и не браузера. Отправление,
+        созданное второго апреля в два часа ночи по Москве, в UTC создано
+        первого — и отбор «за апрель» по UTC его потерял бы. Оператор
+        такую потерю не заметит: список просто окажется на одну строку
+        короче, чем в бухгалтерии.
+
+        Правая граница сдвигается на начало следующих суток: «по 31 марта»
+        человек понимает как «включая 31 марта целиком».
+        """
+        if created_from is None and created_to is None:
+            return None, None
+        zone = await self._tenant_zone(tenant_id)
+        start = (
+            datetime.combine(created_from, time.min, tzinfo=zone).astimezone(UTC)
+            if created_from
+            else None
+        )
+        end = (
+            datetime.combine(created_to + timedelta(days=1), time.min, tzinfo=zone).astimezone(UTC)
+            if created_to
+            else None
+        )
+        return start, end
+
+    async def _tenant_zone(self, tenant_id: UUID | None) -> ZoneInfo:
+        """Часовой пояс тенанта. Неизвестный пояс не роняет список.
+
+        Испорченное значение в колонке — не повод отказать в поиске: Москва
+        как запасной вариант сдвинет границу на часы, а отказ оставит
+        оператора без архива вовсе.
+        """
+        if tenant_id is None:
+            return DEFAULT_ZONE
+        tenant = await TenantRepository(self._session).get_by_id(tenant_id)
+        if tenant is None:
+            return DEFAULT_ZONE
+        try:
+            return ZoneInfo(tenant.timezone)
+        except (ZoneInfoNotFoundError, ValueError):
+            log.warning("shipments.unknown_timezone", tenant_id=str(tenant_id))
+            return DEFAULT_ZONE
 
     # --- Создание ---------------------------------------------------------
 

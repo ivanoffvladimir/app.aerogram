@@ -24,6 +24,10 @@ const TONE_CLASS: Record<string, string | undefined> = {
 export default function ShipmentsPage() {
   const router = useRouter()
   const [status, setStatus] = useState('')
+  //: Период архива. Отправления хранятся не менее пяти лет (ADR-0030),
+  //  и без периода такой список листается только перебором.
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
   const [search, setSearch] = useState('')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
@@ -33,11 +37,13 @@ export default function ShipmentsPage() {
   }, [router])
 
   const shipments = useQuery({
-    queryKey: ['shipments', status, query, page],
+    queryKey: ['shipments', status, query, from, to, page],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) })
       if (status) params.set('status', status)
       if (query) params.set('q', query)
+      if (from) params.set('from', from)
+      if (to) params.set('to', to)
       return request<ShipmentPage>(`/shipments?${params}`)
     },
     // Страница не мигает пустотой на время загрузки следующей: список
@@ -87,6 +93,32 @@ export default function ShipmentsPage() {
               </option>
             ))}
           </select>
+        </div>
+        <div className={styles.field}>
+          <label htmlFor="from">С даты</label>
+          <input
+            id="from"
+            type="date"
+            value={from}
+            onChange={(event) => {
+              setPage(1)
+              setFrom(event.target.value)
+            }}
+          />
+        </div>
+        <div className={styles.field}>
+          {/* Обе границы включительные: «по 31 марта» человек понимает
+              как «включая 31 марта целиком», и сервер считает так же. */}
+          <label htmlFor="to">По дату</label>
+          <input
+            id="to"
+            type="date"
+            value={to}
+            onChange={(event) => {
+              setPage(1)
+              setTo(event.target.value)
+            }}
+          />
         </div>
         <button type="submit">Найти</button>
       </form>
@@ -143,7 +175,7 @@ export default function ShipmentsPage() {
 
         {!shipments.isLoading && (shipments.data?.items.length ?? 0) === 0 && (
           <div className={styles.empty}>
-            {query || status
+            {query || status || from || to
               ? 'По этим условиям ничего не нашлось.'
               : 'Отправлений пока нет. Они появляются здесь после подтверждения выбора на расчёте.'}
           </div>
