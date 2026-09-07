@@ -5,6 +5,7 @@ import type { MfaSetup } from '@/api/client'
 import { ErrorNote } from './ErrorNote'
 import { QrCode } from './QrCode'
 import styles from './MfaSettings.module.css'
+import buttons from '@/styles/buttons.module.css'
 
 interface Props {
   enabled: boolean
@@ -84,7 +85,7 @@ export function MfaSettings({ enabled, pending, onSetup, onEnable, onDisable }: 
             value={code}
             onChange={(event) => setCode(event.target.value)}
           />
-          <button type="submit" disabled={pending}>
+          <button type="submit" className={buttons.danger} disabled={pending}>
             Отключить
           </button>
         </form>
@@ -104,6 +105,7 @@ export function MfaSettings({ enabled, pending, onSetup, onEnable, onDisable }: 
           </p>
           <button
             type="button"
+            className={buttons.primary}
             disabled={pending}
             onClick={() => void run(async () => setSetup(await onSetup()))}
           >
@@ -153,7 +155,7 @@ export function MfaSettings({ enabled, pending, onSetup, onEnable, onDisable }: 
               value={code}
               onChange={(event) => setCode(event.target.value)}
             />
-            <button type="submit" disabled={pending}>
+            <button type="submit" className={buttons.primary} disabled={pending}>
               Включить
             </button>
           </form>

@@ -26,6 +26,7 @@ import {
   SHIPMENT_STATUS_LABELS,
 } from '@/lib/shipmentStatus'
 import styles from './page.module.css'
+import buttons from '@/styles/buttons.module.css'
 
 /**
  * Карточка отправления. Идентификатор приходит параметром запроса, а не
@@ -130,7 +131,12 @@ function ShipmentCard() {
         <h1>{data?.number ?? 'Отправление'}</h1>
         {data && <span>{SHIPMENT_STATUS_LABELS[data.status] ?? data.status}</span>}
         {cancellable && (
-          <button type="button" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
+          <button
+            type="button"
+            className={buttons.danger}
+            onClick={() => cancel.mutate()}
+            disabled={cancel.isPending}
+          >
             {cancel.isPending ? 'Отменяем…' : 'Отменить отправление'}
           </button>
         )}

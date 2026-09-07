@@ -26,22 +26,6 @@
   align-items: center;
 }
 
-.primary {
-  padding: 9px 18px;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: #fff;
-  font-weight: 500;
-}
-
-.secondary {
-  padding: 9px 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
 .tabs {
   display: flex;
   gap: 6px;
@@ -121,7 +105,9 @@
   font-size: 13px;
 }
 
-.danger {
+/* Плашка с отказом, не кнопка: вид опасной кнопки живёт в
+   ``styles/buttons.module.css``, и одно имя на два разных смысла путает. */
+.alert {
   background: var(--danger-soft);
   border: 1px solid #fecaca;
   color: var(--danger);
@@ -149,11 +135,10 @@
   max-width: 420px;
 }
 
+/* Кнопка внутри строки предложения: мельче обычной, чтобы не спорить
+   с ценой рядом. */
 .rowButton {
   padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
 }
 
 .dialog {

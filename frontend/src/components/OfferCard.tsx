@@ -35,7 +35,9 @@ export function OfferCard({ offer, onSelect, selectDisabled }: Props) {
           <strong>{offer.carrier_name ?? 'Перевозчик'}</strong>{' '}
           <span className={styles.muted}>{offer.service_name ?? offer.service_code}</span>
           <div>
-            {offer.source && <span className={styles.badge}>{SOURCE_LABELS[offer.source]}</span>}
+            {offer.source && (
+              <span className={styles.badge}>{SOURCE_LABELS[offer.source]}</span>
+            )}
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -45,11 +47,13 @@ export function OfferCard({ offer, onSelect, selectDisabled }: Props) {
       </div>
 
       {!offer.eligible && (
-        <p className={styles.danger} style={{ marginTop: 12, marginBottom: 0 }}>
+        <p className={styles.alert} style={{ marginTop: 12, marginBottom: 0 }}>
           {offer.ineligibility_reason
             ? (INELIGIBILITY_LABELS[offer.ineligibility_reason] ?? offer.ineligibility_reason)
             : 'Вариант не подходит'}
-          {offer.lateness_seconds ? ` — опоздание ${formatDuration(offer.lateness_seconds)}` : ''}
+          {offer.lateness_seconds
+            ? ` — опоздание ${formatDuration(offer.lateness_seconds)}`
+            : ''}
         </p>
       )}
 

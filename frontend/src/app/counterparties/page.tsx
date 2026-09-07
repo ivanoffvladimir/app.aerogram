@@ -17,6 +17,7 @@ import { ErrorNote } from '@/components/ErrorNote'
 import { PersonalDataNotice } from '@/components/PersonalDataNotice'
 import { COUNTERPARTY_TYPE_LABELS, formatAddress } from '@/lib/directory'
 import styles from './page.module.css'
+import buttons from '@/styles/buttons.module.css'
 
 const PAGE_SIZE = 25
 
@@ -122,7 +123,7 @@ export default function CounterpartiesPage() {
             placeholder="Роспломба или 7701234567"
           />
         </div>
-        <button type="submit" className={styles.primary}>
+        <button type="submit" className={buttons.primary}>
           Найти
         </button>
       </form>

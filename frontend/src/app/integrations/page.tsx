@@ -9,6 +9,7 @@ import { ErrorNote } from '@/components/ErrorNote'
 import { API_SCOPES, scopeLabel } from '@/lib/apiScope'
 import { formatDateTime } from '@/lib/format'
 import styles from './page.module.css'
+import buttons from '@/styles/buttons.module.css'
 
 export default function IntegrationsPage() {
   const router = useRouter()
@@ -114,7 +115,11 @@ export default function IntegrationsPage() {
 
         {/* Ключ без прав ничего не может, поэтому кнопка недоступна:
             сервер такой запрос всё равно отклонит. */}
-        <button type="submit" disabled={create.isPending || !name || scopes.length === 0}>
+        <button
+          type="submit"
+          className={buttons.primary}
+          disabled={create.isPending || !name || scopes.length === 0}
+        >
           {create.isPending ? 'Выпускаем…' : 'Выпустить ключ'}
         </button>
       </form>
@@ -154,6 +159,7 @@ export default function IntegrationsPage() {
                 <td>
                   <button
                     type="button"
+                    className={buttons.danger}
                     onClick={() => revoke.mutate(key.id)}
                     disabled={revoke.isPending}
                   >

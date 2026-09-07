@@ -23,6 +23,7 @@ import { autoRuleSummary } from '@/lib/decision'
 import { CONFIDENCE_LABELS, formatDateTime, formatMoney } from '@/lib/format'
 import { IdempotencyKeys } from '@/lib/idempotency'
 import styles from './page.module.css'
+import buttons from '@/styles/buttons.module.css'
 
 const STRATEGIES = [
   { value: 'optimal', label: 'Оптимальный' },
@@ -289,7 +290,7 @@ export default function RateShoppingPage() {
             <input type="checkbox" style={{ width: 'auto' }} {...register('insurance')} />
             Страхование
           </label>
-          <button type="submit" className={styles.primary} disabled={rates.isPending}>
+          <button type="submit" className={buttons.primary} disabled={rates.isPending}>
             {rates.isPending ? 'Считаем…' : 'Рассчитать'}
           </button>
         </div>
@@ -341,7 +342,7 @@ export default function RateShoppingPage() {
           )}
 
           {quote.no_deadline_match && (
-            <div className={styles.danger}>
+            <div className={styles.alert}>
               В указанный срок не укладывается ни один перевозчик. Ниже — ближайшие
               альтернативы.
             </div>
@@ -387,6 +388,7 @@ export default function RateShoppingPage() {
                 ) : (
                   <button
                     type="button"
+                    className={buttons.primary}
                     onClick={() => create.mutate(auto.decision_id)}
                     disabled={create.isPending}
                   >
@@ -415,6 +417,7 @@ export default function RateShoppingPage() {
                 ) : (
                   <button
                     type="button"
+                    className={buttons.primary}
                     onClick={() => create.mutate(decision.decision_id)}
                     disabled={create.isPending}
                   >
@@ -452,7 +455,7 @@ export default function RateShoppingPage() {
               <div className={styles.actions}>
                 <button
                   type="button"
-                  className={styles.primary}
+                  className={buttons.primary}
                   disabled={isStale || decide.isPending || Boolean(decision) || Boolean(auto)}
                   onClick={() => selectOffer(recommended)}
                 >

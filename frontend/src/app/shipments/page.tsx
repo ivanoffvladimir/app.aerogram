@@ -10,6 +10,7 @@ import { ErrorNote } from '@/components/ErrorNote'
 import { formatDateTime, formatMoney } from '@/lib/format'
 import { SHIPMENT_STATUS_LABELS, statusTone } from '@/lib/shipmentStatus'
 import styles from './page.module.css'
+import buttons from '@/styles/buttons.module.css'
 
 const PAGE_SIZE = 25
 
@@ -120,7 +121,7 @@ export default function ShipmentsPage() {
             }}
           />
         </div>
-        <button type="submit" className={styles.primary}>
+        <button type="submit" className={buttons.primary}>
           Найти
         </button>
       </form>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { Counterparty, CounterpartyAddress } from '@/api/client'
 import { changedFields } from '@/lib/patch'
 import styles from './AddressBookEdit.module.css'
+import buttons from '@/styles/buttons.module.css'
 
 /** Поля контрагента, которые правятся. ИНН и КПП сюда не входят: это
  *  не описка в названии, а другая организация. */
@@ -178,7 +179,7 @@ export function AddressBookEdit({
       })}
 
       <div className={styles.row}>
-        <button type="submit" disabled={pending}>
+        <button type="submit" className={buttons.primary} disabled={pending}>
           {pending ? 'Сохраняем…' : 'Сохранить'}
         </button>
         <button type="button" onClick={onDone}>

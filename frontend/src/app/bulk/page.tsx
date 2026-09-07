@@ -26,6 +26,7 @@ import {
 import { RUN_STATUS_LABELS, failedCount } from '@/lib/bulkStatus'
 import { formatDateTime, formatMoney } from '@/lib/format'
 import styles from './page.module.css'
+import buttons from '@/styles/buttons.module.css'
 
 /** Модули CSS типизированы как `string | undefined`: класса может не быть. */
 const STATUS_CLASS: Record<BulkImportRow['status'], string | undefined> = {
@@ -228,7 +229,11 @@ export default function BulkListPage() {
           <button type="button" onClick={check} disabled={importList.isPending}>
             {importList.isPending ? 'Проверяем…' : 'Проверить список'}
           </button>
-          <button type="submit" disabled={create.isPending || !ready || !ready.rows.length}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={create.isPending || !ready || !ready.rows.length}
+          >
             {create.isPending
               ? 'Создаём…'
               : ready

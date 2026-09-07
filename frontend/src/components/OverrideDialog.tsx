@@ -5,6 +5,7 @@ import type { RateOffer } from '@/api/client'
 import { formatMoney } from '@/lib/format'
 import { OVERRIDE_REASONS } from '@/lib/overrideReason'
 import styles from '@/app/rate-shopping/page.module.css'
+import buttons from '@/styles/buttons.module.css'
 
 interface Props {
   offer: RateOffer
@@ -60,7 +61,7 @@ export function OverrideDialog({ offer, onCancel, onConfirm, submitting }: Props
       <div className={styles.actions}>
         <button
           type="button"
-          className={styles.primary}
+          className={buttons.primary}
           disabled={submitting}
           onClick={() => {
             if (!reason) {
@@ -72,7 +73,7 @@ export function OverrideDialog({ offer, onCancel, onConfirm, submitting }: Props
         >
           {submitting ? 'Сохраняем…' : 'Подтвердить выбор'}
         </button>
-        <button type="button" className={styles.secondary} onClick={onCancel}>
+        <button type="button" onClick={onCancel}>
           Отмена
         </button>
       </div>

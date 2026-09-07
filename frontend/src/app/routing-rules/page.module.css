@@ -40,19 +40,6 @@
   padding: 2px 8px;
 }
 
-.primary {
-  background: var(--accent, #2563eb);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius);
-  padding: 8px 16px;
-  font-size: 14px;
-}
-
-.danger {
-  color: var(--danger, #b03a2e);
-}
-
 .form {
   display: flex;
   flex-direction: column;

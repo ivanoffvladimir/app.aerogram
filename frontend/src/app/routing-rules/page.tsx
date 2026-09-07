@@ -25,6 +25,7 @@ import {
   type RuleActionKind,
 } from '@/lib/routingRules'
 import styles from './page.module.css'
+import buttons from '@/styles/buttons.module.css'
 
 /** Действия, которые вправе смотреть на перевозчика (ADR-0028, §4.2). */
 const CARRIER_AWARE: RuleActionKind[] = ['deny', 'allow']
@@ -202,7 +203,11 @@ export default function RoutingRulesPage() {
             попадает в снимок каждого решения: по ней видно, по каким правилам оно принято
           </span>
         </div>
-        <button type="button" className={styles.primary} onClick={() => setOpen((was) => !was)}>
+        <button
+          type="button"
+          className={buttons.primary}
+          onClick={() => setOpen((was) => !was)}
+        >
           {open ? 'Отмена' : 'Новое правило'}
         </button>
       </div>
@@ -410,7 +415,7 @@ export default function RoutingRulesPage() {
 
           {create.isError && <ErrorNote error={create.error} />}
 
-          <button type="submit" className={styles.primary} disabled={create.isPending}>
+          <button type="submit" className={buttons.primary} disabled={create.isPending}>
             {create.isPending ? 'Сохраняем…' : 'Создать правило'}
           </button>
         </form>
@@ -448,7 +453,7 @@ export default function RoutingRulesPage() {
                   </button>
                   <button
                     type="button"
-                    className={styles.danger}
+                    className={buttons.danger}
                     onClick={() => remove.mutate(rule)}
                   >
                     Удалить

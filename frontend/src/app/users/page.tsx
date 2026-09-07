@@ -9,6 +9,7 @@ import { ErrorNote } from '@/components/ErrorNote'
 import { ROLE_LABELS, TENANT_ROLES } from '@/lib/directory'
 import { formatDateTime } from '@/lib/format'
 import styles from './page.module.css'
+import buttons from '@/styles/buttons.module.css'
 
 /** Минимальная длина пароля повторяет `UserCreate` бэкенда: форма обязана
  *  сказать об этом до отправки, а не показывать 422 после. */
@@ -177,6 +178,7 @@ function UserForm({
       </div>
       <button
         type="submit"
+        className={buttons.primary}
         disabled={pending || fullName.trim() === '' || password.length < MIN_PASSWORD}
       >
         {pending ? 'Сохраняем…' : 'Добавить'}
