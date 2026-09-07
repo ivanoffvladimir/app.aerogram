@@ -122,7 +122,9 @@ export default function CounterpartiesPage() {
             placeholder="Роспломба или 7701234567"
           />
         </div>
-        <button type="submit">Найти</button>
+        <button type="submit" className={styles.primary}>
+          Найти
+        </button>
       </form>
 
       {counterparties.isError && <ErrorNote error={counterparties.error} />}

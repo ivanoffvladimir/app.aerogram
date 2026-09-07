@@ -196,6 +196,47 @@ class TestLogin:
             "request_id",
         }
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            pytest.param(
+                {"email": "нет@example.com", "password": PASSWORD},
+                id="неизвестная почта",
+            ),
+            pytest.param(
+                {"email": "a@example.com", "password": "неверный"},
+                id="неверный пароль обычной длины",
+            ),
+            pytest.param({"email": "a@example.com", "password": "к"}, id="пароль в один символ"),
+            pytest.param({"email": "a@example.com", "password": ""}, id="пустой пароль"),
+            pytest.param(
+                {"email": "a@example.com", "password": "н" * 128},
+                id="неверный пароль предельной длины",
+            ),
+            pytest.param(
+                {"email": "a@example.com", "password": "неверный", "mfa_code": "1"},
+                id="код второго фактора неверной длины",
+            ),
+        ],
+    )
+    async def test_every_refusal_looks_the_same(
+        self, app: FastAPI, seeded: tuple[UUID, UUID, UUID], body: dict[str, str]
+    ) -> None:
+        """Любой неверный ввод отвечает одинаково — иначе это оракул.
+
+        Ограничение длины на схеме входа отбивало короткий пароль ``422`` с
+        полем ``password``, тогда как неверный длинный получал ``401`` без
+        поля. Разница выдавала нижнюю границу политики паролей и сужала
+        перебор. Политика живёт на создании пользователя, а вход обязан
+        отказывать единообразно — это и проверяется здесь.
+        """
+        async with await _client(app) as client:
+            response = await client.post("/v1/auth/login", json=body)
+        assert response.status_code == 401
+        assert response.json()["error"]["code"] == "unauthenticated"
+        assert response.json()["error"]["message"] == "Неверный e-mail или пароль"
+        assert response.json()["error"]["field"] is None
+
     async def test_malformed_body_reports_field(self, app: FastAPI) -> None:
         async with await _client(app) as client:
             response = await client.post("/v1/auth/login", json={"email": "не-почта"})

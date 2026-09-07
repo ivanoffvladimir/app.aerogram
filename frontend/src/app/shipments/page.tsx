@@ -120,7 +120,9 @@ export default function ShipmentsPage() {
             }}
           />
         </div>
-        <button type="submit">Найти</button>
+        <button type="submit" className={styles.primary}>
+          Найти
+        </button>
       </form>
 
       {shipments.isError && <ErrorNote error={shipments.error} />}
