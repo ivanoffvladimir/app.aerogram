@@ -71,6 +71,10 @@ class SummaryOut(BaseModel):
     since: datetime
     delivery: DeliveryOut
     costs: list[CostsOut]
+    #: Показывать ли расходы этой роли. Пустой ``costs`` без этого признака
+    #: читался бы как «расходов не было», а не как «их не показывают»:
+    #: оператор решил бы, что компания за месяц ничего не потратила.
+    costs_visible: bool = True
     overrides: OverridesOut
     exceptions: dict[str, int]
     exceptions_total: int

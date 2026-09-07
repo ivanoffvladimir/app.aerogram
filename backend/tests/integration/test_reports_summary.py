@@ -8,16 +8,20 @@
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from aerogram.config import get_settings
 from aerogram.db import session_scope
+from aerogram.shared.enums import UserRole
 from aerogram.shipments.repository import ShipmentRepository
 from aerogram.shipments.service import ShipmentService
+from tests.conftest import login, make_user, set_tenant
 from tests.integration.conftest import (
     DEADLINE,
     RATE_REQUEST,
@@ -27,6 +31,28 @@ from tests.integration.conftest import (
 )
 
 pytestmark = pytest.mark.asyncio
+
+
+async def _login_as(
+    client: AsyncClient, tenant_id: UUID, database_url: str, role: UserRole
+) -> dict[str, str]:
+    """Завести пользователя с ролью и войти им.
+
+    Роль назначается прямо в базе: выдавать её через API значило бы
+    проверять сводку вместе с созданием пользователя, а падение стало бы
+    неоднозначным.
+    """
+    email = f"{role.value}@example.com"
+    engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with factory() as db, db.begin():
+            await set_tenant(db, tenant_id)
+            db.add(make_user(tenant_id, email, role))
+    finally:
+        await engine.dispose()
+    return await login(client, email)
+
 
 IN_TIME = DEADLINE - timedelta(days=1)
 TOO_LATE = DEADLINE + timedelta(hours=6)
@@ -261,3 +287,55 @@ class TestIsolation:
         assert body["delivery"]["delivered"] == 0
         assert body["costs"] == []
         assert body["overrides"]["decisions"] == 0
+
+
+class TestCostsAreClosedByRole:
+    """Расходы в сводке закрыты тем же кругом, что и сверка со счетами.
+
+    Правило существовало и раньше, но стояло только на
+    ``/v1/billing/reconciliation``, а те же суммы за тот же период отдавала
+    сводка без единой проверки роли. Правило, которое обходится соседним
+    путём, не правило.
+    """
+
+    async def test_an_operator_does_not_see_costs(
+        self, client: AsyncClient, seeded_tenants: tuple[UUID, UUID], database_url: str
+    ) -> None:
+        headers = await _login_as(client, seeded_tenants[0], database_url, UserRole.OPERATOR)
+        response = await client.get("/v1/reports/summary", headers=headers)
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["costs"] == []
+        # Пустой список без признака читался бы как «компания ничего
+        # не потратила», а это другое утверждение.
+        assert body["costs_visible"] is False
+
+    async def test_an_operator_still_gets_the_rest_of_the_screen(
+        self, client: AsyncClient, seeded_tenants: tuple[UUID, UUID], database_url: str
+    ) -> None:
+        """Отнять весь экран ради одного раздела значило бы сломать работу.
+
+        Соблюдение срока и открытые исключения нужны как раз оператору.
+        """
+        headers = await _login_as(client, seeded_tenants[0], database_url, UserRole.OPERATOR)
+        body = (await client.get("/v1/reports/summary", headers=headers)).json()
+
+        assert "delivery" in body
+        assert "exceptions" in body
+        assert body["overrides"]["decisions"] == 0
+
+    async def test_a_logistician_sees_costs(
+        self, client: AsyncClient, headers: dict[str, str]
+    ) -> None:
+        """Владелец и логист — тот же круг, что у сверки со счетами."""
+        body = (await client.get("/v1/reports/summary", headers=headers)).json()
+        assert body["costs_visible"] is True
+
+    async def test_a_viewer_does_not_see_costs(
+        self, client: AsyncClient, seeded_tenants: tuple[UUID, UUID], database_url: str
+    ) -> None:
+        """Наблюдатель видит меньше оператора, а не больше."""
+        headers = await _login_as(client, seeded_tenants[0], database_url, UserRole.VIEWER)
+        body = (await client.get("/v1/reports/summary", headers=headers)).json()
+        assert body["costs_visible"] is False

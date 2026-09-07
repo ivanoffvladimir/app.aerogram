@@ -120,7 +120,13 @@ export default function DashboardPage() {
             </tbody>
           </table>
           {!summary.isLoading && (data?.costs.length ?? 0) === 0 && (
-            <div className={styles.empty}>За период отправлений не было</div>
+            <div className={styles.empty}>
+              {/* «Не показывают» и «не было» — разные утверждения, и по второму
+                  оператор сделал бы вывод о компании, которого делать нельзя. */}
+              {data && !data.costs_visible
+                ? 'Расходы доступны владельцу и логисту'
+                : 'За период отправлений не было'}
+            </div>
           )}
         </div>
         <p className={styles.note}>

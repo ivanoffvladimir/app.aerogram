@@ -123,6 +123,12 @@ export interface Summary {
     actual: Money
     with_actual: number
   }[]
+  /**
+   * Показывать ли расходы этой роли. Пустой `costs` без этого признака
+   * читался бы как «компания ничего не потратила», а не как «расходы
+   * не показывают»: круг у них тот же, что у сверки со счетами.
+   */
+  costs_visible: boolean
   overrides: {
     decisions: number
     overrides: number

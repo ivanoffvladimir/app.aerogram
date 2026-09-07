@@ -48,13 +48,18 @@ class ReportService:
         self._reports = ReportRepository(session)
         self._exceptions = ExceptionService(session)
 
-    async def summary(self, days: int = DEFAULT_DAYS) -> SummaryOut:
-        """Собрать сводку за последние ``days`` суток."""
+    async def summary(self, days: int = DEFAULT_DAYS, *, with_costs: bool = True) -> SummaryOut:
+        """Собрать сводку за последние ``days`` суток.
+
+        ``with_costs = False`` убирает раздел расходов и **не считает его**:
+        закрывать данные, уже вынутые из базы, значит полагаться на то, что
+        их никто не вернёт наружу следующей правкой.
+        """
         window = max(1, min(days, MAX_DAYS))
         since = utcnow() - timedelta(days=window)
 
         delivery = await self._reports.delivery_stats(since)
-        costs = await self._reports.costs(since)
+        costs = await self._reports.costs(since) if with_costs else []
         overrides = await self._reports.override_stats(since)
         # Исключения — состояние на сейчас, а не за окно: разбирают то,
         # что горит сегодня, а не то, что горело месяц назад.
@@ -65,6 +70,9 @@ class ReportService:
             since=since,
             delivery=_delivery(delivery),
             costs=[_costs(row) for row in costs],
+            # Пустой список и «не положено видеть» — разные вещи: без признака
+            # экран показал бы «расходов нет» там, где их просто не показывают.
+            costs_visible=with_costs,
             overrides=_overrides(overrides),
             exceptions=open_exceptions.by_reason,
             exceptions_total=open_exceptions.total,
