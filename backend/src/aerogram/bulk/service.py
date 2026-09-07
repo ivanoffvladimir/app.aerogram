@@ -42,6 +42,8 @@ from aerogram.bulk.schemas import (
 )
 from aerogram.core.models import Address, Counterparty
 from aerogram.core.repository import CounterpartyRepository
+from aerogram.documents.schemas import BatchLabelsOut
+from aerogram.documents.service import DocumentService
 from aerogram.rating.schemas import RateRequestIn
 from aerogram.rating.service import RateShoppingService
 from aerogram.routing.schemas import DecisionRequestIn, RoutingRequestIn
@@ -93,8 +95,10 @@ class BulkService:
         recommendations: RecommendationService,
         decisions: DecisionService,
         shipments: ShipmentService,
+        documents: DocumentService,
     ) -> None:
         self._repo = repository
+        self._documents = documents
         self._rating = rating
         self._recommendations = recommendations
         self._decisions = decisions
@@ -423,6 +427,31 @@ class BulkService:
             run_id, tenant_id=tenant_id, when_busy=BulkRunStatus.QUOTED
         )
         return await self._to_out(run, tenant_id=tenant_id)
+
+    async def order_labels(self, run_id: UUID, *, tenant_id: UUID) -> BatchLabelsOut:
+        """Заказать этикетки на все оформленные строки прогона.
+
+        Отдельным вызовом, а не заодно с оформлением: заказ формы стоит
+        обращения к перевозчику, а у Почты России — суточной квоты. Прогон
+        на сто строк не должен тратить сто вызовов у тех, кто печатать
+        сегодня не собирался.
+        """
+        await self._require(run_id, tenant_id=tenant_id)
+        return await self._documents.order_labels(await self._shipment_ids(run_id, tenant_id))
+
+    async def merged_labels(self, run_id: UUID, *, tenant_id: UUID) -> tuple[bytes, int]:
+        """Пачка этикеток прогона одним файлом."""
+        await self._require(run_id, tenant_id=tenant_id)
+        return await self._documents.merged_labels(await self._shipment_ids(run_id, tenant_id))
+
+    async def _shipment_ids(self, run_id: UUID, tenant_id: UUID) -> list[UUID]:
+        """Оформленные отправления прогона, в порядке строк списка.
+
+        Порядок важен: пачка на складе раскладывается вместе со списком,
+        и перестановка означала бы наклеенную не ту этикетку.
+        """
+        rows = await self._repo.rows_of(run_id, tenant_id=tenant_id)
+        return [row.shipment_id for row in rows if row.shipment_id is not None]
 
     async def create_all(
         self, run_id: UUID, *, tenant_id: UUID, user_id: UUID | None

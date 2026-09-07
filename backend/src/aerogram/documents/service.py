@@ -19,15 +19,17 @@ available` в карточке отправления. Ни пакетной п�
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aerogram.config import Settings
+from aerogram.documents.merge import merge_pdfs
 from aerogram.documents.models import Document
 from aerogram.documents.repository import DocumentRepository
-from aerogram.documents.schemas import DocumentOut, LabelRequestIn
+from aerogram.documents.schemas import BatchLabelsOut, DocumentOut, LabelRequestIn
 from aerogram.documents.storage import CONTENT_TYPES, ObjectStorage, document_key
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import DocumentFormat, DocumentType, LabelFormat
@@ -135,6 +137,63 @@ class DocumentService:
 
         await self._pull(document, payload.format)
         return DocumentOut.model_validate(document)
+
+    # --- Пакетная печать ---------------------------------------------------
+
+    async def order_labels(self, shipment_ids: Sequence[UUID]) -> BatchLabelsOut:
+        """Заказать этикетки по списку отправлений.
+
+        Уже заказанные не заказываются заново: у Почты России вызов тратит
+        суточную квоту, и повторная кнопка «Печать» не должна её жечь.
+        """
+        ready = pending = failed = 0
+        for shipment_id in shipment_ids:
+            document = await self.label(shipment_id, LabelRequestIn())
+            if document.status == "ready":
+                ready += 1
+            elif document.status == "pending":
+                pending += 1
+            else:
+                failed += 1
+        log.info("documents.batch_ordered", ready=ready, pending=pending, failed=failed)
+        return BatchLabelsOut(ready=ready, pending=pending, failed=failed)
+
+    async def merged_labels(self, shipment_ids: Sequence[UUID]) -> tuple[bytes, int]:
+        """Одна пачка PDF по списку отправлений. Возвращает файл и число страниц.
+
+        **Склеенный файл не хранится.** Он производный: каждая этикетка уже
+        лежит у нас по отдельности, и вторая копия означала бы вторую копию
+        персональных данных получателей в хранилище — ради файла, который
+        собирается за миллисекунды. Заодно снимается вопрос устаревания:
+        добавили строку в прогон, нажали печать — пачка уже с ней.
+
+        Порядок сохраняется тот, в котором пришли отправления: на складе
+        пачка раскладывается вместе со списком прогона.
+        """
+        parts: list[bytes] = []
+        for shipment_id in shipment_ids:
+            document = await self._documents.find(
+                shipment_id, DocumentType.LABEL, DocumentFormat.PDF
+            )
+            if document is None or document.status != "ready" or not document.s3_key:
+                continue
+            parts.append(await self._storage.get(document.s3_key))
+
+        if not parts:
+            raise Conflict("Ни одной готовой этикетки нет", field="run_id")
+
+        result = merge_pdfs(parts)
+        if result.merged == 0:
+            # Все файлы оказались нечитаемыми: пустой PDF на принтере хуже
+            # честного отказа — кладовщик решит, что печатать нечего.
+            raise Conflict("Ни одна этикетка не читается", field="run_id")
+        log.info(
+            "documents.batch_merged",
+            merged=result.merged,
+            skipped=result.skipped,
+            pages=result.page_count,
+        )
+        return result.content, result.page_count
 
     async def fetch_pending(self, *, now: datetime | None = None) -> int:
         """Дотянуть формы, которые перевозчик обещал сформировать (FR-4.5).

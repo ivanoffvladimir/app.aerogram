@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
 
 from aerogram.bulk.repository import BulkRepository
 from aerogram.bulk.schemas import (
@@ -25,6 +25,8 @@ from aerogram.bulk.schemas import (
 from aerogram.bulk.service import BulkService
 from aerogram.core.deps import CurrentPrincipal, SessionDep, SettingsDep, require_roles
 from aerogram.directories.deps import DadataDep
+from aerogram.documents.schemas import BatchLabelsOut
+from aerogram.documents.service import DocumentService
 from aerogram.rating.service import RateShoppingService
 from aerogram.routing.service import DecisionService, RecommendationService
 from aerogram.shared.enums import UserRole
@@ -46,6 +48,7 @@ def _service(session: SessionDep, settings: SettingsDep, dadata: DadataDep) -> B
         RecommendationService(session),
         DecisionService(session),
         ShipmentService(session, settings, dadata),
+        DocumentService(session, settings),
     )
 
 
@@ -103,6 +106,63 @@ async def list_runs(
 ) -> BulkRunPage:
     return await _service(session, settings, dadata).page(
         tenant_id=principal.tenant_id, limit=limit, offset=offset
+    )
+
+
+@bulk_router.post(
+    "/{run_id}/labels",
+    response_model=BatchLabelsOut,
+    summary="Заказать этикетки на весь прогон",
+)
+async def order_labels(
+    run_id: UUID,
+    principal: CurrentPrincipal,
+    session: SessionDep,
+    settings: SettingsDep,
+    dadata: DadataDep,
+) -> BatchLabelsOut:
+    """Заказать печатные формы по всем оформленным строкам.
+
+    Отдельно от оформления: заказ формы стоит обращения к перевозчику,
+    а у Почты России — суточной квоты. Прогон на сто строк не должен
+    тратить сто вызовов у тех, кто печатать сегодня не собирался.
+    """
+    return await _service(session, settings, dadata).order_labels(
+        run_id, tenant_id=principal.tenant_id
+    )
+
+
+@bulk_router.get(
+    "/{run_id}/labels",
+    summary="Пачка этикеток прогона одним файлом",
+    response_class=Response,
+    responses={200: {"content": {"application/pdf": {}}, "description": "Склеенные этикетки"}},
+)
+async def download_labels(
+    run_id: UUID,
+    principal: CurrentPrincipal,
+    session: SessionDep,
+    settings: SettingsDep,
+    dadata: DadataDep,
+) -> Response:
+    """Сто этикеток одним PDF.
+
+    Файл не хранится: он производный, каждая этикетка уже лежит у нас
+    по отдельности, и вторая копия означала бы вторую копию персональных
+    данных получателей в хранилище (ADR-0016).
+    """
+    body, pages = await _service(session, settings, dadata).merged_labels(
+        run_id, tenant_id=principal.tenant_id
+    )
+    return Response(
+        content=body,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="labels-{run_id}.pdf"',
+            # Кладовщику нужно знать, что уйдёт на принтер, до печати.
+            "X-Aerogram-Pages": str(pages),
+            "Cache-Control": "private, no-store",
+        },
     )
 
 

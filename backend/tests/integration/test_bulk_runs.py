@@ -59,6 +59,67 @@ async def _create(client: AsyncClient, headers: dict[str, str], **kw: Any) -> di
     return response.json()
 
 
+class LabelBulkCarrier(ShippingCarrier):
+    """Перевозчик прогона, умеющий отдавать печатную форму."""
+
+    def __init__(self) -> None:
+        super().__init__("fake")
+        self.label_calls: list[str] = []
+
+    async def label(self, ext_id: str, fmt: Any, acc: Any) -> Any:
+        from aerogram.carriers.base import LabelResult
+
+        self.label_calls.append(ext_id)
+        return LabelResult(format=fmt, content=_one_page_pdf(), is_pending=False)
+
+
+def _one_page_pdf() -> bytes:
+    from io import BytesIO
+
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    buffer = BytesIO()
+    writer.write(buffer)
+    return buffer.getvalue()
+
+
+@pytest.fixture
+def label_carrier(carrier_setup: tuple[UUID, UUID]) -> LabelBulkCarrier:
+    adapter = LabelBulkCarrier()
+    registry.register(adapter)
+    return adapter
+
+
+@pytest.fixture
+def label_store(
+    monkeypatch: pytest.MonkeyPatch, label_carrier: LabelBulkCarrier
+) -> dict[str, bytes]:
+    """Хранилище в памяти вместо S3: настоящего здесь нет и не нужно."""
+    from aerogram.documents.storage import ObjectStorage
+
+    monkeypatch.setenv("S3_ACCESS_KEY", "key")
+    monkeypatch.setenv("S3_SECRET_KEY", "secret")
+    objects: dict[str, bytes] = {}
+    monkeypatch.setattr(
+        ObjectStorage, "_put", staticmethod(lambda key, body, ct: objects.__setitem__(key, body))
+    )
+    monkeypatch.setattr(ObjectStorage, "_get", staticmethod(lambda key: objects[key]))
+    return objects
+
+
+async def _completed_run(client: AsyncClient, headers: dict[str, str]) -> str:
+    """Прогон, доведённый до оформленных отправлений."""
+    run_id = (await _create(client, headers))["id"]
+    await client.post(f"/v1/bulk-runs/{run_id}/quote", headers=headers)
+    await client.post(f"/v1/bulk-runs/{run_id}/select", headers=headers)
+    created = await client.post(f"/v1/bulk-runs/{run_id}/create", headers=headers)
+    assert created.status_code == 200, created.text
+    assert {row["status"] for row in created.json()["rows"]} == {"created"}
+    return str(run_id)
+
+
 class TestDraft:
     async def test_a_run_starts_as_a_draft_named_after_the_date(
         self, client: AsyncClient, headers: dict[str, str], carrier_setup: tuple[UUID, UUID]
@@ -132,6 +193,92 @@ class TestAutoSelectStaysOut:
 
         created = (await client.post(f"/v1/bulk-runs/{run_id}/create", headers=headers)).json()
         assert {row["status"] for row in created["rows"]} == {"created"}
+
+
+class TestBatchPrinting:
+    """Сто этикеток одной кнопкой (ADR-0016).
+
+    Склеенный файл не хранится: он производный, а вторая копия означала бы
+    вторую копию персональных данных получателей в хранилище.
+    """
+
+    async def test_the_whole_run_prints_as_one_pdf(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        label_store: dict[str, bytes],
+    ) -> None:
+        run_id = await _completed_run(client, headers)
+
+        ordered = await client.post(f"/v1/bulk-runs/{run_id}/labels", headers=headers)
+        assert ordered.status_code == 200, ordered.text
+        assert ordered.json() == {"ready": 2, "pending": 0, "failed": 0}
+
+        pack = await client.get(f"/v1/bulk-runs/{run_id}/labels", headers=headers)
+        assert pack.status_code == 200, pack.text
+        assert pack.content.startswith(b"%PDF")
+        # Две этикетки по странице: кладовщик видит, что уйдёт на принтер.
+        assert pack.headers["X-Aerogram-Pages"] == "2"
+        assert pack.headers["content-disposition"].startswith("attachment")
+
+    async def test_the_pack_is_not_stored(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        label_store: dict[str, bytes],
+    ) -> None:
+        """В хранилище лежат только отдельные этикетки — по одной на строку."""
+        run_id = await _completed_run(client, headers)
+        await client.post(f"/v1/bulk-runs/{run_id}/labels", headers=headers)
+        await client.get(f"/v1/bulk-runs/{run_id}/labels", headers=headers)
+
+        assert len(label_store) == 2
+
+    async def test_ordering_twice_does_not_call_the_carrier_again(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        label_store: dict[str, bytes],
+        label_carrier: LabelBulkCarrier,
+    ) -> None:
+        """У Почты России вызов тратит суточную квоту неизвестной величины."""
+        run_id = await _completed_run(client, headers)
+        await client.post(f"/v1/bulk-runs/{run_id}/labels", headers=headers)
+        await client.post(f"/v1/bulk-runs/{run_id}/labels", headers=headers)
+
+        assert len(label_carrier.label_calls) == 2, "по вызову на отправление, не больше"
+
+    async def test_without_a_single_ready_label_the_answer_is_a_refusal(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        label_store: dict[str, bytes],
+    ) -> None:
+        """Пустой PDF на принтере хуже честного отказа: кладовщик решит,
+        что печатать нечего."""
+        run_id = await _completed_run(client, headers)
+
+        pack = await client.get(f"/v1/bulk-runs/{run_id}/labels", headers=headers)
+        assert pack.status_code == 409, pack.text
+
+    async def test_a_foreign_run_is_a_404(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier_setup: tuple[UUID, UUID],
+        label_store: dict[str, bytes],
+        seeded_tenants: tuple[UUID, UUID],
+    ) -> None:
+        run_id = await _completed_run(client, headers)
+        other = await login(client, "b@example.com")
+
+        assert (
+            await client.post(f"/v1/bulk-runs/{run_id}/labels", headers=other)
+        ).status_code == 404
 
 
 class TestRun:

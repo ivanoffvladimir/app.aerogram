@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict
 
 from aerogram.shared.enums import DocumentFormat, DocumentType, LabelFormat
 
-__all__ = ["DocumentOut", "LabelRequestIn"]
+__all__ = ["BatchLabelsOut", "DocumentOut", "LabelRequestIn"]
 
 
 class LabelRequestIn(BaseModel):
@@ -49,3 +49,17 @@ class DocumentOut(BaseModel):
     error: str | None
     generated_at: datetime | None
     created_at: datetime
+
+
+class BatchLabelsOut(BaseModel):
+    """Итог заказа этикеток на весь прогон.
+
+    Три числа, а не одно «готово»: пачку печатают целиком, и кладовщик
+    должен знать, скольких этикеток в ней не будет и почему их стоит
+    подождать, а не искать.
+    """
+
+    ready: int
+    #: Перевозчик ещё формирует форму. Подметание вернётся за ней само.
+    pending: int
+    failed: int

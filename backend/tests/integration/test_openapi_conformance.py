@@ -56,6 +56,7 @@ BEYOND_CONTRACT: frozenset[str] = frozenset(
         "/v1/bulk-runs/{run_id}/quote",
         "/v1/bulk-runs/{run_id}/select",
         "/v1/bulk-runs/{run_id}/create",
+        "/v1/bulk-runs/{run_id}/labels",
         # Справочники: вход оператора, а не публичный контракт.
         "/v1/addresses/normalize",
         "/v1/cities/suggest",

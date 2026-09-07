@@ -3,8 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useEffect } from 'react'
-import { request, tokens, type BulkRun } from '@/api/client'
+import { Suspense, useEffect, useState } from 'react'
+import { download, request, tokens, type BatchLabels, type BulkRun } from '@/api/client'
 import { AppShell } from '@/components/AppShell'
 import { ErrorNote } from '@/components/ErrorNote'
 import { describeAddress } from '@/lib/bulkRows'
@@ -38,6 +38,10 @@ function BulkRunRegister() {
     if (!tokens.access()) router.replace('/login')
   }, [router])
 
+  //: Итог последнего заказа форм. Состоянием, а не запросом: сервер
+  //  сводного документа не хранит, и спрашивать у него нечего.
+  const [labels, setLabels] = useState<BatchLabels | null>(null)
+
   const run = useQuery({
     queryKey: ['bulk-run', runId],
     queryFn: () => request<BulkRun>(`/bulk-runs/${runId}`),
@@ -51,6 +55,15 @@ function BulkRunRegister() {
       queryClient.setQueryData(['bulk-run', runId], updated)
       void queryClient.invalidateQueries({ queryKey: ['bulk-runs'] })
     },
+  })
+
+  const orderLabels = useMutation({
+    mutationFn: () => request<BatchLabels>(`/bulk-runs/${runId}/labels`, { method: 'POST' }),
+    onSuccess: setLabels,
+  })
+
+  const printPack = useMutation({
+    mutationFn: () => download(`/bulk-runs/${runId}/labels`, `labels-${runId}.pdf`),
   })
 
   const data = run.data
@@ -108,7 +121,41 @@ function BulkRunRegister() {
         )}
       </div>
 
+      {/* Печать отделена от шагов прогона: заказ форм стоит вызова
+          у перевозчика, а у Почты России — суточной квоты, и прогон
+          на сто строк не должен тратить сто вызовов у тех, кто печатать
+          сегодня не собирался. */}
+      {(counts.created ?? 0) > 0 && (
+        <div className={styles.row}>
+          <button
+            type="button"
+            onClick={() => orderLabels.mutate()}
+            disabled={orderLabels.isPending}
+          >
+            {orderLabels.isPending ? 'Запрашиваем у перевозчиков…' : 'Запросить этикетки'}
+          </button>
+          <button
+            type="button"
+            onClick={() => printPack.mutate()}
+            disabled={printPack.isPending}
+          >
+            {printPack.isPending ? 'Собираем пачку…' : 'Скачать пачку этикеток'}
+          </button>
+          {labels && (
+            <span className={styles.counterLabel}>
+              {/* Три числа, а не «готово»: пачку печатают целиком, и знать,
+                  скольких этикеток в ней не будет, нужно до принтера. */}
+              готовы {labels.ready}
+              {labels.pending > 0 ? ` · перевозчик готовит ${labels.pending}` : ''}
+              {labels.failed > 0 ? ` · не вышло ${labels.failed}` : ''}
+            </span>
+          )}
+        </div>
+      )}
+
       {advance.isError && <ErrorNote error={advance.error} />}
+      {orderLabels.isError && <ErrorNote error={orderLabels.error} />}
+      {printPack.isError && <ErrorNote error={printPack.error} />}
 
       <p className={styles.hint}>
         Тариф по отдельной строке меняется обычным решением с заменой на экране «Расчёт и выбор»

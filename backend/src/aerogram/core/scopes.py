@@ -62,6 +62,11 @@ MACHINE_SCOPES: dict[tuple[str, str], str] = {
     ("POST", "/v1/bulk-runs/{run_id}/quote"): "rates:read",
     ("POST", "/v1/bulk-runs/{run_id}/select"): "decisions:write",
     ("POST", "/v1/bulk-runs/{run_id}/create"): "shipments:write",
+    # Печать прогона: заказ форм тратит вызов у перевозчика, скачивание —
+    # нет. Те же области, что у форм одного отправления, и по той же
+    # причине.
+    ("POST", "/v1/bulk-runs/{run_id}/labels"): "shipments:write",
+    ("GET", "/v1/bulk-runs/{run_id}/labels"): "shipments:read",
     # Печатные формы. Чтение — область отправлений: документ существует
     # только при отправлении и ничего сверх него не открывает. Заказ формы
     # отнесён к записи, потому что он тратит вызов у перевозчика, а у Почты
