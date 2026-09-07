@@ -112,8 +112,11 @@ export interface ShipmentDocument {
   shipment_id: string | null
   type: 'label' | 'waybill' | 'manifest' | 'inventory' | 'acceptance_register'
   format: 'pdf' | 'zpl' | 'png'
-  /** `pending` — перевозчик формирует; `ready` — файл у нас; `failed` — причина рядом. */
-  status: 'pending' | 'ready' | 'failed'
+  /**
+   * `pending` — перевозчик формирует; `ready` — файл у нас; `failed` —
+   * причина рядом; `expired` — файл отслужил и удалён, запись осталась.
+   */
+  status: 'pending' | 'ready' | 'failed' | 'expired'
   size_bytes: number | null
   error: string | null
   generated_at: string | null
@@ -166,6 +169,12 @@ export type Shipment = components['schemas']['Shipment'] & {
   number: string
   carrier_name: string | null
   created_at: string
+  /**
+   * Номер накладной у перевозчика. Отдельно от `external_id`: тот
+   * идентифицирует заказ, а накладная — перевозочный документ, и у Деловых
+   * Линий это разные значения (ADR-0030).
+   */
+  waybill_number?: string | null
 }
 
 /**

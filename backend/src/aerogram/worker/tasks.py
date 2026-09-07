@@ -50,6 +50,7 @@ from aerogram.worker.app import app
 __all__ = [
     "SCORE_PERIOD_DAYS",
     "deliver_webhooks",
+    "expire_document_files",
     "fetch_pending_documents",
     "poll_shipment_statuses",
     "purge_raw_calls",
@@ -224,6 +225,17 @@ async def _documents_tenant(tenant_id: UUID) -> int:
         return await DocumentService(session, get_settings()).fetch_pending()
 
 
+async def _expire_documents_tenant(tenant_id: UUID) -> int:
+    """Удалить файлы печатных форм, отслужившие своё (ADR-0030).
+
+    Записи остаются: «форма была заказана и напечатана» — факт каталога,
+    и он переживает файл. Уходит только сам файл с персональными данными
+    получателя.
+    """
+    async with session_scope(tenant_id) as session:
+        return await DocumentService(session, get_settings()).expire_files()
+
+
 async def _purge_tenant(tenant_id: UUID) -> int:
     """Удалить сырьё вызовов с истёкшим сроком хранения (раздел 8.2 ТЗ, п. 6)."""
     async with session_scope(tenant_id) as session:
@@ -335,6 +347,18 @@ def sync_carrier_references() -> dict[str, int]:
 def fetch_pending_documents() -> dict[str, int]:
     """Дотянуть асинхронные печатные формы перевозчиков (ADR-0016)."""
     return asyncio.run(_for_each_tenant("fetch_pending_documents", _documents_tenant))
+
+
+@app.task(name="aerogram.worker.tasks.expire_document_files")  # type: ignore[untyped-decorator]
+def expire_document_files() -> dict[str, int]:
+    """Истечение файлов печатных форм (ADR-0030).
+
+    Обходятся ВСЕ тенанты, а не только активные: приостановка тенанта
+    не продлевает срок хранения персональных данных в его этикетках.
+    """
+    return asyncio.run(
+        _for_each_tenant("expire_document_files", _expire_documents_tenant, tenants=_all_tenants)
+    )
 
 
 @app.task(name="aerogram.worker.tasks.purge_raw_calls")  # type: ignore[untyped-decorator]

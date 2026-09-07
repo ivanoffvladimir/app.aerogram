@@ -150,6 +150,10 @@ function ShipmentCard() {
               <dd>{data.tracking_number ?? '—'}</dd>
               <dt>Номер у перевозчика</dt>
               <dd>{data.external_id ?? '—'}</dd>
+              {/* Накладная и заказ нумеруются по-разному: у Деловых Линий
+                  это два разных значения, и в споре предъявляют накладную. */}
+              <dt>Номер накладной</dt>
+              <dd>{data.waybill_number ?? '—'}</dd>
               <dt>Ожидаемая доставка</dt>
               <dd>{formatDateTime(data.eta)}</dd>
               <dt>Крайний срок</dt>

@@ -33,7 +33,7 @@ from aerogram.documents.schemas import BatchLabelsOut, DocumentOut, LabelRequest
 from aerogram.documents.storage import CONTENT_TYPES, ObjectStorage, document_key
 from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import DocumentFormat, DocumentType, LabelFormat
-from aerogram.shared.errors import AerogramError, Conflict, NotFound
+from aerogram.shared.errors import AerogramError, Conflict, NotFound, StorageUnavailable
 from aerogram.shared.ids import uuid7
 from aerogram.shared.logging import get_logger
 from aerogram.shipments.models import Shipment
@@ -75,6 +75,18 @@ PENDING_BATCH = 50
 #: и сторожевой тест берут его отсюда. Разойдись копии — каждая соврала бы
 #: своё, и заметили бы это через годы.
 RETENTION_YEARS = 5
+
+#: Сколько файл печатной формы живёт после того, как отправление пришло
+#: к финальному статусу (ADR-0030). Решение человека.
+#:
+#: Перепечатать нужно, пока груз в пути: этикетка рвётся и пачкается.
+#: После вручения печатать её незачем, а месяц покрывает претензию
+#: по самой форме. Срок считается от финального статуса, а не от создания,
+#: — иначе долгая доставка съедала бы его до вручения.
+FILE_GRACE = timedelta(days=30)
+
+#: Сколько файлов истекает за один проход по тенанту.
+EXPIRY_BATCH = 200
 
 
 class DocumentService:
@@ -230,6 +242,39 @@ class DocumentService:
                 pulled += 1
         return pulled
 
+    async def expire_files(self, *, now: datetime | None = None) -> int:
+        """Удалить файлы форм, отслуживших своё. Записи остаются.
+
+        Файл печатной формы — рабочий инструмент кладовщика, а не наш архив:
+        при договоре на информационное обслуживание перевозочные документы
+        хранят стороны договора перевозки. Персональные данные получателя
+        в файле есть, и держать их дольше цели статья 5 закона № 152-ФЗ
+        не разрешает.
+
+        Запись при этом не удаляется никогда: «форма была заказана
+        и напечатана» — факт каталога, и он переживает файл. Номер накладной
+        к этому моменту уже лежит в отправлении.
+        """
+        moment = now or utcnow()
+        expired = 0
+        for document, key in await self._documents.expired_files(
+            moment - FILE_GRACE, limit=EXPIRY_BATCH
+        ):
+            try:
+                await self._storage.delete(key)
+            except StorageUnavailable:
+                # Хранилище не ответило — вернёмся следующим циклом. Пометить
+                # запись истёкшей, не удалив файл, значило бы потерять его
+                # из виду: искать по ключу станет негде.
+                log.warning("documents.expiry_deferred", document_id=str(document.id))
+                continue
+            document.s3_key = None
+            document.status = "expired"
+            expired += 1
+        if expired:
+            log.info("documents.files_expired", count=expired)
+        return expired
+
     # --- Вспомогательное ---------------------------------------------------
 
     async def _pull(self, document: Document, fmt: LabelFormat) -> bool:
@@ -266,6 +311,14 @@ class DocumentService:
         if result.is_pending or result.content is None:
             # Штатное состояние, а не ошибка: подметание вернётся за файлом.
             return False
+
+        if result.external_ref and not shipment.waybill_number:
+            # Номер накладной приходит вместе с печатной формой и больше
+            # ниоткуда: у Деловых Линий это отдельное значение, не номер
+            # заказа. Он и есть то, ради чего ведётся база накладных, —
+            # и он обязан пережить удаление самого файла (ADR-0030).
+            shipment.waybill_number = result.external_ref[:64]
+            log.info("documents.waybill_number", shipment_id=str(shipment.id))
 
         stored = DocumentFormat(document.format)
         key = document_key(document.tenant_id, shipment.id, document.id, stored)

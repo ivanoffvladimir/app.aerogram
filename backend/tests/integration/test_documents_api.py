@@ -12,17 +12,20 @@
 
 from __future__ import annotations
 
+import os
 from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
 
 from aerogram.carriers import registry
 from aerogram.carriers.base import CarrierAccount, LabelResult
 from aerogram.documents import service as documents_service
 from aerogram.documents.storage import ObjectStorage
+from aerogram.shared.clock import utcnow
 from aerogram.shared.enums import LabelFormat
 from aerogram.shared.errors import CarrierValidationError
 from aerogram.shared.ids import uuid7
@@ -33,6 +36,7 @@ from tests.integration.test_shipments_api import ShippingCarrier
 pytestmark = pytest.mark.asyncio
 
 LABEL = b"%PDF-1.4 fake label"
+WAYBILL_NUMBER = "DL-НАКЛ-77123"
 
 
 class LabelCarrier(ShippingCarrier):
@@ -53,7 +57,9 @@ class LabelCarrier(ShippingCarrier):
             return LabelResult(format=fmt, content=None, is_pending=True)
         if self.behaviour == "error":
             raise CarrierValidationError("Форма для этого заказа недоступна", carrier_code="fake")
-        return LabelResult(format=fmt, content=LABEL, is_pending=False)
+        # ``external_ref`` — номер накладной. Так его отдают Деловые Линии,
+        # и он не совпадает с номером заказа.
+        return LabelResult(format=fmt, content=LABEL, is_pending=False, external_ref=WAYBILL_NUMBER)
 
 
 class Store:
@@ -270,6 +276,174 @@ class TestNotReady:
 
         assert document["status"] == "failed"
         assert document["error"] == "Форма для этого заказа недоступна"
+
+
+class TestWaybillNumber:
+    """База накладных обязана знать номер самой накладной (ADR-0030).
+
+    До этого он приходил в ``external_ref`` и выбрасывался: колонки под него
+    не было, и база накладных оставалась без номеров накладных.
+    """
+
+    async def test_the_number_reaches_the_shipment(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier: LabelCarrier,
+        store: Store,
+    ) -> None:
+        shipment = await _shipment(client, headers)
+        assert shipment.get("waybill_number") is None, "до печатной формы номера ещё нет"
+
+        await _order(client, headers, shipment["id"])
+
+        card = await client.get(f"/v1/shipments/{shipment['id']}", headers=headers)
+        assert card.json()["waybill_number"] == WAYBILL_NUMBER
+
+    async def test_the_number_is_searchable(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier: LabelCarrier,
+        store: Store,
+    ) -> None:
+        """Оператор держит в руках накладную, а не наш номер."""
+        shipment = await _shipment(client, headers)
+        await _order(client, headers, shipment["id"])
+
+        found = await client.get(f"/v1/shipments?q={WAYBILL_NUMBER}", headers=headers)
+        assert [item["id"] for item in found.json()["items"]] == [shipment["id"]]
+
+    async def test_the_number_outlives_the_file(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier: LabelCarrier,
+        store: Store,
+        database_url: str,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        """Ради этого номер и лежит в отправлении, а не рядом с файлом."""
+        shipment = await _shipment(client, headers)
+        await _order(client, headers, shipment["id"])
+        await _finish(database_url, carrier_setup[0])
+        await _expire(database_url, carrier_setup[0])
+
+        card = await client.get(f"/v1/shipments/{shipment['id']}", headers=headers)
+        assert card.json()["waybill_number"] == WAYBILL_NUMBER
+
+
+class TestFileExpiry:
+    """Файл печатной формы отслуживает и удаляется, запись остаётся.
+
+    Он рабочий инструмент кладовщика, а не наш архив: перевозочные документы
+    хранят стороны договора перевозки. Персональные данные получателя в нём
+    есть, и держать их дольше цели статья 5 закона № 152-ФЗ не разрешает.
+    """
+
+    async def test_the_file_goes_and_the_record_stays(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier: LabelCarrier,
+        store: Store,
+        database_url: str,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        shipment = await _shipment(client, headers)
+        await _order(client, headers, shipment["id"])
+        assert len(store.objects) == 1
+
+        await _finish(database_url, carrier_setup[0])
+        assert await _expire(database_url, carrier_setup[0]) == 1
+
+        assert store.objects == {}, "файл с персональными данными остался"
+        listed = await client.get(f"/v1/shipments/{shipment['id']}/documents", headers=headers)
+        # Запись переживает файл: «форма была заказана и напечатана» —
+        # факт каталога.
+        assert [d["status"] for d in listed.json()] == ["expired"]
+
+    async def test_an_expired_file_is_not_offered_for_download(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier: LabelCarrier,
+        store: Store,
+        database_url: str,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        shipment = await _shipment(client, headers)
+        document = await _order(client, headers, shipment["id"])
+        await _finish(database_url, carrier_setup[0])
+        await _expire(database_url, carrier_setup[0])
+
+        response = await client.get(f"/v1/documents/{document['id']}/content", headers=headers)
+        assert response.status_code == 409, response.text
+
+    async def test_a_shipment_still_in_transit_keeps_its_file(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier: LabelCarrier,
+        store: Store,
+        database_url: str,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        """Перепечатать нужно, пока груз в пути: этикетка рвётся и пачкается."""
+        shipment = await _shipment(client, headers)
+        await _order(client, headers, shipment["id"])
+
+        assert await _expire(database_url, carrier_setup[0]) == 0
+        assert len(store.objects) == 1
+
+    async def test_the_grace_period_is_respected(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        carrier: LabelCarrier,
+        store: Store,
+        database_url: str,
+        carrier_setup: tuple[UUID, UUID],
+    ) -> None:
+        """Месяц после вручения — на претензию по самой форме."""
+        shipment = await _shipment(client, headers)
+        await _order(client, headers, shipment["id"])
+        await _finish(database_url, carrier_setup[0], ago=timedelta(days=5))
+
+        assert await _expire(database_url, carrier_setup[0]) == 0
+        assert len(store.objects) == 1
+
+
+async def _finish(
+    database_url: str, tenant_id: UUID, *, ago: timedelta = timedelta(days=40)
+) -> None:
+    """Довести отправления тенанта до вручения указанной давности."""
+    from sqlalchemy import update
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from aerogram.shipments.models import Shipment
+
+    engine = create_async_engine(os.getenv("TEST_MIGRATION_DATABASE_URL", database_url))
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant_id)}
+            )
+            await conn.execute(
+                update(Shipment).values(status="DELIVERED", last_event_at=utcnow() - ago)
+            )
+    finally:
+        await engine.dispose()
+
+
+async def _expire(database_url: str, tenant_id: UUID) -> int:
+    """Прогнать истечение файлов под тенантом."""
+    from aerogram.config import get_settings
+    from aerogram.db import session_scope
+    from aerogram.documents.service import DocumentService
+
+    async with session_scope(tenant_id) as session:
+        return await DocumentService(session, get_settings()).expire_files()
 
 
 class TestIsolation:

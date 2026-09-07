@@ -162,12 +162,16 @@ class ShipmentRepository:
             # которую заметят ровно один раз и в самый неподходящий момент.
             stmt = stmt.where(Shipment.created_at < created_to)
         if q:
-            # Поиск оператора: он держит в руках либо наш номер, либо трек ТК.
+            # Поиск оператора: он держит в руках наш номер, трек ТК, номер
+            # заказа у перевозчика — или номер накладной, а это четвёртое
+            # значение (ADR-0030): у Деловых Линий накладная и заказ
+            # нумеруются по-разному.
             pattern = f"%{q}%"
             stmt = stmt.where(
                 Shipment.number.ilike(pattern)
                 | Shipment.tracking_number.ilike(pattern)
                 | Shipment.external_id.ilike(pattern)
+                | Shipment.waybill_number.ilike(pattern)
             )
         return stmt
 

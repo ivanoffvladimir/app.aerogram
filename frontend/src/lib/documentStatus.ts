@@ -32,6 +32,11 @@ export function documentTitle(document: ShipmentDocument): string {
 export function documentState(document: ShipmentDocument): string {
   if (document.status === 'ready') return 'готова'
   if (document.status === 'pending') return 'перевозчик формирует форму'
+  // «Отслужила» и «не получилось» — разные вещи, и путать их нельзя:
+  // по второму кладовщик пойдёт разбираться с перевозчиком, хотя груз
+  // давно доставлен, а форма просто удалена вместе с персональными
+  // данными получателя (ADR-0030).
+  if (document.status === 'expired') return 'файл удалён: форма отслужила'
   return document.error ?? 'не удалось получить форму'
 }
 

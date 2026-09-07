@@ -66,6 +66,12 @@ app.conf.beat_schedule = {
         "task": "aerogram.worker.tasks.fetch_pending_documents",
         "schedule": crontab(minute="*/5"),
     },
+    # Файлы печатных форм, отслужившие своё (ADR-0030). Ежесуточно и ночью:
+    # это уборка персональных данных, а не работа по расписанию склада.
+    "expire-document-files": {
+        "task": "aerogram.worker.tasks.expire_document_files",
+        "schedule": crontab(hour=3, minute=50),
+    },
     # Справочники терминалов и ПВЗ синхронизируются ежесуточно (FR-8.3).
     "sync-carrier-references": {
         "task": "aerogram.worker.tasks.sync_carrier_references",

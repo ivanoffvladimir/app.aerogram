@@ -113,6 +113,12 @@ class Shipment(Base, TenantMixin, TimestampMixin):
     )
     #: Ключ идемпотентности первого успешного создания (FR-2.3), для сверки «призраков».
     idempotency_key: Mapped[str | None] = mapped_column(String(255))
+    #: Номер накладной у перевозчика — то, ради чего ведётся база накладных
+    #: (ADR-0030). Отдельно от ``external_id``: тот идентифицирует ЗАКАЗ
+    #: в системе ТК, а накладная — перевозочный документ, и у Деловых Линий
+    #: это разные значения. Появляется, когда перевозчик отдаёт печатную
+    #: форму, и переживает удаление самого файла.
+    waybill_number: Mapped[str | None] = mapped_column(String(64))
     #: Последнее событие трекинга — держится денормализованно ради списка отправлений.
     last_event_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     next_poll_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

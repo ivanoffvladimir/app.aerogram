@@ -89,6 +89,11 @@ class ShipmentOut(BaseModel):
     carrier_id: UUID
     carrier_name: str | None
     tracking_number: str | None
+    #: Номер накладной у перевозчика. Отдельно от ``external_id``: тот
+    #: идентифицирует ЗАКАЗ, а накладная — перевозочный документ, и у Деловых
+    #: Линий это разные значения (ADR-0030). Появляется вместе с печатной
+    #: формой и переживает удаление самого файла.
+    waybill_number: str | None = None
     status: str
     eta: datetime | None
     deadline: datetime | None

@@ -5,11 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aerogram.documents.models import Document
-from aerogram.shared.enums import DocumentFormat, DocumentType
+from aerogram.shared.enums import FINAL_STATUSES, DocumentFormat, DocumentType
+from aerogram.shipments.models import Shipment
 
 __all__ = ["DocumentRepository"]
 
@@ -55,6 +56,36 @@ class DocumentRepository:
             Document.format == fmt,
         )
         return (await self._session.execute(stmt)).scalars().first()
+
+    async def expired_files(
+        self, finished_before: datetime, *, limit: int
+    ) -> list[tuple[Document, str]]:
+        """Готовые файлы отправлений, пришедших к финалу раньше срока.
+
+        «Пришло к финалу» — это ``cancelled_at`` у отменённого и последнее
+        событие у доставленного: после финального статуса опрос
+        останавливается, и другого события уже не будет. ``created_at``
+        подстрахует случай, когда ни того ни другого нет, — иначе запрос
+        молча пропустил бы такую строку и файл жил бы вечно.
+
+        Возвращается пара с ключом: он ``NULL``-абельный в схеме, и проверку
+        на месте вызова легко забыть.
+        """
+        finished = func.coalesce(Shipment.cancelled_at, Shipment.last_event_at, Shipment.created_at)
+        stmt = (
+            select(Document, Document.s3_key)
+            .join(Shipment, Shipment.id == Document.shipment_id)
+            .where(
+                Document.status == "ready",
+                Document.s3_key.is_not(None),
+                Shipment.status.in_(FINAL_STATUSES),
+                finished < finished_before,
+            )
+            .order_by(finished)
+            .limit(limit)
+        )
+        rows = (await self._session.execute(stmt)).all()
+        return [(document, key) for document, key in rows if key]
 
     async def pending(self, *, older_than: datetime, limit: int) -> list[Document]:
         """Документы, которые перевозчик обещал сформировать.

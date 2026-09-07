@@ -622,6 +622,7 @@ def _to_out(
         carrier_id=shipment.carrier_id,
         carrier_name=carrier_name,
         tracking_number=shipment.tracking_number,
+        waybill_number=shipment.waybill_number,
         status=contract_status(shipment.status),
         eta=promise[0],
         deadline=promise[1],

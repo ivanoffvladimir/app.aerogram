@@ -34,6 +34,11 @@ class Document(Base, TenantMixin):
 
     ``status = pending`` — форма заказана у перевозчика и ещё готовится: асинхронность
     печатной формы скрыта от клиента адаптером (FR-4.5), но состояние видно в UI.
+
+    ``status = expired`` — файл отслужил и удалён, запись осталась. Файл
+    печатной формы не наш архив: перевозочные документы хранят стороны
+    договора перевозки, а в файле персональные данные получателя, которые
+    нельзя держать дольше цели (ADR-0030).
     """
 
     __tablename__ = "documents"
@@ -58,7 +63,13 @@ class Document(Base, TenantMixin):
     )
 
     __table_args__ = (
-        CheckConstraint("status IN ('pending', 'ready', 'failed')", name="document_status"),
+        # ``expired`` — файл истёк и удалён, запись осталась. Не ``failed``:
+        # тот означает «не получилось», а здесь получилось и отслужило.
+        # Спутать их значит через год объяснять клиенту, что заказ сорвался,
+        # тогда как он был доставлен (ADR-0030).
+        CheckConstraint(
+            "status IN ('pending', 'ready', 'failed', 'expired')", name="document_status"
+        ),
         Index("ix_documents_shipment_id_type", "shipment_id", "type"),
         Index("ix_documents_tenant_id_created_at", "tenant_id", "created_at"),
     )

@@ -44,6 +44,13 @@ describe('documentState', () => {
     )
   })
 
+  it('отличает «отслужила» от «не получилось»', () => {
+    // По «не получилось» кладовщик пойдёт разбираться с перевозчиком,
+    // хотя груз давно доставлен, а файл просто удалён вместе
+    // с персональными данными получателя.
+    expect(documentState(document({ status: 'expired' }))).toBe('файл удалён: форма отслужила')
+  })
+
   it('неудача без причины всё же что-то говорит', () => {
     // Ограничение схемы причину требует, но пустая строка в базе возможна,
     // а пустая клетка на экране читается как «неизвестно что произошло».
@@ -58,5 +65,7 @@ describe('isDownloadable', () => {
     expect(isDownloadable(document())).toBe(true)
     expect(isDownloadable(document({ status: 'pending' }))).toBe(false)
     expect(isDownloadable(document({ status: 'failed' }))).toBe(false)
+    // Кнопка на удалённый файл вела бы в 409 — и выглядела бы поломкой.
+    expect(isDownloadable(document({ status: 'expired' }))).toBe(false)
   })
 })
