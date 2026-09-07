@@ -334,16 +334,13 @@ class TestErrors:
 class TestUnimplementedMethods:
     """Ненаписанное отказывает явно, а не возвращает пустоту.
 
-    Заказы (неделя 6) написаны — см. test_cdek_orders.py.
+    Заказы (неделя 6) написаны — см. test_cdek_orders.py, печатная форма
+    (неделя 7) — см. test_cdek_print.py.
 
     Пустой список или None здесь выглядели бы как «перевозчик ничего не вернул»
     и разошлись бы по домену как данные: отправление без трек-номера,
     отчёт без событий.
     """
-
-    async def test_label_is_declared_but_refuses(self, account: CarrierAccount) -> None:
-        with pytest.raises(CarrierError, match="печатная форма"):
-            await CdekAdapter().label("ext-1", LabelFormat.PDF_A6, account)
 
     def test_parsing_a_webhook_no_longer_refuses(self) -> None:
         """Разбор написан; его поведение проверяется в test_cdek_webhook.py.

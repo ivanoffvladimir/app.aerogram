@@ -1,0 +1,27 @@
+{
+  "entity": {
+    "uuid": "72753031-8d0a-4b3f-9b1e-6c3a8c9d0e11",
+    "url": "https://api.edu.cdek.ru/v2/print/barcodes/72753031-8d0a-4b3f-9b1e-6c3a8c9d0e11.pdf",
+    "orders": [
+      {
+        "order_uuid": "d1d9a0f4-1b7c-4e2f-9a83-5f6c7d8e9a0b",
+        "cdek_number": 1106207152
+      }
+    ],
+    "statuses": [
+      {
+        "code": "ACCEPTED",
+        "name": "Принят",
+        "date_time": "2026-09-07T12:00:00+0700"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "request_uuid": "b9a1f0c2-4d5e-4a6b-8c7d-0e1f2a3b4c5d",
+      "type": "CREATE",
+      "state": "SUCCESSFUL",
+      "date_time": "2026-09-07T12:00:12+0700"
+    }
+  ]
+}

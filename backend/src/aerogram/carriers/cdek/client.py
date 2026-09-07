@@ -146,6 +146,31 @@ class CdekClient:
             "POST", path, operation=operation, payload=payload, on_raw_call=on_raw_call
         )
 
+    async def get_bytes(self, path: str, *, operation: str) -> bytes:
+        """``GET``, возвращающий файл как есть.
+
+        Печатная форма приходит PDF-ом, и разбирать её как JSON нечем.
+        Но тем же путём приходит и отказ — телом JSON, — поэтому тип
+        содержимого проверяется: отдать наружу байты сообщения об ошибке
+        значило бы положить на склад «этикетку», которая не открывается.
+
+        Переавторизация на 401 та же, что в ``call``: токен могли отозвать
+        между запросом формы и её скачиванием.
+        """
+        response = await self._authorized(
+            "GET", path, operation=operation, payload=None, params=None, on_raw_call=None
+        )
+        content_type = response.headers.get("content-type", "").lower()
+        if "json" in content_type:
+            body = response.json()
+            message = ""
+            if isinstance(body, dict):
+                errors = body.get("errors")
+                if isinstance(errors, list) and errors and isinstance(errors[0], dict):
+                    message = str(errors[0].get("message") or "")
+            raise CarrierError(message or "СДЭК не вернул файл", carrier_code="cdek")
+        return response.content
+
     async def call(
         self,
         method: str,
@@ -163,10 +188,41 @@ class CdekClient:
         рассинхронизации часов. Один повтор после переавторизации отличает
         этот случай от неверных учётных данных, при которых повтор бесполезен.
         """
+        response = await self._authorized(
+            method,
+            path,
+            operation=operation,
+            payload=payload,
+            params=params,
+            on_raw_call=on_raw_call,
+            raise_for_status=raise_for_status,
+        )
+        body = response.json()
+        if not isinstance(body, dict):
+            raise CarrierError("Неожиданный формат ответа СДЭК", carrier_code="cdek")
+        return body
+
+    async def _authorized(
+        self,
+        method: str,
+        path: str,
+        *,
+        operation: str,
+        payload: dict[str, Any] | None,
+        params: dict[str, Any] | None,
+        on_raw_call: Any,
+        raise_for_status: bool = True,
+    ) -> httpx.Response:
+        """Запрос с токеном и однократной переавторизацией на 401.
+
+        Отдельный метод, потому что разбор ответа у вызовов разный — JSON
+        у одних, файл у других, — а вот правило про отозванный токен одно
+        на всех, и разъехаться двум его копиям нельзя.
+        """
         for attempt in (1, 2):
             token = await self.token()
             try:
-                response = await self._http.request(
+                return await self._http.request(
                     method,
                     path,
                     operation=operation,
@@ -181,11 +237,5 @@ class CdekClient:
                 if attempt == 2:
                     raise
                 log.warning("cdek.token_rejected_retrying", operation=operation)
-                continue
-
-            body = response.json()
-            if not isinstance(body, dict):
-                raise CarrierError("Неожиданный формат ответа СДЭК", carrier_code="cdek")
-            return body
 
         raise CarrierAuthError(carrier_code="cdek")

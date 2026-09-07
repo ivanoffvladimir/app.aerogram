@@ -1,0 +1,17 @@
+{
+  "entity": {},
+  "requests": [
+    {
+      "request_uuid": "b9a1f0c2-4d5e-4a6b-8c7d-0e1f2a3b4c5d",
+      "type": "CREATE",
+      "state": "INVALID",
+      "date_time": "2026-09-07T12:00:00+0700",
+      "errors": [
+        {
+          "code": "v2_entity_not_found",
+          "message": "Не найден объект по данному идентификатору"
+        }
+      ]
+    }
+  ]
+}

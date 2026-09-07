@@ -1,9 +1,8 @@
 """Адаптер СДЭК.
 
-Недели 5–6 плана: расчёт (``quote``), создание, отмена, сверка «призраков»
-и трекинг заказов. Печатные формы — неделя 7; метод объявлен и честно
-сообщает, что ещё не реализован, вместо того чтобы молча возвращать пустоту.
-Подтверждение подлинности вебхука ждёт решения человека (ADR-0015).
+Недели 5–7 плана: расчёт (``quote``), создание, отмена, сверка «призраков»,
+трекинг заказов и печатная форма ШК-места. Подтверждение подлинности
+вебхука ждёт решения человека (ADR-0015).
 
 К базе данных адаптер не обращается (ADR-0005) и справочники не записывает,
 а отдаёт (ADR-0009). Коды городов СДЭК приходят в DTO уже разрешёнными:
@@ -46,6 +45,16 @@ from aerogram.carriers.cdek.orders import (
     parse_order,
     parse_statuses,
     request_error,
+)
+from aerogram.carriers.cdek.print_forms import (
+    BARCODES_PATH,
+    FORMAT_CODES,
+    barcode_payload,
+    download_path,
+    is_ready,
+    print_uuid,
+    status_path,
+    waybill_number,
 )
 from aerogram.carriers.cdek.webhook import parse_order_status
 from aerogram.carriers.health import probe
@@ -394,7 +403,73 @@ class CdekAdapter:
         return await probe(call, carrier_code=CDEK_CODE)
 
     async def label(self, ext_id: str, fmt: LabelFormat, acc: CarrierAccount) -> LabelResult:
-        raise self._not_implemented("печатная форма", "неделя 7")
+        """ШК-место: ``POST print/barcodes`` → опрос → файл.
+
+        Форма у СДЭК готовится асинхронно, и контракт это допускает (FR-4.5):
+        неготовая форма — не ошибка, а ``is_pending`` без содержимого,
+        за которым вернётся подметание.
+
+        **Ждать здесь нельзя.** Тот же метод вызывается пакетной печатью
+        по списку прогона: секунда ожидания на этикетку превращается
+        в две минуты на сотне мест — в одном HTTP-запросе. Поэтому цикл
+        ровно один: заказали, спросили, забрали если готово.
+
+        **Цена этой простоты** — повтор создаёт у СДЭК новую заявку на
+        печать вместо опроса прежней: сохранить её идентификатор между
+        вызовами некуда, у документа нет поля под ссылку перевозчика,
+        а у контракта адаптера — места, чтобы её принять. Практически это
+        одна лишняя заявка на этикетку: первый заказ почти всегда застаёт
+        форму неготовой, а подметание через пять минут забирает её со
+        второго захода. Как убрать совсем — записано в ``docs/status.md``.
+        """
+        if fmt not in FORMAT_CODES:
+            # Молча подменить лист значило бы отдать на термопринтер файл,
+            # который он не напечатает, и узнать об этом на складе.
+            raise CarrierValidationError(
+                f"СДЭК печатает ШК-место только в PDF A4, A5 или A6, запрошен {fmt.value}",
+                field="format",
+                carrier_code=CDEK_CODE,
+            )
+
+        client = self._client_factory(acc)
+        try:
+            created = await client.post(
+                BARCODES_PATH, barcode_payload(ext_id, fmt), operation="label"
+            )
+            self._raise_if_rejected(created, "label")
+            print_uuid_ = print_uuid(created)
+            if print_uuid_ is None:
+                raise CarrierError(
+                    "СДЭК не вернул идентификатор запроса на печать", carrier_code=CDEK_CODE
+                )
+
+            status = await client.call(
+                "GET", status_path(print_uuid_), operation="label", payload=None
+            )
+            self._raise_if_rejected(status, "label")
+            if not is_ready(status):
+                log.info("cdek.label_not_ready", external_id=ext_id, print_uuid=print_uuid_)
+                return LabelResult(format=fmt, content=None, is_pending=True)
+
+            content = await client.get_bytes(download_path(print_uuid_), operation="label")
+        finally:
+            await client.aclose()
+
+        if not content:
+            # Пустой файл — не этикетка. Отдать его значило бы сказать
+            # «печатайте», а печатать нечего.
+            raise CarrierError("СДЭК вернул пустую печатную форму", carrier_code=CDEK_CODE)
+
+        # ``external_ref`` — номер накладной, а не идентификатор заявки
+        # на печать: он попадает в каталог накладных и обязан пережить
+        # сам файл (ADR-0030). Идентификатор заявки живёт час и там
+        # не значил бы ничего.
+        return LabelResult(
+            format=fmt,
+            content=content,
+            is_pending=False,
+            external_ref=waybill_number(status),
+        )
 
     def parse_webhook(self, payload: dict[str, object]) -> list[WebhookUpdate]:
         """Разбор события ``ORDER_STATUS`` (``cdek.webhook``).
