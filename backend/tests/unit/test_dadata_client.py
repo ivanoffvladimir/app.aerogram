@@ -121,11 +121,36 @@ class TestSuggestAddress:
 
 
 class TestErrorMapping:
-    async def test_403_means_quota_exhausted_not_forbidden(self) -> None:
-        """У ДаData исчерпанная суточная квота приходит как 403, а не 429."""
+    async def test_403_names_all_three_causes(self) -> None:
+        """403 у ДаData значит три разные вещи, и текст обязан назвать все.
+
+        По документации ДаData это «несуществующий ключ», «не подтверждена
+        почта» ИЛИ «исчерпан дневной лимит», и различить их по ответу нельзя:
+        на все три приходит один и тот же `Feature 'SUGGESTIONS' disabled`.
+        Сказать оператору только про лимит — отправить его ждать до завтра
+        вместо того, чтобы исправить ключ.
+        """
         client = _client(lambda _: httpx.Response(403, json={"message": "disabled"}))
-        with pytest.raises(DirectoryQuotaExceeded):
+        with pytest.raises(DirectoryQuotaExceeded) as info:
             await client.suggest_address("новосиб")
+        message = str(info.value)
+        assert "ключ" in message
+        assert "почт" in message
+        assert "лимит" in message
+        await client.aclose()
+
+    async def test_403_does_not_leak_the_api_key(self) -> None:
+        """ДаData подставляет НАШ ключ в текст ошибки: `disabled for token 'X'`.
+
+        Пропустить её текст наружу значило бы отдать ключ в ответ API и в лог
+        одним движением. Наружу идёт только наш собственный текст.
+        """
+        body = {"message": "Feature 'SUGGESTIONS' disabled for token 'секретный-ключ'"}
+        client = _client(lambda _: httpx.Response(403, json=body))
+        with pytest.raises(DirectoryQuotaExceeded) as info:
+            await client.suggest_address("новосиб")
+        assert "секретный-ключ" not in str(info.value)
+        assert "SUGGESTIONS" not in str(info.value)
         await client.aclose()
 
     async def test_401_is_auth_error(self) -> None:
