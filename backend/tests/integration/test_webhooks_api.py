@@ -3,6 +3,15 @@
 Разрешение имён подменяется: тест, зависящий от внешнего DNS, рано или поздно
 мигнёт по причине, не имеющей отношения к проверяемому коду. Сама проверка
 адреса при этом настоящая — подменяется только источник адресов.
+
+По той же причине заморожены часы приёма событий. События здесь датированы
+абсолютно, а ``TrackingService.ingest`` сравнивает их с ``utcnow`` своего
+модуля по порогу тишины в пять суток. Восьмого сентября порог прошёл сам
+собой, и с тех пор каждый приём в этом файле уходил в ветку «зависло»:
+отправление помечалось инцидентом, а следующий опрос назначался через сутки
+вместо получаса. Тесты этого не заметили — ни один из них не смотрит
+на ``has_incident`` и на расписание, — то есть файл молча проверял не тот
+код, который собирался. Такое хуже красного: красное чинят.
 """
 
 from __future__ import annotations
@@ -36,6 +45,18 @@ ALL_EVENTS = [
     "shipment.exception",
     "shipment.delayed",
 ]
+
+
+#: Часы приёма событий: сразу после срока эталонного запроса. События тестов
+#: датированы раньше него, поэтому «зависло» не срабатывает, а «доставлено»
+#: не приезжает из будущего.
+INGEST_NOW = DEADLINE + timedelta(days=1)
+
+
+@pytest.fixture(autouse=True)
+def frozen_ingest(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Заморозить часы приёма событий — см. строку документации модуля."""
+    monkeypatch.setattr("aerogram.tracking.service.utcnow", lambda: INGEST_NOW)
 
 
 @pytest.fixture(autouse=True)
@@ -142,6 +163,44 @@ class TestEnqueue:
 
         queued = await _deliveries(cdek_setup)
         assert [d.event_type for d in queued] == ["shipment.status_changed"]
+
+    async def test_a_moving_shipment_is_not_marked_stalled(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        cdek_setup: UUID,
+        carrier: TrackingCarrier,
+    ) -> None:
+        """Сторож замороженных часов, а не проверка вебхуков.
+
+        Событие здесь датировано абсолютно, и без ``frozen_ingest`` разрыв
+        с настоящим временем однажды переваливает за порог тишины: приём
+        уходит в ветку «зависло», отправление получает инцидент, а следующий
+        опрос назначается через сутки вместо получаса. Ни один тест файла
+        на это не смотрел, поэтому расхождение жило молча — а молчащее
+        расхождение хуже красного теста, потому что красное чинят.
+
+        Утверждение здесь ровно про то, что приём считает отправление живым.
+        Снять заморозку теперь нельзя незаметно.
+        """
+        await _subscribe(client, headers)
+        shipment = await _shipment(client, headers)
+
+        async with session_scope(cdek_setup) as session:
+            stored = await ShipmentRepository(session).get(UUID(shipment["id"]))
+            assert stored is not None
+            await TrackingService(session, get_settings()).ingest(
+                stored,
+                [event("TAKEN_BY_COURIER", at=datetime(2026, 9, 3, 8, 0, tzinfo=UTC))],
+                carrier_code="cdek",
+                source=EventSource.WEBHOOK,
+            )
+
+        async with session_scope(cdek_setup) as session:
+            after = await ShipmentRepository(session).get(UUID(shipment["id"]))
+            assert after is not None
+            assert after.has_incident is False, "приём счёл живое отправление зависшим"
+            assert after.incident_type is None
 
     async def test_an_unchanged_status_queues_nothing(
         self,
