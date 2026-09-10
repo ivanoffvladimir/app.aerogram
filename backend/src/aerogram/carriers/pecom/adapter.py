@@ -47,6 +47,7 @@ from aerogram.carriers.base import (
     WebhookUpdate,
 )
 from aerogram.carriers.health import probe
+from aerogram.carriers.pecom.branches import BRANCHES_PATH, parse_branches
 from aerogram.carriers.pecom.client import PecomClient
 from aerogram.carriers.pecom.orders import (
     LIST_ORDERS_PATH,
@@ -256,9 +257,21 @@ class PecomAdapter:
         )
 
     async def fetch_refs(self, acc: CarrierAccount) -> RefCatalog:
-        raise CarrierNotConfigured(
-            "Выгрузка справочников ПЭК ещё не реализована", carrier_code=PECOM_CODE
-        )
+        """``POST /branches/all/`` — филиалы, города и склады одним вызовом.
+
+        Пустое тело запроса не случайность: по справке параметры этого метода
+        служат фильтрами, а нам нужна вся сеть — выгрузка полная, и домен
+        вправе гасить по ней отсутствующие терминалы.
+
+        Что здесь легко испортить, описано в ``branches``: в ответе четыре
+        идентификатора, а в расчёте годится только идентификатор склада.
+        """
+        client = self._client_factory(acc)
+        try:
+            body = await client.post(BRANCHES_PATH, {}, operation="fetch_refs")
+        finally:
+            await client.aclose()
+        return parse_branches(body)
 
     def parse_webhook(self, payload: dict[str, object]) -> list[WebhookUpdate]:
         """У ПЭК вебхуков нет — ни приёма события, ни подписки на него.

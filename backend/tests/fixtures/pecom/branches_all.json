@@ -1,0 +1,118 @@
+{
+  "branches": [
+    {
+      "id": "e5c3ede6-5ce7-11df-ac33-0017085a0478",
+      "branchCode": "АМ",
+      "title": "Армавир",
+      "address": "Краснодарский край, г. Армавир, ул. Мичурина, д. 7",
+      "country": "РОССИЯ",
+      "timezone": "UTC+03:00",
+      "cities": [
+        {
+          "title": "Армавир",
+          "cityId": "22f8a64a-9647-428f-89a6-1208c4edf756",
+          "cityStatus": 1,
+          "divisions": [
+            "8112fb89-5a96-11e4-94e4-00155d9d920f",
+            "2b8edc50-213e-11ec-80cf-00155d4a0436"
+          ]
+        },
+        {
+          "title": "Успенское (Успенский р-н)",
+          "cityId": "e15306b6-30ca-11de-b7f2-0019bbc986b4",
+          "cityStatus": 0,
+          "divisions": []
+        }
+      ],
+      "divisions": [
+        {
+          "id": "2b8edc50-213e-11ec-80cf-00155d4a0436",
+          "cityId": "22f8a64a-9647-428f-89a6-1208c4edf756",
+          "name": "Армавир ПВЗ",
+          "divisionPriority": 10,
+          "isAcceptanceOnly": false,
+          "departmentTypeId": 1,
+          "departmentType": "ПВЗ",
+          "divisionTimeOfWork": [
+            { "workFrom": "10:00", "workTo": "19:00", "dayOfWeek": "1" },
+            { "workFrom": "10:00", "workTo": "19:00", "dayOfWeek": "2" },
+            { "workFrom": "10:00", "workTo": "16:00", "dayOfWeek": "6" }
+          ],
+          "warehouses": [
+            {
+              "warehouseCode": "АМ0002",
+              "id": "f7a10d22-8e45-11df-bb3b-0019bbc941ce",
+              "divisionId": "2b8edc50-213e-11ec-80cf-00155d4a0436",
+              "name": "Армавир 02",
+              "address": "г.Армавир, ул.Ленина 1",
+              "addressDivision": "Россия, Краснодарский край, Армавир, улица Ленина, 1",
+              "coordinatesobj": { "latitude": 44.9891, "longitude": 41.1245 },
+              "maxWeight": 60.0,
+              "maxVolume": 0.25,
+              "maxWeightPerPlace": 30.0,
+              "maxDimension": 0.8
+            }
+          ]
+        },
+        {
+          "id": "8112fb89-5a96-11e4-94e4-00155d9d920f",
+          "cityId": "22f8a64a-9647-428f-89a6-1208c4edf756",
+          "name": "Армавир",
+          "divisionPriority": 80,
+          "isAcceptanceOnly": false,
+          "departmentTypeId": 4,
+          "departmentType": "Основное отделение филиала компании",
+          "divisionTimeOfWork": [
+            { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "1" },
+            { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "2" },
+            { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "3" },
+            { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "4" },
+            { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "5" }
+          ],
+          "warehouses": [
+            {
+              "warehouseCode": "АМ0001",
+              "id": "c496b0c6-8e45-11df-bb3b-0019bbc941ce",
+              "divisionId": "8112fb89-5a96-11e4-94e4-00155d9d920f",
+              "name": "Армавир 01",
+              "divisionName": "Армавир",
+              "address": "г.Армавир, ул.Мичурина 7",
+              "addressDivision": "Россия, Краснодарский край, Армавир, улица Мичурина, 7",
+              "coordinatesobj": { "latitude": 44.98426, "longitude": 41.100951 },
+              "email": "armavir@pecom.ru",
+              "telephone": "8(86137) 638-08",
+              "maxWeight": 0.0,
+              "maxVolume": 0.0,
+              "maxWeightPerPlace": 0.0,
+              "maxDimension": 0.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "b473ce9f-dd68-44ea-a4b2-4cb63b6e970d",
+      "branchCode": "МСК",
+      "title": "Москва",
+      "cities": [
+        {
+          "title": "Москва",
+          "cityId": "5c7775d2-0013-11ec-80cf-00155d4a0436",
+          "cityStatus": 1,
+          "divisions": ["9a11cc31-5a96-11e4-94e4-00155d9d920f"]
+        }
+      ],
+      "divisions": [
+        {
+          "id": "9a11cc31-5a96-11e4-94e4-00155d9d920f",
+          "cityId": "5c7775d2-0013-11ec-80cf-00155d4a0436",
+          "name": "Москва Южный порт",
+          "departmentTypeId": 0,
+          "departmentType": "Отделение компании",
+          "divisionTimeOfWork": [],
+          "warehouses": []
+        }
+      ]
+    }
+  ]
+}
